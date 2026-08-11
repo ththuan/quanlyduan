@@ -1,14 +1,11 @@
-# QLDA - Cập nhật và triển khai tự động
-# Chạy file này mỗi khi có thay đổi từ GitHub:
-#   PowerShell: .\deploy.ps1
+# Production - kéo code từ GitHub về và triển khai
+# Chạy: .\deploy.ps1
 
 Write-Output "==> Kéo code mới nhất từ GitHub..."
-git pull
+git pull origin master
 
-Write-Output "==> Build lại Docker image..."
+Write-Output "==> Build & deploy..."
 docker compose build qlda
-
-Write-Output "==> Triển khai..."
 docker compose up -d qlda
 
 Write-Output "==> Hoàn tất! https://quanlyduanctec.dpdns.org"
