@@ -1,0 +1,19 @@
+name: Build Docker Image
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t qlda:latest .
+
+      - name: Verify syntax
+        run: |
+          docker run --rm qlda:latest node --check /app/app.js
+          docker run --rm qlda:latest node --check /app/server/index.js
