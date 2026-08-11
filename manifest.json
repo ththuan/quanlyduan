@@ -1,0 +1,23 @@
+{
+  "name": "QLDA - Quản lý Dự án CTEC",
+  "short_name": "QLDA CTEC",
+  "description": "Phần mềm Quản lý Dự án Đầu tư Xây dựng - Trường Cao đẳng Kinh tế - Kỹ thuật Cần Thơ",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "landscape-primary",
+  "background_color": "#0f172a",
+  "theme_color": "#06b6d4",
+  "icons": [
+    {
+      "src": "logoCTEC.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "logoCTEC.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

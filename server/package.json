@@ -1,0 +1,19 @@
+{
+  "name": "qlda-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Backend API + static server for QLDA (Quan ly Du an Dau tu Xay dung)",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "multer": "^2.0.0",
+    "xlsx": "^0.18.5"
+  }
+}

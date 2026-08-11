@@ -1,0 +1,16 @@
+node_modules
+server/node_modules
+server/data
+server/uploads
+.git
+.gitignore
+scratch
+TONG HOP DU AN.xlsx
+Dockerfile
+docker-compose.yml
+.dockerignore
+Caddyfile
+certs
+scripts
+readme2.md
+readme3.md

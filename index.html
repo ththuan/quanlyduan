@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#06b6d4">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="QLDA CTEC">
+  <title>Phần mềm Quản lý dự án | Trường Cao đẳng Kinh tế - Kỹ thuật Cần Thơ</title>
+  <meta name="description" content="Phần mềm Quản lý Dự án Đầu tư Xây dựng - Trường Cao đẳng Kinh tế - Kỹ thuật Cần Thơ">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" type="image/png" href="logoCTEC.png">
+  <link rel="apple-touch-icon" href="logoCTEC.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,1,0" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- ========== TOP NAVIGATION ========== -->
+  <nav id="navbar">
+    <div class="nav-brand">
+      <span class="brand-icon"><img src="logoCTEC.png" alt="Logo CTEC"></span>
+      <div class="brand-text">
+        <h1>Quản lý Dự án</h1>
+      </div>
+    </div>
+
+    <div class="nav-tabs">
+      <button class="nav-tab active" data-view="dashboard">
+        <span class="material-symbols-rounded">dashboard</span>
+        <span>Tổng quan</span>
+      </button>
+      <button class="nav-tab" data-view="initiation">
+        <span class="material-symbols-rounded">rocket_launch</span>
+        <span>Chủ trương</span>
+      </button>
+      <button class="nav-tab" data-view="packages">
+        <span class="material-symbols-rounded">inventory_2</span>
+        <span>Gói thầu</span>
+      </button>
+      <button class="nav-tab" data-view="settlement">
+        <span class="material-symbols-rounded">fact_check</span>
+        <span>Quyết toán</span>
+      </button>
+      <button class="nav-tab" data-view="reports">
+        <span class="material-symbols-rounded">bar_chart</span>
+        <span>Báo cáo</span>
+      </button>
+    </div>
+
+    <div class="nav-actions">
+      <select id="project-selector" title="Chọn dự án"></select>
+      <button id="btn-add-project" class="btn-icon edit-only" title="Thêm dự án mới">
+        <span class="material-symbols-rounded">add_circle</span>
+      </button>
+      <button id="btn-edit-project" class="btn-icon edit-only" title="Sửa thông tin dự án">
+        <span class="material-symbols-rounded">edit_note</span>
+      </button>
+      <button id="btn-manage-users" class="btn-icon hidden" title="Quản lý người dùng">
+        <span class="material-symbols-rounded">group</span>
+      </button>
+      <button id="btn-backup-restore" class="btn-icon hidden" title="Sao lưu & Phục hồi dữ liệu">
+        <span class="material-symbols-rounded">cloud_sync</span>
+      </button>
+      <button id="btn-sys-config" class="btn-icon hidden" title="Cấu hình nghiệp vụ">
+        <span class="material-symbols-rounded">settings</span>
+      </button>
+      <button id="btn-audit-log" class="btn-icon" title="Lịch sử chỉnh sửa">
+        <span class="material-symbols-rounded">history</span>
+      </button>
+      <span id="current-username" class="current-username"></span>
+      <button id="btn-logout" class="btn-icon" title="Đăng xuất">
+        <span class="material-symbols-rounded">logout</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ========== MAIN CONTENT ========== -->
+  <main id="main-content">
+    <!-- Project Info Bar -->
+    <div id="project-info-bar"></div>
+
+    <!-- Dashboard View -->
+    <section id="view-dashboard" class="view active">
+      <div id="kpi-cards" class="kpi-grid"></div>
+      <div class="charts-row">
+        <div class="chart-card glass-card">
+          <h3><span class="material-symbols-rounded">donut_large</span> Phân bổ chi phí theo danh mục</h3>
+          <div class="chart-wrapper">
+            <canvas id="chart-donut" width="380" height="380"></canvas>
+            <div id="donut-legend" class="chart-legend"></div>
+          </div>
+        </div>
+        <div class="chart-card glass-card">
+          <h3><span class="material-symbols-rounded">bar_chart</span> So sánh Tổng mức đầu tư - Dự toán - Giải ngân</h3>
+          <div class="chart-wrapper chart-bars">
+            <div id="chart-bar"></div>
+          </div>
+        </div>
+      </div>
+      <div class="chart-card glass-card" style="margin-bottom:24px">
+        <h3><span class="material-symbols-rounded">track_changes</span> Tiến độ thực hiện các gói thầu</h3>
+        <div id="gantt-chart"></div>
+      </div>
+      <div id="alerts-panel"></div>
+    </section>
+
+    <!-- Packages View -->
+    <section id="view-packages" class="view">
+      <div class="section-header">
+        <h2><span class="material-symbols-rounded">inventory_2</span> Danh mục gói thầu</h2>
+        <div class="header-actions">
+          <div class="search-box">
+            <span class="material-symbols-rounded">search</span>
+            <input type="text" id="search-packages" placeholder="Tìm kiếm gói thầu...">
+          </div>
+          <button id="btn-add-category" class="btn btn-primary edit-only">
+            <span class="material-symbols-rounded">create_new_folder</span> Thêm danh mục
+          </button>
+        </div>
+      </div>
+      <div id="categories-container"></div>
+    </section>
+
+    <!-- Settlement View (Module 4: Quyết toán vốn đầu tư) -->
+    <section id="view-settlement" class="view">
+      <div class="section-header">
+        <h2><span class="material-symbols-rounded">fact_check</span> Quyết toán vốn đầu tư</h2>
+        <div class="header-actions">
+          <button id="btn-add-annual" class="btn btn-primary edit-only">
+            <span class="material-symbols-rounded">add</span> Cập nhật quyết toán niên độ
+          </button>
+        </div>
+      </div>
+      <div id="settlement-kpis" class="kpi-grid"></div>
+      <div id="settlement-annual"></div>
+      <div id="settlement-closeout"></div>
+    </section>
+
+    <!-- Initiation View (Module 1: Chủ trương - Quyết định & Công văn) -->
+    <section id="view-initiation" class="view">
+      <div class="section-header">
+        <h2><span class="material-symbols-rounded">description</span> Chủ trương dự án</h2>
+        <div class="header-actions">
+          <button id="btn-add-initiation" class="btn btn-primary edit-only">
+            <span class="material-symbols-rounded">add</span> Thêm văn bản chủ trương
+          </button>
+        </div>
+      </div>
+      <div id="initiation-kpis" class="kpi-grid"></div>
+      <div id="initiations-container"></div>
+    </section>
+
+    <!-- Reports View -->
+    <section id="view-reports" class="view">
+      <div class="section-header">
+        <h2><span class="material-symbols-rounded">summarize</span> Báo cáo tổng hợp</h2>
+        <div class="header-actions">
+          <button class="btn btn-primary" onclick="exportFullProjectReport()">
+            <span class="material-symbols-rounded">print</span> In Báo cáo tổng hợp
+          </button>
+        </div>
+      </div>
+      <div id="report-content"></div>
+    </section>
+  </main>
+
+  <!-- ========== MODAL ========== -->
+  <div id="modal-backdrop" class="hidden" onclick="closeModal()"></div>
+  <div id="modal" class="hidden">
+    <div class="modal-header">
+      <h3 id="modal-title"></h3>
+      <button class="btn-icon modal-close" onclick="closeModal()">
+        <span class="material-symbols-rounded">close</span>
+      </button>
+    </div>
+    <div id="modal-body"></div>
+    <div id="modal-footer"></div>
+  </div>
+
+  <!-- ========== TOAST ========== -->
+  <div id="toast-container"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

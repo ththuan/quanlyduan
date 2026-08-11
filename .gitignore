@@ -1,0 +1,10 @@
+node_modules/
+server/node_modules/
+server/data/
+server/uploads/
+*.bak
+.DS_Store
+certs/
+cloudflared/cert.pem
+cloudflared/*.json
+.env

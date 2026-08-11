@@ -1,0 +1,40 @@
+# ============================================================
+# QLDA - Cloudflare Tunnel (domain cố định + miễn phí trọn đời)
+# Domain: qlda-ctec.us.kg qua Cloudflare Zero Trust
+# ============================================================
+services:
+  qlda:
+    build: .
+    image: qlda:latest
+    container_name: qlda
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    volumes:
+      - qlda_data:/app/server/data
+      - qlda_uploads:/app/server/uploads
+    networks:
+      - qlda_net
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: qlda-tunnel
+    restart: unless-stopped
+    command: tunnel --config /home/nonroot/.cloudflared/config.yml run
+    volumes:
+      - ./cloudflared:/home/nonroot/.cloudflared
+    depends_on:
+      - qlda
+    networks:
+      - qlda_net
+
+volumes:
+  qlda_data:
+  qlda_uploads:
+
+networks:
+  qlda_net:
+    driver: bridge
