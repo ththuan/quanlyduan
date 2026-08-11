@@ -141,13 +141,37 @@ quanlyduan/
     └── package.json
 ```
 
-## Cập nhật
+## CI/CD & Cập nhật
 
-```bash
-git pull
-docker compose build qlda
-docker compose up -d qlda
+### Cập nhật thủ công
+
+Khi sửa code trên máy local và muốn test ngay:
+
+```powershell
+.\dev.ps1     # Build & deploy local changes (không cần push GitHub)
 ```
+
+Khi đã push lên GitHub và muốn đồng bộ về máy chạy:
+
+```powershell
+.\deploy.ps1  # git pull → build → deploy
+```
+
+### Tự động cập nhật (Windows Task Scheduler)
+
+Chạy **1 lần** với PowerShell Administrator để máy tự check GitHub mỗi 30 phút:
+
+```powershell
+$action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-File D:\QLDA\deploy.ps1"
+$trigger = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 30)
+Register-ScheduledTask -TaskName "QLDA Auto Deploy" -Action $action -Trigger $trigger -RunLevel Highest
+```
+
+> Mỗi lần push code lên GitHub, trong vòng 30 phút máy sẽ tự động pull + build + deploy. Không cần làm gì thêm.
+
+### GitHub Actions
+
+Mỗi lần push lên GitHub, workflow tự động build Docker image và kiểm tra syntax — đảm bảo code không bị lỗi trước khi deploy.
 
 ## License
 
