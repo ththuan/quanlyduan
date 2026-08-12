@@ -36,6 +36,26 @@ const IS_HTTPS = !!tlsOptions;
 app.disable('x-powered-by');
 app.use(express.json({ limit: '10mb' }));
 
+// ---- Security headers (không cần helmet) ----
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'same-origin');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  // CSP: chỉ cho phép tài nguyên cùng nguồn + Google Fonts + inline style cần thiết cho SPA
+  res.setHeader('Content-Security-Policy',
+    "default-src 'self'; " +
+    "script-src 'self' 'unsafe-inline'; " +
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+    "font-src 'self' https://fonts.gstatic.com; " +
+    "img-src 'self' data: blob:; " +
+    "connect-src 'self'; " +
+    "object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
+  );
+  next();
+});
+
 // ---- Cookie helpers (no external dependency) ----
 function parseCookies(req) {
   const header = req.headers.cookie;
@@ -68,7 +88,13 @@ function requireAuth(req, res, next) {
   if (!session) return res.status(401).json({ error: 'Chưa đăng nhập' });
   const user = db.getUserById(session.user_id);
   if (!user) return res.status(401).json({ error: 'Chưa đăng nhập' });
-  req.user = { id: user.id, username: user.username, role: user.role };
+  req.user = { id: user.id, username: user.username, role: user.role, mustChangePassword: !!user.must_change_password };
+  // Ép đổi mật khẩu: chặn mọi API trừ logout, đổi mật khẩu, /api/me
+  if (req.user.mustChangePassword) {
+    const allowed = req.path === '/api/me' || req.path === '/api/logout' ||
+      (req.path.match(/^\/api\/users\/[^/]+\/password$/) && req.method === 'PUT');
+    if (!allowed) return res.status(403).json({ error: 'Vui lòng đổi mật khẩu trước khi tiếp tục', mustChangePassword: true });
+  }
   next();
 }
 
@@ -97,14 +123,44 @@ app.get('/manifest.json', (req, res) => res.sendFile(path.join(ROOT_DIR, 'manife
 app.get('/sw.js', (req, res) => res.sendFile(path.join(ROOT_DIR, 'sw.js'), { headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' } }));
 
 // ---- Auth API ----
+// Rate limiter đơn giản theo IP (in-memory)
+const loginAttempts = new Map();
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const LOGIN_MAX_ATTEMPTS = 20; // mỗi IP tối đa 20 lần / 15 phút
+
 app.post('/api/login', (req, res) => {
   const { username, password } = req.body || {};
   if (!username || !password) return res.status(400).json({ error: 'Vui lòng nhập tên đăng nhập và mật khẩu' });
-  const user = db.verifyUser(username, password);
-  if (!user) return res.status(401).json({ error: 'Sai tên đăng nhập hoặc mật khẩu' });
+
+  const ip = req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
+  const now = Date.now();
+  const rec = loginAttempts.get(ip) || { count: 0, resetAt: now + LOGIN_WINDOW_MS };
+  if (now > rec.resetAt) { rec.count = 0; rec.resetAt = now + LOGIN_WINDOW_MS; }
+  if (rec.count >= LOGIN_MAX_ATTEMPTS) {
+    return res.status(429).json({ error: 'Quá nhiều lần đăng nhập. Vui lòng thử lại sau 15 phút.' });
+  }
+  rec.count++;
+  loginAttempts.set(ip, rec);
+
+  const user = db.getUserByUsername(username);
+  if (!user) {
+    // Timing-equalize + trả lỗi chung
+    db.verifyUser(username, password);
+    return res.status(401).json({ error: 'Sai tên đăng nhập hoặc mật khẩu' });
+  }
+  if (db.isLocked(user)) {
+    const mins = Math.ceil(db.getLockRemainingMs(user) / 60000);
+    return res.status(429).json({ error: `Tài khoản bị khóa tạm thời. Thử lại sau ${mins} phút.` });
+  }
+  const verified = db.verifyUser(username, password);
+  if (!verified) {
+    db.recordFailedLogin(user.id);
+    return res.status(401).json({ error: 'Sai tên đăng nhập hoặc mật khẩu' });
+  }
+  db.resetFailedLogin(user.id);
   const session = db.createSession(user.id);
   setSessionCookie(res, session.id);
-  res.json({ username: user.username, role: user.role, id: user.id, mustChangePassword: password === 'admin123' });
+  res.json({ username: user.username, role: user.role, id: user.id, mustChangePassword: !!user.must_change_password });
 });
 
 app.post('/api/logout', (req, res) => {
@@ -126,20 +182,31 @@ app.get('/api/users', requireAuth, requireAdmin, (req, res) => {
 app.post('/api/users', requireAuth, requireAdmin, (req, res) => {
   const { username, password, role } = req.body || {};
   if (!username || !password) return res.status(400).json({ error: 'Vui lòng nhập tên đăng nhập và mật khẩu' });
+  const uname = String(username).trim();
+  if (!/^[A-Za-z0-9._-]{3,64}$/.test(uname)) {
+    return res.status(400).json({ error: 'Tên đăng nhập chỉ gồm chữ, số, dấu . _ - (3-64 ký tự)' });
+  }
   if (password.length < 6) return res.status(400).json({ error: 'Mật khẩu phải có ít nhất 6 ký tự' });
-  if (db.getUserByUsername(username)) return res.status(409).json({ error: 'Tên đăng nhập đã tồn tại' });
-  const user = db.createUser(username, password, role === 'admin' ? 'admin' : 'user');
+  if (db.getUserByUsername(uname)) return res.status(409).json({ error: 'Tên đăng nhập đã tồn tại' });
+  const user = db.createUser(uname, password, role === 'admin' ? 'admin' : 'user', 1);
   res.status(201).json(user);
 });
 
 app.put('/api/users/:id/password', requireAuth, (req, res) => {
   const { id } = req.params;
-  const { password } = req.body || {};
+  const { password, currentPassword } = req.body || {};
   if (req.user.role !== 'admin' && req.user.id !== id) {
     return res.status(403).json({ error: 'Bạn không có quyền đổi mật khẩu tài khoản này' });
   }
   if (!password || password.length < 6) return res.status(400).json({ error: 'Mật khẩu phải có ít nhất 6 ký tự' });
-  if (!db.getUserById(id)) return res.status(404).json({ error: 'Không tìm thấy tài khoản' });
+  const target = db.getUserById(id);
+  if (!target) return res.status(404).json({ error: 'Không tìm thấy tài khoản' });
+  // Tự đổi mật khẩu (không phải admin) phải xác nhận mật khẩu hiện tại
+  if (req.user.role !== 'admin' && req.user.id === id) {
+    if (!currentPassword || !db.verifyUser(target.username, currentPassword)) {
+      return res.status(400).json({ error: 'Mật khẩu hiện tại không đúng' });
+    }
+  }
   db.updateUserPassword(id, password);
   res.json({ ok: true });
 });
@@ -472,9 +539,9 @@ LƯU Ý QUAN TRỌNG:
 
 DỮ LIỆU DỰ ÁN HIỆN TẠI:\n${context}`;
 
-    const geminiRes = await fetch(`${GEMINI_URL}?key=${GEMINI_KEY}`, {
+    const geminiRes = await fetch(`${GEMINI_URL}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_KEY },
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: systemPrompt }] },
         contents: [

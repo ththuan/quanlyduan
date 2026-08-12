@@ -4111,13 +4111,13 @@ async function openUserManagement() {
 function renderUserManagementModal(users) {
   const rows = users.map(u => `
     <div class="user-row">
-      <span class="user-name">${u.username}${u.role === 'admin' ? ' <span class="badge badge-info">Admin</span>' : ''}</span>
+      <span class="user-name">${esc(u.username)}${u.role === 'admin' ? ' <span class="badge badge-info">Admin</span>' : ''}</span>
       <div class="user-actions">
-        <button class="btn-icon btn-sm" title="Đổi mật khẩu" onclick="promptChangePassword('${u.id}','${u.username}')">
+        <button class="btn-icon btn-sm" title="Đổi mật khẩu" onclick="promptChangePassword('${esc(u.id)}','${esc(u.username)}')">
           <span class="material-symbols-rounded">key</span>
         </button>
         ${u.id !== currentUser.id ? `
-        <button class="btn-icon btn-sm" title="Xóa" onclick="confirmDeleteUser('${u.id}','${u.username}')">
+        <button class="btn-icon btn-sm" title="Xóa" onclick="confirmDeleteUser('${esc(u.id)}','${esc(u.username)}')">
           <span class="material-symbols-rounded">delete</span>
         </button>` : ''}
       </div>

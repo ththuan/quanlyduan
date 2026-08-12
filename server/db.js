@@ -48,6 +48,12 @@ db.exec(`
   );
 `);
 
+// Migrations: thêm cột bảo mật cho bảng users (bỏ qua nếu đã tồn tại)
+['must_change_password', 'failed_login_attempts', 'locked_until'].forEach(col => {
+  try { db.exec(`ALTER TABLE users ADD COLUMN ${col} ${col === 'must_change_password' ? 'INTEGER NOT NULL DEFAULT 0' : 'INTEGER NOT NULL DEFAULT 0'}`); }
+  catch (_) { /* cột đã tồn tại */ }
+});
+
 function saveStateToDb(state) {
   const json = JSON.stringify(state);
   db.prepare(`
@@ -100,10 +106,10 @@ function countAdmins() {
   return db.prepare(`SELECT COUNT(*) AS n FROM users WHERE role = 'admin'`).get().n;
 }
 
-function createUser(username, password, role = 'user') {
+function createUser(username, password, role = 'user', mustChange = 0) {
   const id = crypto.randomUUID();
-  db.prepare('INSERT INTO users (id, username, password_hash, role, created_at) VALUES (?, ?, ?, ?, ?)')
-    .run(id, username, hashPassword(password), role, Date.now());
+  db.prepare('INSERT INTO users (id, username, password_hash, role, created_at, must_change_password) VALUES (?, ?, ?, ?, ?, ?)')
+    .run(id, username, hashPassword(password), role, Date.now(), mustChange);
   return { id, username, role };
 }
 
@@ -120,7 +126,7 @@ function listUsers() {
 }
 
 function updateUserPassword(id, password) {
-  db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hashPassword(password), id);
+  db.prepare('UPDATE users SET password_hash = ?, must_change_password = 0, failed_login_attempts = 0, locked_until = 0 WHERE id = ?').run(hashPassword(password), id);
 }
 
 function deleteUser(id) {
@@ -130,15 +136,46 @@ function deleteUser(id) {
 
 function verifyUser(username, password) {
   const user = getUserByUsername(username);
-  if (!user) return null;
+  if (!user) {
+    // Timing-equalize: chạy hash giả để không lộ user có tồn tại hay không
+    const dummy = hashPassword(password);
+    verifyPassword(password, dummy);
+    return null;
+  }
   if (!verifyPassword(password, user.password_hash)) return null;
   return user;
 }
 
-// Seed a default admin account on first run so the app is reachable out of the box.
+// ---- Brute-force protection ----
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOCKOUT_MS = 15 * 60 * 1000; // khóa 15 phút
+
+function recordFailedLogin(userId) {
+  db.prepare('UPDATE users SET failed_login_attempts = failed_login_attempts + 1 WHERE id = ?').run(userId);
+  const u = getUserById(userId);
+  if (u && u.failed_login_attempts >= MAX_LOGIN_ATTEMPTS) {
+    db.prepare('UPDATE users SET locked_until = ? WHERE id = ?').run(Date.now() + LOCKOUT_MS, userId);
+  }
+}
+
+function resetFailedLogin(userId) {
+  db.prepare('UPDATE users SET failed_login_attempts = 0, locked_until = 0 WHERE id = ?').run(userId);
+}
+
+function isLocked(user) {
+  return user.locked_until > Date.now();
+}
+
+function getLockRemainingMs(user) {
+  return Math.max(0, user.locked_until - Date.now());
+}
+
+// Seed admin mặc định lần đầu với mật khẩu ngẫu nhiên, bắt buộc đổi khi đăng nhập
 if (countUsers() === 0) {
-  createUser('admin', 'admin123', 'admin');
-  console.warn('[QLDA] Đã tạo tài khoản mặc định: admin / admin123 - vui lòng đổi mật khẩu ngay sau khi đăng nhập.');
+  const initialPw = crypto.randomBytes(6).toString('hex');
+  createUser('admin', initialPw, 'admin', 1);
+  console.warn(`[QLDA] Đã tạo tài khoản admin với mật khẩu tạm: ${initialPw}`);
+  console.warn('[QLDA] Mật khẩu này chỉ hiện 1 lần. Đăng nhập và đổi ngay.');
 }
 
 // ---- Sessions ----
@@ -312,6 +349,10 @@ module.exports = {
   deleteUser,
   verifyUser,
   countAdmins,
+  recordFailedLogin,
+  resetFailedLogin,
+  isLocked,
+  getLockRemainingMs,
   createSession,
   getSession,
   deleteSession,
