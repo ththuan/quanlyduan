@@ -421,6 +421,7 @@
 
 /* ---- Auth ---- */
 (function() {
+  if (window.location.search.includes('timeout')) return;
   var res = fetch('/api/me').then(function(r) { if (r.ok) window.location.href = '/'; }).catch(function() {});
 })();
 

@@ -4276,6 +4276,34 @@ async function init() {
   renderProjectSelector();
   renderProjectInfoBar();
   renderDashboard();
+
+  // Idle timeout — 15 phút không hoạt động → về trang login
+  (function setupIdleTimeout() {
+    const IDLE_MS = 15 * 60 * 1000;
+    const KEY = 'qlda_last_activity';
+    let checkTimer;
+
+    function updateActivity() { localStorage.setItem(KEY, Date.now().toString()); }
+
+    function checkIdle() {
+      if (!currentUser) return;
+      if (Date.now() - parseInt(localStorage.getItem(KEY) || Date.now(), 10) >= IDLE_MS) {
+        clearInterval(checkTimer);
+        document.cookie.split(';').forEach(function(c) {
+          var name = c.split('=')[0].trim();
+          document.cookie = name + '=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/';
+        });
+        apiLogout().catch(function(){});
+        window.location.replace('/login.html?timeout=1');
+      }
+    }
+
+    if (!localStorage.getItem(KEY)) updateActivity();
+    ['mousemove','mousedown','keydown','scroll','touchstart','click'].forEach(function(e) {
+      window.addEventListener(e, updateActivity, { passive: true });
+    });
+    checkTimer = setInterval(checkIdle, 30000);
+  })();
 }
 
 document.addEventListener('DOMContentLoaded', init);
@@ -4297,3 +4325,68 @@ window.addEventListener('resize', () => {
     }
   }, 250);
 });
+
+// ============================================================
+// AI CHAT (Gemini)
+// ============================================================
+document.getElementById('btn-ai-chat')?.addEventListener('click', function() {
+  document.getElementById('ai-chat-panel').classList.toggle('hidden');
+});
+document.getElementById('btn-ai-close')?.addEventListener('click', function() {
+  document.getElementById('ai-chat-panel').classList.add('hidden');
+});
+
+async function aiSend(msg) {
+  var input = document.getElementById('ai-chat-input');
+  var text = msg || input.value.trim();
+  if (!text) return;
+  var messages = document.getElementById('ai-chat-messages');
+
+  // Add user message
+  var userDiv = document.createElement('div');
+  userDiv.className = 'ai-msg ai-msg-user';
+  userDiv.textContent = text;
+  messages.appendChild(userDiv);
+  messages.scrollTop = messages.scrollHeight;
+  if (!msg) input.value = '';
+
+  // Add loading
+  var loadDiv = document.createElement('div');
+  loadDiv.className = 'ai-msg ai-msg-bot';
+  loadDiv.innerHTML = '<span class="spinner" style="width:16px;height:16px;border-color:rgba(37,99,235,0.3);border-top-color:#2563eb;display:inline-block"></span> Đang xử lý...';
+  messages.appendChild(loadDiv);
+  messages.scrollTop = messages.scrollHeight;
+
+  function renderMarkdown(text) {
+    return text
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+      .replace(/\n/g, '<br>');
+  }
+
+  try {
+    var res = await fetch('/api/ai/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: text })
+    });
+    var data = await res.json();
+    loadDiv.remove();
+    var botDiv = document.createElement('div');
+    botDiv.className = 'ai-msg ai-msg-bot';
+    if (res.ok) {
+      botDiv.innerHTML = renderMarkdown(data.reply);
+    } else {
+      botDiv.textContent = data.error || 'Lỗi kết nối';
+    }
+    messages.appendChild(botDiv);
+  } catch (e) {
+    loadDiv.remove();
+    var errDiv = document.createElement('div');
+    errDiv.className = 'ai-msg ai-msg-bot';
+    errDiv.textContent = 'Không thể kết nối AI. Kiểm tra API key.';
+    messages.appendChild(errDiv);
+  }
+  messages.scrollTop = messages.scrollHeight;
+}

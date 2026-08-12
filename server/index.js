@@ -417,6 +417,84 @@ app.get('/api/export/excel', requireAuth, (req, res) => {
   }
 });
 
+// ---- AI Assistant (Gemini) ----
+const GEMINI_KEY = process.env.GEMINI_API_KEY || '';
+const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+
+app.post('/api/ai/chat', requireAuth, async (req, res) => {
+  if (!GEMINI_KEY) return res.status(503).json({ error: 'Chưa cấu hình GEMINI_API_KEY' });
+  try {
+    const { message } = req.body || {};
+    if (!message) return res.status(400).json({ error: 'Thiếu nội dung tin nhắn' });
+
+    // Build context from current project data
+    const state = db.getState();
+    const proj = state.projects.find(p => p.id === state.currentProjectId);
+    let context = '';
+    if (proj) {
+      const pkgs = (proj.categories || []).flatMap(c => c.packages.map(p => ({ cat: c.name, ...p })));
+      const totalDisbursed = pkgs.reduce((s, p) => s + (p.cumulativeDisbursed || 0), 0);
+      const totalBid = pkgs.reduce((s, p) => s + (p.bidValue || 0), 0);
+      const rate = (proj.totalInvestment || 0) > 0 ? (totalDisbursed / proj.totalInvestment * 100).toFixed(1) : '0';
+      const pkgDetail = pkgs.map((p, i) =>
+        `${i + 1}. [${p.pkgType || 'N/A'}] ${p.name} — Giá trị: ${(p.bidValue || 0).toLocaleString('vi-VN')}đ, Tiến độ: ${p.progress || 0}%, Nhà thầu: ${p.contractor || 'N/A'}, HĐ: ${p.contract || 'N/A'}, Ngày HĐ: ${p.contractSignDate || 'N/A'} → ${p.contractEndDate || 'N/A'}, Nghiệm thu: ${p.acceptanceStatus || 'Chưa'}, Quyết toán: ${p.settlementStatus || 'Chưa'}${p.notes ? ', Ghi chú: ' + p.notes : ''}`
+      ).join('\n');
+      context = `DỰ ÁN: ${proj.name} (${proj.projectGroup || 'N/A'}). Nguồn vốn: ${proj.investmentSource || 'N/A'}. Chủ đầu tư: ${proj.owner || 'N/A'}. Tổng mức đầu tư: ${(proj.totalInvestment || 0).toLocaleString('vi-VN')}đ. Trúng thầu: ${totalBid.toLocaleString('vi-VN')}đ. Giải ngân: ${totalDisbursed.toLocaleString('vi-VN')}đ (${rate}%). Trạng thái quyết toán: ${proj.settlement?.status || 'Chưa quyết toán'}. Ngày nộp hồ sơ QT: ${proj.settlementSubmissionDate || 'N/A'}.\n\nDANH SÁCH GÓI THẦU (${pkgs.length} gói):\n${pkgDetail}`;
+    }
+
+    // Legal documents reference
+    const config = db.getConfig();
+    const legalRef = (config.legalDocuments || []).map(d =>
+      `${d.type} ${d.number} — ${d.title} (hiệu lực ${d.effectiveDate}${d.replaces ? ', thay thế: ' + d.replaces.join(', ') : ''}${d.note ? '. Lưu ý: ' + d.note : ''})`
+    ).join('\n');
+
+    const systemPrompt = `Bạn là trợ lý AI chuyên về quản lý dự án đầu tư xây dựng, tích hợp trong phần mềm QLDA của Trường Cao đẳng Kinh tế - Kỹ thuật Cần Thơ.
+
+VAI TRÒ CỦA BẠN:
+- Tư vấn, đánh giá, hướng dẫn về quản lý dự án, gói thầu, thanh toán, quyết toán vốn đầu tư công.
+- Phân tích dữ liệu dự án để phát hiện rủi ro, chậm tiến độ, vượt dự toán.
+- Gợi ý các bước tiếp theo trong quy trình quản lý dự án theo đúng pháp luật Việt Nam.
+- Trả lời bằng tiếng Việt, ngắn gọn, thực tế, có dẫn chứng cụ thể từ dữ liệu.
+- Không dùng ký tự markdown đặc biệt (**, #, -) trong câu trả lời. Viết dạng văn bản thuần.
+- Trả lời đầy đủ ý trong 1 lần, không bỏ dở câu.
+
+HỆ THỐNG VĂN BẢN PHÁP LUẬT ÁP DỤNG:
+${legalRef}
+
+QUY TRÌNH CHÍNH:
+1. Lập & phê duyệt dự án → 2. Lựa chọn nhà thầu → 3. Ký hợp đồng → 4. Thi công/Thực hiện → 5. Nghiệm thu → 6. Thanh toán (qua Kho bạc) → 7. Quyết toán A-B → 8. Quyết toán dự án hoàn thành → 9. Bảo hành.
+
+LƯU Ý QUAN TRỌNG:
+- Hạn mức chỉ định thầu theo NĐ 214/2025: tư vấn 800 triệu, xây lắp/hàng hóa/hỗn hợp 2 tỷ, mua sắm không dự án 500 triệu.
+- Quyết toán dự án hoàn thành phải nộp trong 4 tháng kể từ ngày bàn giao đưa vào sử dụng (NĐ 193/2026).
+- Mẫu biểu quyết toán hiện hành: TT 73/2026/TT-BTC (gồm Mẫu 01-12/QTDA).
+- Hóa đơn GTGT phải cùng ngày với biên bản nghiệm thu (NĐ 123/2020).
+
+DỮ LIỆU DỰ ÁN HIỆN TẠI:\n${context}`;
+
+    const geminiRes = await fetch(`${GEMINI_URL}?key=${GEMINI_KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: systemPrompt }] },
+        contents: [
+          { role: 'user', parts: [{ text: message }] }
+        ],
+        generationConfig: { temperature: 0.4, maxOutputTokens: 4000, topP: 0.9 }
+      })
+    });
+    const data = await geminiRes.json();
+    if (!geminiRes.ok) throw new Error(data.error?.message || 'Lỗi API Gemini');
+    // Ghép tất cả parts + kiểm tra truncation
+    const cand = data.candidates?.[0];
+    const reply = (cand?.content?.parts || []).map(p => p.text || '').join('');
+    if (!reply) throw new Error('Không có phản hồi từ AI');
+    res.json({ reply });
+  } catch (err) {
+    res.status(500).json({ error: 'Lỗi AI: ' + err.message });
+  }
+});
+
 // ---- Error handler ----
 app.use((err, req, res, next) => {
   console.error(err);

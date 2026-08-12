@@ -215,15 +215,43 @@ const DEFAULT_CONFIG = {
   },
   // Danh mục văn bản pháp lý (để tra cứu + giải thích mốc thời gian hiệu lực)
   legalDocuments: [
-    { id: 'L135-2025', type: 'Luật', number: '135/2025/QH15', title: 'Luật Xây dựng', date: '2025-12-10', effectiveDate: '2026-07-01', provisions: [{ provision: 'Khoản 2,3 Điều 43', effectiveDate: '2026-01-01' }, { provision: 'Điều 71', effectiveDate: '2026-01-01' }, { provision: 'Khoản 3,4,5 Điều 95', effectiveDate: '2026-01-01' }], replaces: ['Luật Xây dựng 50/2014/QH13'] },
-    { id: 'ND206-2026', type: 'Nghị định', number: '206/2026/NĐ-CP', title: 'Quy định chi tiết Luật Xây dựng', date: '2026-06-15', effectiveDate: '2026-07-01', replaces: ['NĐ 10/2021/NĐ-CP'] },
-    { id: 'ND217-2026', type: 'Nghị định', number: '217/2026/NĐ-CP', title: 'Quy định về quản lý dự án đầu tư xây dựng', date: '2026-06-15', effectiveDate: '2026-07-01', replaces: ['NĐ 15/2021/NĐ-CP'] },
-    { id: 'ND212-2026', type: 'Nghị định', number: '212/2026/NĐ-CP', title: 'Quy định về hợp đồng xây dựng', date: '2026-06-15', effectiveDate: '2026-07-01', replaces: ['NĐ 37/2015/NĐ-CP'] },
-    { id: 'ND214-2025', type: 'Nghị định', number: '214/2025/NĐ-CP', title: 'Quy định chi tiết về đấu thầu', date: '2025-11-20', effectiveDate: '2025-11-20', provisions: [{ provision: 'Khoản 4 Điều 78 (hạn mức chỉ định thầu)' }], replaces: ['NĐ 24/2024/NĐ-CP'] },
-    { id: 'ND254-2025', type: 'Nghị định', number: '254/2025/NĐ-CP', title: 'Quy định về quản lý, thanh toán, quyết toán vốn đầu tư công', date: '2025-09-26', effectiveDate: '2025-09-26', replaces: ['NĐ 99/2021/NĐ-CP'] },
-    { id: 'TT91-2025', type: 'Thông tư', number: '91/2025/TT-BTC', title: 'Hướng dẫn quyết toán vốn đầu tư công', date: '2025-09-26', effectiveDate: '2025-09-26', replaces: ['TT 96/2021/TT-BTC (quyết toán niên độ)'], note: 'Phần mẫu biểu quyết toán dự án hoàn thành bị bãi bỏ bởi TT 73/2026/TT-BTC; mẫu quyết toán niên độ vẫn hiệu lực' },
-    { id: 'TT73-2026', type: 'Thông tư', number: '73/2026/TT-BTC', title: 'Hướng dẫn quyết toán dự án hoàn thành', date: '2026-06-25', effectiveDate: '2026-07-01', replaces: ['TT 91/2025/TT-BTC (phần mẫu biểu quyết toán dự án hoàn thành)'], note: 'Bãi bỏ khoản 2 Điều 1, Điều 4, khoản 2 Điều 5 của TT 91/2025/TT-BTC' },
-    { id: 'ND193-2026', type: 'Nghị định', number: '193/2026/NĐ-CP', title: 'Quy định về quyết toán vốn đầu tư công', date: '2026-06-25', effectiveDate: '2026-07-01' }
+    // ---- Luật ----
+    { id: 'L135-2025', type: 'Luật', number: '135/2025/QH15', title: 'Luật Xây dựng', date: '2025-12-10', effectiveDate: '2026-07-01', provisions: [{ provision: 'K2,3 Điều 43, Điều 71, K3-5 Điều 95', effectiveDate: '2026-01-01' }], replaces: ['Luật Xây dựng 50/2014/QH13'], note: 'Phân nhóm dự án A/B/C; quy định BCNCKT; cấp công trình' },
+    { id: 'L61-2023', type: 'Luật', number: '61/2023/QH15', title: 'Luật Đấu thầu', date: '2023-06-23', effectiveDate: '2024-01-01', replaces: ['Luật Đấu thầu 43/2013/QH14'], note: 'Quy trình lựa chọn nhà thầu; các hình thức đấu thầu' },
+    { id: 'VBHN96-2025', type: 'VBHN', number: '96/VBHN-VPQH', title: 'Luật Đầu tư công (hợp nhất)', date: '2025-07-01', effectiveDate: '2025-07-01', replaces: ['Luật Đầu tư công 39/2019/QH14'], note: 'Văn bản hợp nhất do Văn phòng Quốc hội ban hành; phân loại nguồn vốn; kế hoạch đầu tư công trung hạn' },
+    { id: 'L69-2020', type: 'Luật', number: '69/2020/QH14', title: 'Luật Đầu tư theo phương thức PPP', date: '2020-06-18', effectiveDate: '2021-01-01', note: 'Đối với dự án PPP' },
+
+    // ---- Nghị định ----
+    { id: 'ND217-2026', type: 'Nghị định', number: '217/2026/NĐ-CP', title: 'Quản lý dự án đầu tư xây dựng', date: '2026-06-15', effectiveDate: '2026-07-01', replaces: ['NĐ 15/2021/NĐ-CP'], note: 'Phân nhóm dự án, lập/phê duyệt dự án, BCNCKT, thiết kế' },
+    { id: 'ND206-2026', type: 'Nghị định', number: '206/2026/NĐ-CP', title: 'Quy định chi tiết Luật Xây dựng', date: '2026-06-15', effectiveDate: '2026-07-01', replaces: ['NĐ 10/2021/NĐ-CP'], note: 'Điều kiện năng lực tổ chức/cá nhân hoạt động xây dựng' },
+    { id: 'ND212-2026', type: 'Nghị định', number: '212/2026/NĐ-CP', title: 'Hợp đồng xây dựng', date: '2026-06-15', effectiveDate: '2026-07-01', replaces: ['NĐ 37/2015/NĐ-CP'], note: 'Loại hợp đồng, tạm ứng, bảo lãnh, điều chỉnh giá, thanh lý HĐ' },
+    { id: 'ND207-2026', type: 'Nghị định', number: '207/2026/NĐ-CP', title: 'Phân loại công trình xây dựng', date: '2026-06-15', effectiveDate: '2026-07-01', note: 'Phân cấp công trình: Đặc biệt, I, II, III, IV' },
+    { id: 'ND209-2026', type: 'Nghị định', number: '209/2026/NĐ-CP', title: 'Quy định về quản lý chất lượng công trình xây dựng', date: '2026-06-15', effectiveDate: '2026-07-01', replaces: ['NĐ 06/2021/NĐ-CP'], note: 'Nghiệm thu công việc, giai đoạn, hoàn thành; bảo hành; bảo trì công trình' },
+    { id: 'ND210-2026', type: 'Nghị định', number: '210/2026/NĐ-CP', title: 'Quy định về an toàn lao động trong thi công xây dựng', date: '2026-06-15', effectiveDate: '2026-07-01', note: 'Kế hoạch an toàn; biện pháp thi công; quản lý rủi ro' },
+    { id: 'ND220-2026', type: 'Nghị định', number: '220/2026/NĐ-CP', title: 'Quy định về quản lý chi phí đầu tư xây dựng', date: '2026-06-15', effectiveDate: '2026-07-01', note: 'Tổng mức đầu tư, dự toán, định mức, giá xây dựng' },
+    { id: 'ND214-2025', type: 'Nghị định', number: '214/2025/NĐ-CP', title: 'Quy định chi tiết về đấu thầu', date: '2025-11-20', effectiveDate: '2025-11-20', provisions: [{ provision: 'K4 Điều 78: hạn mức chỉ định thầu 500tr/800tr/2tỷ' }], replaces: ['NĐ 24/2024/NĐ-CP'] },
+    { id: 'ND254-2025', type: 'Nghị định', number: '254/2025/NĐ-CP', title: 'Quản lý, thanh toán, quyết toán vốn đầu tư công và chi thường xuyên', date: '2025-09-26', effectiveDate: '2025-09-26', replaces: ['NĐ 99/2021/NĐ-CP'], note: 'Hồ sơ tạm ứng, thanh toán; mẫu 02a-05a/TT; giao dịch Kho bạc; áp dụng cho cả chi thường xuyên NSNN' },
+    { id: 'ND193-2026', type: 'Nghị định', number: '193/2026/NĐ-CP', title: 'Quyết toán vốn đầu tư công dự án hoàn thành', date: '2026-06-25', effectiveDate: '2026-07-01', note: 'Hồ sơ trình thẩm tra, phê duyệt quyết toán; thời hạn 4 tháng từ bàn giao' },
+    { id: 'ND347-2025', type: 'Nghị định', number: '347/2025/NĐ-CP', title: 'Kiểm soát chi NSNN qua Kho bạc Nhà nước', date: '2025-09-26', effectiveDate: '2025-09-26', note: 'Giấy rút vốn, rút dự toán; kiểm soát cam kết chi' },
+    { id: 'ND104-2026', type: 'Nghị định', number: '104/2026/NĐ-CP', title: 'Quy định về hạn mức chỉ định thầu và mua sắm', date: '2026-06-15', effectiveDate: '2026-07-01', note: 'Hạn mức chỉ định thầu; thủ tục mua sắm đơn giản cho dưới 500 triệu đồng' },
+    { id: 'ND123-2020', type: 'Nghị định', number: '123/2020/NĐ-CP', title: 'Quy định về hóa đơn, chứng từ', date: '2020-10-19', effectiveDate: '2022-07-01', note: 'Hóa đơn điện tử; thời điểm xuất HĐ khi nghiệm thu; HĐ GTGT' },
+    { id: 'ND70-2025', type: 'Nghị định', number: '70/2025/NĐ-CP', title: 'Sửa đổi, bổ sung NĐ 123/2020/NĐ-CP về hóa đơn', date: '2025-06-15', effectiveDate: '2025-06-15', replaces: ['Sửa đổi NĐ 123/2020/NĐ-CP'], note: 'Cập nhật quy định về hóa đơn điện tử; thời điểm lập HĐ; đồng bộ dữ liệu HĐ với cơ quan thuế' },
+    { id: 'ND11-2021', type: 'Nghị định', number: '11/2021/NĐ-CP', title: 'Giao đất, cho thuê đất để thực hiện dự án', date: '2021-01-07', effectiveDate: '2021-03-01', note: 'Liên quan đến địa điểm xây dựng, giải phóng mặt bằng' },
+
+    // ---- Thông tư ----
+    { id: 'TT73-2026', type: 'Thông tư', number: '73/2026/TT-BTC', title: 'Hướng dẫn quyết toán dự án hoàn thành', date: '2026-06-25', effectiveDate: '2026-07-01', replaces: ['TT 91/2025/TT-BTC (phần mẫu biểu QTDA hoàn thành)'], note: 'Mẫu 01-12/QTDA; hồ sơ trình thẩm tra; bãi bỏ K2 Điều 1, Điều 4, K2 Điều 5 TT91' },
+    { id: 'TT91-2025', type: 'Thông tư', number: '91/2025/TT-BTC', title: 'Hướng dẫn quyết toán vốn đầu tư công', date: '2025-09-26', effectiveDate: '2025-09-26', replaces: ['TT 96/2021/TT-BTC'], note: 'Mẫu QTNĐ 01-05; quyết toán niên độ ngân sách hàng năm — vẫn hiệu lực' },
+    { id: 'TT39-2026', type: 'Thông tư', number: '39/2026/TT-BXD', title: 'Hướng dẫn đồng bộ dữ liệu hoạt động xây dựng', date: '2026-06-25', effectiveDate: '2026-07-01', note: 'Mã định danh; đồng bộ lên Hệ thống thông tin quốc gia về hoạt động xây dựng' },
+    { id: 'TT79-2025', type: 'Thông tư', number: '79/2025/TT-BTC', title: 'Hướng dẫn thi hành quy trình quản lý, thanh toán vốn đầu tư công', date: '2025-09-26', effectiveDate: '2025-09-26', note: 'Quy trình giao dịch với Kho bạc; hướng dẫn lập hồ sơ thanh toán; thủ tục rút vốn; kiểm soát chi NSNN' },
+    { id: 'TT32-2026', type: 'Thông tư', number: '32/2026/TT-BXD', title: 'Quy định về định mức xây dựng', date: '2026-06-25', effectiveDate: '2026-07-01', note: 'Định mức dự toán xây dựng công trình; hao phí vật liệu, nhân công, máy thi công' },
+    { id: 'TT33-2026', type: 'Thông tư', number: '33/2026/TT-BXD', title: 'Quy định về giá xây dựng và chỉ số giá xây dựng', date: '2026-06-25', effectiveDate: '2026-07-01', note: 'Phương pháp xác định giá xây dựng; công bố chỉ số giá; điều chỉnh giá HĐ' },
+    { id: 'TT34-2026', type: 'Thông tư', number: '34/2026/TT-BXD', title: 'Phân cấp công trình xây dựng và hướng dẫn áp dụng', date: '2026-06-25', effectiveDate: '2026-07-01', note: 'Xác định cấp công trình dựa trên quy mô, loại kết cấu, tầm quan trọng' },
+    { id: 'TT36-2026', type: 'Thông tư', number: '36/2026/TT-BXD', title: 'Quy định về quản lý chi phí đầu tư xây dựng', date: '2026-06-25', effectiveDate: '2026-07-01', note: 'Tổng mức đầu tư; dự toán xây dựng; định mức chi phí chung; chi phí tư vấn' },
+    { id: 'TT37-2026', type: 'Thông tư', number: '37/2026/TT-BXD', title: 'Quy định về đo bóc khối lượng xây dựng công trình', date: '2026-06-25', effectiveDate: '2026-07-01', note: 'Phương pháp đo bóc khối lượng; bảng tính toán khối lượng; đơn vị tính' },
+    { id: 'TT38-2026', type: 'Thông tư', number: '38/2026/TT-BXD', title: 'Quy định về thẩm tra, phê duyệt thiết kế và dự toán', date: '2026-06-25', effectiveDate: '2026-07-01', note: 'Quy trình thẩm định thiết kế; phê duyệt dự toán; phân cấp thẩm quyền' },
+    { id: 'TT40-2026', type: 'Thông tư', number: '40/2026/TT-BXD', title: 'Quy định về quản lý chi phí tư vấn đầu tư xây dựng', date: '2026-06-25', effectiveDate: '2026-07-01', note: 'Định mức chi phí quản lý dự án, tư vấn giám sát, thiết kế, thẩm tra' },
+    { id: 'TT41-2026', type: 'Thông tư', number: '41/2026/TT-BXD', title: 'Quy định về thanh toán, quyết toán vốn đầu tư xây dựng', date: '2026-06-25', effectiveDate: '2026-07-01', note: 'Hồ sơ thanh toán; nghiệm thu khối lượng; quyết toán hợp đồng; thanh lý HĐ' },
+    { id: 'TT26-2016', type: 'Thông tư', number: '26/2016/TT-BXD', title: 'Quy định chi tiết về bảo hành công trình xây dựng', date: '2016-10-26', effectiveDate: '2016-12-15', note: 'Thời hạn bảo hành: 24 tháng (cấp ĐB-I), 12 tháng (còn lại); mức tiền bảo hành; quy trình xử lý' }
   ]
 };
 
@@ -232,9 +260,16 @@ function getConfig() {
   if (!row) return JSON.parse(JSON.stringify(DEFAULT_CONFIG));
   try {
     const parsed = JSON.parse(row.data);
-    // Merge default để đảm bảo thiếu key nào cũng có giá trị mặc định
     const merged = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
     deepMerge(merged, parsed);
+    // Merge legalDocuments by id: giữ bản đã lưu + thêm mới từ default
+    if (parsed.legalDocuments && Array.isArray(parsed.legalDocuments)) {
+      const storedIds = new Set(parsed.legalDocuments.map(d => d.id));
+      merged.legalDocuments = [
+        ...parsed.legalDocuments,
+        ...DEFAULT_CONFIG.legalDocuments.filter(d => !storedIds.has(d.id))
+      ];
+    }
     return merged;
   } catch (err) {
     return JSON.parse(JSON.stringify(DEFAULT_CONFIG));
