@@ -1,5 +1,12 @@
-const CACHE = 'qlda-v3';
-const STATIC = ['/logoCTEC.png', '/manifest.json'];
+const CACHE = 'qlda-v7';
+const STATIC = [
+  '/logoCTEC.png',
+  '/manifest.json',
+  '/assets/material-symbols-rounded.css',
+  '/assets/material-symbols-rounded.woff2',
+  '/assets/inter-vietnamese.woff2',
+  '/assets/inter-latin.woff2'
+];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(STATIC).catch(() => {})));
@@ -16,6 +23,8 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   if (e.request.url.includes('/api/')) return;
+  // Bỏ qua request không phải http/https (vd. chrome-extension://) - Cache API không hỗ trợ
+  if (!e.request.url.startsWith('http')) return;
 
   // HTML/JS/CSS: luôn lấy từ server trước (network-first), fallback cache khi offline
   const isStatic = STATIC.some(s => e.request.url.endsWith(s));
@@ -28,7 +37,7 @@ self.addEventListener('fetch', e => {
       fetch(e.request).then(res => {
         if (res.ok) {
           const clone = res.clone();
-          caches.open(CACHE).then(c => c.put(e.request, clone));
+          caches.open(CACHE).then(c => c.put(e.request, clone)).catch(() => {});
         }
         return res;
       }).catch(() => caches.match(e.request))

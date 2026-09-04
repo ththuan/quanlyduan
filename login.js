@@ -2,11 +2,48 @@
    QLDA - Login page logic
    ============================================================ */
 
-// Redirect if already logged in
-(async function checkExistingSession() {
+const AUTH_STORAGE_KEY = 'qlda_auth_session';
+
+function getStoredAuth() {
+  try { return JSON.parse(localStorage.getItem(AUTH_STORAGE_KEY) || 'null'); }
+  catch (_) { return null; }
+}
+
+function storeAuth(data) {
+  localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({
+    accessToken: data.accessToken, refreshToken: data.refreshToken,
+    accessExpiresAt: data.accessExpiresAt, expiresAt: data.expiresAt, user: data.user
+  }));
+}
+
+async function restoreExistingSession() {
+  const auth = getStoredAuth();
+  if (!auth?.refreshToken) return false;
+  const checkedRefreshToken = auth.refreshToken;
+  let accessToken = auth.accessToken;
+  let res = accessToken ? await fetch('/api/me', { headers: { Authorization: `Bearer ${accessToken}` } }) : null;
+  if (!res?.ok) {
+    const refreshed = await fetch('/api/refresh', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken: auth.refreshToken })
+    });
+    if (!refreshed.ok) {
+      // Không xóa phiên mới nếu người dùng vừa đăng nhập trong lúc request cũ đang chạy.
+      if (getStoredAuth()?.refreshToken === checkedRefreshToken) localStorage.removeItem(AUTH_STORAGE_KEY);
+      return false;
+    }
+    const data = await refreshed.json();
+    if (getStoredAuth()?.refreshToken !== checkedRefreshToken) return false;
+    storeAuth(data);
+    res = await fetch('/api/me', { headers: { Authorization: `Bearer ${data.accessToken}` } });
+  }
+  return res.ok;
+}
+
+// Hoàn tất kiểm tra phiên cũ trước khi cho luồng đăng nhập ghi phiên mới.
+const existingSessionCheck = (async function checkExistingSession() {
   try {
-    const res = await fetch('/api/me');
-    if (res.ok) window.location.href = '/';
+    if (await restoreExistingSession()) window.location.href = '/';
   } catch { /* ignore */ }
 })();
 
@@ -65,6 +102,7 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
   };
 
   try {
+    await existingSessionCheck;
     const res = await fetch('/api/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -80,9 +118,14 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
       return;
     }
 
-    // Success — brief delay for UX
-    if (data.mustChangePassword) {
-      sessionStorage.setItem('qlda_force_pw', JSON.stringify({ id: data.id, username: data.username }));
+    // Tài khoản mới thay phiên cũ trên đúng trình duyệt/profile này.
+    const oldAuth = getStoredAuth();
+    if (oldAuth?.refreshToken) {
+      fetch('/api/logout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refreshToken: oldAuth.refreshToken }) }).catch(() => {});
+    }
+    storeAuth(data);
+    if (data.user.mustChangePassword) {
+      sessionStorage.setItem('qlda_force_pw', JSON.stringify({ id: data.user.id, username: data.user.username }));
     }
     btnText.textContent = 'Thành công!';
     setTimeout(() => { window.location.href = '/'; }, 400);

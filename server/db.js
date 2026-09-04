@@ -54,6 +54,17 @@ db.exec(`
   catch (_) { /* cột đã tồn tại */ }
 });
 
+// Migrations cho phiên access token / refresh token theo từng thiết bị.
+[
+  ['access_token_hash', 'TEXT'],
+  ['refresh_token_hash', 'TEXT'],
+  ['access_expires_at', 'INTEGER NOT NULL DEFAULT 0'],
+  ['last_used_at', 'INTEGER NOT NULL DEFAULT 0']
+].forEach(([col, type]) => {
+  try { db.exec(`ALTER TABLE sessions ADD COLUMN ${col} ${type}`); }
+  catch (_) { /* cột đã tồn tại */ }
+});
+
 function saveStateToDb(state) {
   const json = JSON.stringify(state);
   db.prepare(`
@@ -179,27 +190,66 @@ if (countUsers() === 0) {
 }
 
 // ---- Sessions ----
-const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+const ACCESS_TOKEN_TTL_MS = 30 * 60 * 1000; // 30 phút
+const REFRESH_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000; // tối đa 7 ngày, gia hạn khi dùng
+
+function hashToken(token) {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
+
+function newToken() {
+  return crypto.randomBytes(48).toString('base64url');
+}
 
 function createSession(userId) {
   const id = crypto.randomBytes(32).toString('hex');
-  const expiresAt = Date.now() + SESSION_TTL_MS;
-  db.prepare('INSERT INTO sessions (id, user_id, expires_at) VALUES (?, ?, ?)').run(id, userId, expiresAt);
-  return { id, expiresAt };
+  const accessToken = newToken();
+  const refreshToken = newToken();
+  const now = Date.now();
+  const accessExpiresAt = now + ACCESS_TOKEN_TTL_MS;
+  const expiresAt = now + REFRESH_TOKEN_TTL_MS;
+  db.prepare(`INSERT INTO sessions
+    (id, user_id, expires_at, access_token_hash, refresh_token_hash, access_expires_at, last_used_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)`)
+    .run(id, userId, expiresAt, hashToken(accessToken), hashToken(refreshToken), accessExpiresAt, now);
+  return { id, accessToken, refreshToken, accessExpiresAt, expiresAt };
 }
 
-function getSession(id) {
-  const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(id);
-  if (!session) return null;
-  if (session.expires_at < Date.now()) {
-    db.prepare('DELETE FROM sessions WHERE id = ?').run(id);
+function getSessionByAccessToken(token) {
+  if (!token) return null;
+  const session = db.prepare('SELECT * FROM sessions WHERE access_token_hash = ?').get(hashToken(token));
+  const now = Date.now();
+  if (!session || session.access_expires_at < now || session.expires_at < now) return null;
+  // Sliding session: mỗi lần sử dụng hợp lệ sẽ gia hạn phiên thêm 7 ngày.
+  db.prepare('UPDATE sessions SET expires_at = ?, last_used_at = ? WHERE id = ?')
+    .run(now + REFRESH_TOKEN_TTL_MS, now, session.id);
+  return session;
+}
+
+function refreshSession(refreshToken) {
+  if (!refreshToken) return null;
+  const session = db.prepare('SELECT * FROM sessions WHERE refresh_token_hash = ?').get(hashToken(refreshToken));
+  const now = Date.now();
+  if (!session || session.expires_at < now) {
+    if (session) db.prepare('DELETE FROM sessions WHERE id = ?').run(session.id);
     return null;
   }
-  return session;
+  const accessToken = newToken();
+  const newRefreshToken = newToken();
+  const accessExpiresAt = now + ACCESS_TOKEN_TTL_MS;
+  const expiresAt = now + REFRESH_TOKEN_TTL_MS;
+  db.prepare(`UPDATE sessions SET access_token_hash = ?, refresh_token_hash = ?,
+    access_expires_at = ?, expires_at = ?, last_used_at = ? WHERE id = ?`)
+    .run(hashToken(accessToken), hashToken(newRefreshToken), accessExpiresAt, expiresAt, now, session.id);
+  return { sessionId: session.id, userId: session.user_id, accessToken, refreshToken: newRefreshToken, accessExpiresAt, expiresAt };
 }
 
 function deleteSession(id) {
   db.prepare('DELETE FROM sessions WHERE id = ?').run(id);
+}
+
+function deleteSessionByRefreshToken(token) {
+  if (token) db.prepare('DELETE FROM sessions WHERE refresh_token_hash = ?').run(hashToken(token));
 }
 
 function listAllPdfs() {
@@ -220,7 +270,7 @@ const DEFAULT_CONFIG = {
       nonConsulting: 2000000000,  // gói phi tư vấn thuộc dự án
       nonProject: 500000000       // gói mua sắm không hình thành dự án
     },
-    ktkt: 20000000000             // ngưỡng bắt buộc lập BCNCKT (NĐ 193/2026)
+    ktkt: 20000000000             // ngưỡng nghiệp vụ lập BCNCKT; quy trình quản lý dự án theo NĐ 217/2026
   },
   contractDeadlineWarnDays: 30,
   templates: {
@@ -259,16 +309,15 @@ const DEFAULT_CONFIG = {
     { id: 'L69-2020', type: 'Luật', number: '69/2020/QH14', title: 'Luật Đầu tư theo phương thức PPP', date: '2020-06-18', effectiveDate: '2021-01-01', note: 'Đối với dự án PPP' },
 
     // ---- Nghị định ----
-    { id: 'ND217-2026', type: 'Nghị định', number: '217/2026/NĐ-CP', title: 'Quản lý dự án đầu tư xây dựng', date: '2026-06-15', effectiveDate: '2026-07-01', replaces: ['NĐ 15/2021/NĐ-CP'], note: 'Phân nhóm dự án, lập/phê duyệt dự án, BCNCKT, thiết kế' },
-    { id: 'ND206-2026', type: 'Nghị định', number: '206/2026/NĐ-CP', title: 'Quy định chi tiết Luật Xây dựng', date: '2026-06-15', effectiveDate: '2026-07-01', replaces: ['NĐ 10/2021/NĐ-CP'], note: 'Điều kiện năng lực tổ chức/cá nhân hoạt động xây dựng' },
-    { id: 'ND212-2026', type: 'Nghị định', number: '212/2026/NĐ-CP', title: 'Hợp đồng xây dựng', date: '2026-06-15', effectiveDate: '2026-07-01', replaces: ['NĐ 37/2015/NĐ-CP'], note: 'Loại hợp đồng, tạm ứng, bảo lãnh, điều chỉnh giá, thanh lý HĐ' },
-    { id: 'ND207-2026', type: 'Nghị định', number: '207/2026/NĐ-CP', title: 'Phân loại công trình xây dựng', date: '2026-06-15', effectiveDate: '2026-07-01', note: 'Phân cấp công trình: Đặc biệt, I, II, III, IV' },
-    { id: 'ND209-2026', type: 'Nghị định', number: '209/2026/NĐ-CP', title: 'Quy định về quản lý chất lượng công trình xây dựng', date: '2026-06-15', effectiveDate: '2026-07-01', replaces: ['NĐ 06/2021/NĐ-CP'], note: 'Nghiệm thu công việc, giai đoạn, hoàn thành; bảo hành; bảo trì công trình' },
-    { id: 'ND210-2026', type: 'Nghị định', number: '210/2026/NĐ-CP', title: 'Quy định về an toàn lao động trong thi công xây dựng', date: '2026-06-15', effectiveDate: '2026-07-01', note: 'Kế hoạch an toàn; biện pháp thi công; quản lý rủi ro' },
-    { id: 'ND220-2026', type: 'Nghị định', number: '220/2026/NĐ-CP', title: 'Quy định về quản lý chi phí đầu tư xây dựng', date: '2026-06-15', effectiveDate: '2026-07-01', note: 'Tổng mức đầu tư, dự toán, định mức, giá xây dựng' },
+    { id: 'ND217-2026', type: 'Nghị định', number: '217/2026/NĐ-CP', title: 'Quản lý hoạt động xây dựng', date: '2026-06-19', effectiveDate: '2026-07-01', replaces: ['NĐ 175/2024/NĐ-CP', 'Một phần các nghị định liên quan'], domains: ['chuẩn bị dự án', 'khảo sát', 'thiết kế', 'thẩm định', 'phê duyệt', 'quản lý dự án', 'giấy phép xây dựng', 'trật tự xây dựng', 'BIM'], workflowStages: [1], note: 'Trình tự đầu tư; phân loại dự án; khảo sát, thiết kế, thẩm định, phê duyệt; quản lý dự án; giấy phép, trật tự xây dựng; BIM; công trình đặc thù, khẩn cấp.' },
+    { id: 'ND206-2026', type: 'Nghị định', number: '206/2026/NĐ-CP', title: 'Quản lý chi phí đầu tư xây dựng', date: '2026-06-15', effectiveDate: '2026-07-01', replaces: ['NĐ 10/2021/NĐ-CP'], domains: ['tổng mức đầu tư', 'dự toán', 'giá gói thầu', 'định mức', 'giá xây dựng', 'chi phí quản lý dự án', 'chi phí tư vấn'], workflowStages: [1, 2, 3, 4, 6, 7, 8], note: 'Sơ bộ tổng mức đầu tư; tổng mức đầu tư; dự toán; giá gói thầu; định mức; giá và chỉ số giá; chi phí QLDA, tư vấn và chi phí khác.' },
+    { id: 'ND207-2026', type: 'Nghị định', number: '207/2026/NĐ-CP', title: 'Chất lượng, thi công và bảo trì công trình', date: '2026-06-15', effectiveDate: '2026-07-01', replaces: ['NĐ 06/2021/NĐ-CP', 'Một phần các nghị định liên quan'], domains: ['chất lượng', 'thi công', 'an toàn công trường', 'giám sát', 'nghiệm thu', 'bàn giao', 'bảo hành', 'bảo trì', 'sự cố', 'phá dỡ'], workflowStages: [4, 5, 9], note: 'Phân loại công trình; khởi công; vật liệu, cấu kiện, thiết bị; an toàn; giám sát; nghiệm thu, bàn giao; bảo hành, bảo trì; sự cố và phá dỡ.' },
+    { id: 'ND209-2026', type: 'Nghị định', number: '209/2026/NĐ-CP', title: 'Quản lý vật liệu xây dựng', date: '2026-06-15', effectiveDate: '2026-07-01', replaces: ['NĐ 09/2021/NĐ-CP', 'Bãi bỏ Điều 14 NĐ 144/2025/NĐ-CP'], domains: ['vật liệu xây dựng', 'khoáng sản', 'amiăng', 'vật liệu tái chế', 'vật liệu xanh', 'vật liệu không nung', 'chất lượng sản phẩm'], workflowStages: [1, 2, 4, 5], note: 'Chiến lược, quy hoạch phát triển vật liệu; vật liệu mới, tái chế, xanh, nhẹ, thông minh, không nung; quản lý chất lượng sản phẩm, hàng hóa VLXD.' },
+    { id: 'ND210-2026', type: 'Nghị định', number: '210/2026/NĐ-CP', title: 'Hợp đồng xây dựng', date: '2026-06-15', effectiveDate: '2026-07-01', replaces: ['NĐ 37/2015/NĐ-CP', 'NĐ 50/2021/NĐ-CP', 'Bãi bỏ Điều 9 NĐ 35/2023/NĐ-CP'], domains: ['hợp đồng', 'hình thức giá', 'tiến độ', 'khối lượng', 'tạm ứng', 'thanh toán', 'điều chỉnh hợp đồng', 'tạm dừng', 'chấm dứt', 'quyết toán A-B', 'thanh lý', 'EPC'], workflowStages: [3, 4, 5, 6, 7], note: 'Phân loại hợp đồng; hồ sơ; hình thức giá; tiến độ, chất lượng, khối lượng; tạm ứng, thanh toán; điều chỉnh, tạm dừng, chấm dứt; quyết toán, thanh lý; EPC và thầu phụ.' },
+    { id: 'ND212-2026', type: 'Nghị định', number: '212/2026/NĐ-CP', title: 'Năng lực và cơ sở dữ liệu xây dựng', date: '2026-06-17', effectiveDate: '2026-07-01', replaces: ['NĐ 111/2024/NĐ-CP', 'Một phần các nghị định liên quan'], domains: ['cơ sở dữ liệu xây dựng', 'mã định danh', 'dữ liệu quy hoạch', 'dữ liệu dự án', 'chứng chỉ hành nghề', 'năng lực tổ chức', 'nhà thầu nước ngoài'], workflowStages: [1, 2, 3, 4, 5], note: 'Hệ thống thông tin, CSDL quốc gia, mã định danh; dữ liệu quy hoạch, dự án, công trình; chứng chỉ hành nghề; công khai năng lực; giấy phép nhà thầu nước ngoài.' },
     { id: 'ND214-2025', type: 'Nghị định', number: '214/2025/NĐ-CP', title: 'Quy định chi tiết về đấu thầu', date: '2025-11-20', effectiveDate: '2025-11-20', provisions: [{ provision: 'K4 Điều 78: hạn mức chỉ định thầu 500tr/800tr/2tỷ' }], replaces: ['NĐ 24/2024/NĐ-CP'] },
     { id: 'ND254-2025', type: 'Nghị định', number: '254/2025/NĐ-CP', title: 'Quản lý, thanh toán, quyết toán vốn đầu tư công và chi thường xuyên', date: '2025-09-26', effectiveDate: '2025-09-26', replaces: ['NĐ 99/2021/NĐ-CP'], note: 'Hồ sơ tạm ứng, thanh toán; mẫu 02a-05a/TT; giao dịch Kho bạc; áp dụng cho cả chi thường xuyên NSNN' },
-    { id: 'ND193-2026', type: 'Nghị định', number: '193/2026/NĐ-CP', title: 'Quyết toán vốn đầu tư công dự án hoàn thành', date: '2026-06-25', effectiveDate: '2026-07-01', note: 'Hồ sơ trình thẩm tra, phê duyệt quyết toán; thời hạn 4 tháng từ bàn giao' },
+    { id: 'ND193-2026', type: 'Nghị định', number: '193/2026/NĐ-CP', title: 'Quyết toán vốn đầu tư dự án', date: '2026-06-01', effectiveDate: '2026-07-01', replaces: ['Bãi bỏ một phần NĐ 254/2025/NĐ-CP', 'Một số nội dung của NĐ 88/2025/NĐ-CP', 'Một số nội dung của NĐ 358/2025/NĐ-CP'], domains: ['quyết toán vốn', 'hồ sơ quyết toán', 'báo cáo quyết toán', 'dự án thành phần', 'bồi thường tái định cư', 'kiểm toán độc lập', 'thẩm tra', 'phê duyệt quyết toán', 'công nợ', 'tài sản'], workflowStages: [7, 8], note: 'Vốn được quyết toán; hồ sơ, báo cáo; dự án thành phần; bồi thường, tái định cư; kiểm toán độc lập; thẩm tra, phê duyệt; xử lý công nợ và tài sản.' },
     { id: 'ND347-2025', type: 'Nghị định', number: '347/2025/NĐ-CP', title: 'Kiểm soát chi NSNN qua Kho bạc Nhà nước', date: '2025-09-26', effectiveDate: '2025-09-26', note: 'Giấy rút vốn, rút dự toán; kiểm soát cam kết chi' },
     { id: 'ND104-2026', type: 'Nghị định', number: '104/2026/NĐ-CP', title: 'Quy định về hạn mức chỉ định thầu và mua sắm', date: '2026-06-15', effectiveDate: '2026-07-01', note: 'Hạn mức chỉ định thầu; thủ tục mua sắm đơn giản cho dưới 500 triệu đồng' },
     { id: 'ND123-2020', type: 'Nghị định', number: '123/2020/NĐ-CP', title: 'Quy định về hóa đơn, chứng từ', date: '2020-10-19', effectiveDate: '2022-07-01', note: 'Hóa đơn điện tử; thời điểm xuất HĐ khi nghiệm thu; HĐ GTGT' },
@@ -299,12 +348,12 @@ function getConfig() {
     const parsed = JSON.parse(row.data);
     const merged = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
     deepMerge(merged, parsed);
-    // Merge legalDocuments by id: giữ bản đã lưu + thêm mới từ default
+    // Văn bản mặc định là nguồn chuẩn nghiệp vụ; vẫn giữ các văn bản tùy chỉnh không trùng id.
     if (parsed.legalDocuments && Array.isArray(parsed.legalDocuments)) {
-      const storedIds = new Set(parsed.legalDocuments.map(d => d.id));
+      const defaultIds = new Set(DEFAULT_CONFIG.legalDocuments.map(d => d.id));
       merged.legalDocuments = [
-        ...parsed.legalDocuments,
-        ...DEFAULT_CONFIG.legalDocuments.filter(d => !storedIds.has(d.id))
+        ...DEFAULT_CONFIG.legalDocuments,
+        ...parsed.legalDocuments.filter(d => !defaultIds.has(d.id))
       ];
     }
     return merged;
@@ -354,8 +403,10 @@ module.exports = {
   isLocked,
   getLockRemainingMs,
   createSession,
-  getSession,
+  getSessionByAccessToken,
+  refreshSession,
   deleteSession,
+  deleteSessionByRefreshToken,
   getConfig,
   saveConfig,
   DEFAULT_CONFIG

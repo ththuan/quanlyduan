@@ -2,7 +2,7 @@
 
 > **Trường Cao đẳng Kinh tế - Kỹ thuật Cần Thơ (CTEC)**
 
-Hệ thống quản lý toàn diện các dự án đầu tư xây dựng — theo dõi tiến độ, giải ngân, quyết toán theo đúng quy định pháp luật hiện hành (NĐ 193/2026, NĐ 214/2025, TT 73/2026, Luật Xây dựng 135/2025).
+Hệ thống quản lý toàn diện các dự án đầu tư xây dựng — theo dõi tiến độ, giải ngân, quyết toán theo Luật Xây dựng 135/2025/QH15 và 07 nghị định hướng dẫn có hiệu lực từ 01/07/2026 (NĐ 217, 206, 207, 209, 210, 212 và 193/2026), cùng các quy định đấu thầu, thanh toán và mẫu biểu liên quan.
 
 ## Tính năng chính
 

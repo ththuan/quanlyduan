@@ -9,11 +9,71 @@
 // SECTION 2: Backend API (Express + SQLite) for state & PDF storage
 // ============================================================
 const API_BASE = '/api';
+const AUTH_STORAGE_KEY = 'qlda_auth_session';
+const nativeFetch = window.fetch.bind(window);
+let refreshPromise = null;
+
+function getStoredAuth() {
+  try { return JSON.parse(localStorage.getItem(AUTH_STORAGE_KEY) || 'null'); }
+  catch (_) { return null; }
+}
+
+function storeAuth(data) {
+  const auth = {
+    accessToken: data.accessToken,
+    refreshToken: data.refreshToken,
+    accessExpiresAt: data.accessExpiresAt,
+    expiresAt: data.expiresAt,
+    user: data.user
+  };
+  localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(auth));
+  return auth;
+}
+
+function clearStoredAuth() {
+  localStorage.removeItem(AUTH_STORAGE_KEY);
+  sessionStorage.removeItem('qlda_force_pw');
+}
+
+async function renewAccessToken() {
+  if (refreshPromise) return refreshPromise;
+  const auth = getStoredAuth();
+  if (!auth?.refreshToken) return null;
+  refreshPromise = nativeFetch(`${API_BASE}/refresh`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refreshToken: auth.refreshToken })
+  }).then(async res => {
+    if (!res.ok) { clearStoredAuth(); return null; }
+    return storeAuth(await res.json());
+  }).catch(() => null).finally(() => { refreshPromise = null; });
+  return refreshPromise;
+}
+
+async function authFetch(input, init = {}, allowRetry = true) {
+  const auth = getStoredAuth();
+  const headers = new Headers(init.headers || {});
+  if (auth?.accessToken) headers.set('Authorization', `Bearer ${auth.accessToken}`);
+  let res = await nativeFetch(input, { ...init, headers });
+  if (res.status === 401 && allowRetry && auth?.refreshToken) {
+    const renewed = await renewAccessToken();
+    if (renewed?.accessToken) {
+      headers.set('Authorization', `Bearer ${renewed.accessToken}`);
+      res = await nativeFetch(input, { ...init, headers });
+    }
+  }
+  return res;
+}
+
+// Toàn bộ API nghiệp vụ tự mang access token và tự làm mới phiên khi cần.
+window.fetch = function(input, init) {
+  const url = typeof input === 'string' ? input : input.url;
+  return url.startsWith('/api/') ? authFetch(input, init) : nativeFetch(input, init);
+};
 
 function handleAuthResponse(res) {
   if (res.status === 401) {
     window.location.href = '/login.html';
-    throw new Error('Phiên đăng nhập đã hết hạn');
+    throw new Error('Phiên đăng nhập không còn hợp lệ');
   }
   return res;
 }
@@ -26,7 +86,15 @@ async function apiGetMe() {
 }
 
 async function apiLogout() {
-  await fetch(`${API_BASE}/logout`, { method: 'POST' });
+  const auth = getStoredAuth();
+  try {
+    await nativeFetch(`${API_BASE}/logout`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken: auth?.refreshToken || '' })
+    });
+  } finally {
+    clearStoredAuth();
+  }
 }
 
 async function apiListUsers() {
@@ -260,6 +328,15 @@ function getCurrentProject() {
   return state.projects.find(p => p.id === state.currentProjectId) || state.projects[0];
 }
 
+function selectProject(id) {
+  if (!state.projects.some(p => p.id === id)) return;
+  state.currentProjectId = id;
+  const select = document.getElementById('project-selector');
+  if (select) select.value = id;
+  saveState();
+  renderAll();
+}
+
 function generateId() {
   return 'id-' + Date.now().toString(36) + '-' + Math.random().toString(36).substring(2, 7);
 }
@@ -310,7 +387,7 @@ let FEASIBILITY_STATUSES = ['Chưa lập', 'Đã lập, chờ thẩm định', '
 let ACCEPTANCE_STATUSES = ['Chưa nghiệm thu', 'Đã nghiệm thu', 'Đang kiểm tra CQCM'];
 let SETTLEMENT_STATUSES = ['Chưa quyết toán', 'Đang thẩm tra', 'Đã quyết toán'];
 
-// ---- Module 2: Hợp đồng & Pháp lý (NĐ 193/2026, NĐ 254/2025, NĐ 123/2020) ----
+// ---- Module 2: Hợp đồng & Pháp lý (NĐ 210/2026, NĐ 254/2025, NĐ 123/2020) ----
 // Hạn mức chỉ định thầu theo loại gói (khoản 4 Điều 78 NĐ 214/2025/NĐ-CP)
 let CONTRACT_ROUTE_DIRECT_LIMITS = { consulting: 800000000, construction: 2000000000, goods: 2000000000, mixed: 2000000000, nonConsulting: 2000000000, nonProject: 500000000 };
 
@@ -343,7 +420,7 @@ function computeContractAlerts(pkg) {
     const d = daysUntil(pkg.contractEndDate);
     if (d != null) {
       if (d < 0) {
-        alerts.push({ level: 'danger', icon: 'warning', message: `Gói "${pkg.name}": QUÁ HẠN hợp đồng ${-d} ngày (hạn ${formatDateVN(pkg.contractEndDate)}). Nếu nhà thầu kéo dài thời gian phải ký phụ lục gia hạn hợp pháp theo NĐ 193/2026 & NĐ 254/2025.` });
+        alerts.push({ level: 'danger', icon: 'warning', message: `Gói "${pkg.name}": QUÁ HẠN hợp đồng ${-d} ngày (hạn ${formatDateVN(pkg.contractEndDate)}). Nếu kéo dài thời gian thực hiện, cần kiểm tra căn cứ và ký phụ lục hợp đồng theo NĐ 210/2026/NĐ-CP.` });
       } else if (d <= CONTRACT_DEADLINE_WARN_DAYS) {
         alerts.push({ level: 'warning', icon: 'schedule', message: `Gói "${pkg.name}": sắp đến hạn hoàn thành hợp đồng (còn ${d} ngày, tiến độ ${pkg.progress}%).` });
       }
@@ -769,7 +846,9 @@ function renderProjectInfoBar() {
     <div class="info-item"><span class="info-label">Dự án:</span><span class="info-value">${esc(project.fullName || project.name)}</span></div>
     <div class="info-item"><span class="info-label">Chủ đầu tư:</span><span class="info-value">${esc(project.owner)}</span></div>
     <div class="info-item"><span class="info-label">Địa điểm:</span><span class="info-value">${esc(project.location)}</span></div>
+    <div class="info-item"><span class="info-label">Thời gian:</span><span class="info-value">${project.startYear || project.endYear ? `${project.startYear || '...'}–${project.endYear || '...'}` : 'Chưa cập nhật'}</span></div>
     <div class="info-item"><span class="info-label">Nhóm:</span><span class="info-value">${esc(project.projectGroup || '—')}</span></div>
+    <div class="info-item"><span class="info-label">Năm KH vốn:</span><span class="info-value">${project.planYear || '—'}</span></div>
     <div class="info-item"><span class="info-label">Nguồn vốn:</span><span class="info-value">${esc(project.investmentSource || '—')}</span></div>
     <div class="info-item"><span class="info-label">Tổng mức đầu tư:</span><span class="info-value" style="color:var(--accent-cyan);font-weight:700">${formatCurrency(project.totalInvestment, true)}</span></div>
     ${project.identifierCode ? `<div class="info-item"><span class="info-label">Mã ĐD:</span><span class="info-value">${esc(project.identifierCode)}</span></div>` : ''}
@@ -823,7 +902,7 @@ function renderDashboard() {
         <div class="kpi-icon"><span class="material-symbols-rounded">account_balance</span></div>
       </div>
       <div class="kpi-value">${formatCurrency(totalInvest, true)}</div>
-      <div class="kpi-sub">KH vốn năm: ${formatCurrency(project.annualPlan, true)}</div>
+      <div class="kpi-sub">KH vốn năm ${project.planYear || '—'}: ${formatCurrency(project.annualPlan, true)}</div>
     </div>
     <div class="kpi-card glass-card" data-color="purple">
       <div class="kpi-header">
@@ -895,6 +974,8 @@ function renderDashboard() {
   });
   timelineItems.sort((a, b) => a.date.localeCompare(b.date));
 
+  renderCapitalSummary();
+
   const kpiContainer = kpiEl.parentElement;
   let timelineEl = document.getElementById('dashboard-timeline');
   if (!timelineEl) {
@@ -928,6 +1009,85 @@ function renderDashboard() {
   renderDonutChart();
   renderBarChart();
   renderGanttChart();
+}
+
+function renderCapitalSummary() {
+  const el = document.getElementById('capital-summary');
+  if (!el) return;
+
+  const projects = (state.projects || []).map(proj => {
+    const invest = proj.totalInvestment || 0;
+    const disbursed = proj.categories.reduce((s, c) => s + getCatDisbursedTotal(c), 0);
+    const cumulative = proj.categories.reduce((s, c) => s + getCatCumulativeTotal(c), 0);
+    const rate = invest > 0 ? (disbursed / invest) * 100 : 0;
+    return { proj, invest, disbursed, cumulative, rate };
+  });
+
+  const totalInvest = projects.reduce((s, r) => s + r.invest, 0);
+  const totalAnnual = projects.reduce((s, r) => s + (r.proj.annualPlan || 0), 0);
+  const totalCumulativePlan = projects.reduce((s, r) => s + (r.proj.cumulativePlan || 0), 0);
+  const totalDisbursed = projects.reduce((s, r) => s + r.disbursed, 0);
+  const totalCumulative = projects.reduce((s, r) => s + r.cumulative, 0);
+  const totalRate = totalInvest > 0 ? (totalDisbursed / totalInvest) * 100 : 0;
+  const planYears = [...new Set(projects.map(r => r.proj.planYear).filter(Boolean))];
+  const canTotalPlans = projects.length > 0 && projects.every(r => r.proj.planYear) && planYears.length === 1;
+
+  el.innerHTML = `
+    <details class="chart-card glass-card capital-summary-card" style="margin-bottom:24px">
+      <summary class="capital-summary-toggle">
+        <span><span class="material-symbols-rounded">account_balance_wallet</span> Tổng hợp kế hoạch vốn các dự án</span>
+        <span class="capital-summary-meta">${projects.length} dự án <span class="material-symbols-rounded capital-expand-icon">expand_more</span></span>
+      </summary>
+      <div class="capital-summary-note">
+        <strong>Kế hoạch vốn năm</strong> là số vốn được giao riêng trong năm kế hoạch của từng dự án.
+        <strong>Lũy kế vốn đã phân bổ</strong> là tổng số vốn đã giao từ khi bắt đầu dự án đến hết năm kế hoạch đó.
+        <span class="capital-summary-note-extra">Các tổng ở cuối bảng chỉ mang tính tổng hợp nhanh; khi các dự án khác năm, hãy đọc theo nhãn năm ở từng dòng.</span>
+      </div>
+      <div class="capital-table-wrapper">
+        <table class="report-table capital-table">
+          <thead>
+            <tr>
+              <th>TT</th>
+              <th>Dự án</th>
+              <th>Thời gian thực hiện</th>
+              <th class="text-right">Tổng mức đầu tư</th>
+              <th class="text-right">Kế hoạch vốn năm</th>
+              <th class="text-right">Lũy kế vốn đã phân bổ</th>
+              <th class="text-right">Lũy kế thực hiện</th>
+              <th class="text-right">Lũy kế giải ngân</th>
+              <th class="text-right">Tỷ lệ giải ngân</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${projects.map((r, i) => `
+              <tr class="${r.proj.id === state.currentProjectId ? 'row-current' : ''}" onclick="selectProject('${r.proj.id}')">
+                <td>${i + 1}</td>
+                <td class="pkg-name">${esc(r.proj.name)}</td>
+                <td>${r.proj.startYear || r.proj.endYear ? `${r.proj.startYear || '...'}–${r.proj.endYear || '...'}` : '—'}</td>
+                <td class="text-right">${formatCurrency(r.invest, true)}</td>
+                <td class="text-right"><small class="capital-year-label">Năm ${r.proj.planYear || '—'}</small>${formatCurrency(r.proj.annualPlan || 0, true)}</td>
+                <td class="text-right"><small class="capital-year-label">Đến hết ${r.proj.planYear || '—'}</small>${formatCurrency(r.proj.cumulativePlan || 0, true)}</td>
+                <td class="text-right">${formatCurrency(r.cumulative, true)}</td>
+                <td class="text-right">${formatCurrency(r.disbursed, true)}</td>
+                <td class="text-right"><span class="badge ${r.rate >= 60 ? 'badge-success' : r.rate >= 30 ? 'badge-warning' : 'badge-danger'}">${formatPercent(r.rate)}</span></td>
+              </tr>
+            `).join('')}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="3"><strong>Tổng cộng (${projects.length} dự án)</strong></td>
+              <td class="text-right"><strong>${formatCurrency(totalInvest, true)}</strong></td>
+              <td class="text-right">${canTotalPlans ? `<small class="capital-year-label">Năm ${planYears[0]}</small><strong>${formatCurrency(totalAnnual, true)}</strong>` : '<span class="capital-not-totaled">Không cộng khác năm</span>'}</td>
+              <td class="text-right">${canTotalPlans ? `<small class="capital-year-label">Đến hết ${planYears[0]}</small><strong>${formatCurrency(totalCumulativePlan, true)}</strong>` : '<span class="capital-not-totaled">Không cộng khác năm</span>'}</td>
+              <td class="text-right"><strong>${formatCurrency(totalCumulative, true)}</strong></td>
+              <td class="text-right"><strong>${formatCurrency(totalDisbursed, true)}</strong></td>
+              <td class="text-right"><span class="badge badge-info">${formatPercent(totalRate)}</span></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </details>
+  `;
 }
 
 function renderPackages(searchTerm = '') {
@@ -1056,7 +1216,7 @@ function renderReports() {
       <div class="report-summary-card glass-card">
         <h4>Tổng mức đầu tư</h4>
         <div class="big-number" style="color:var(--accent-cyan)">${formatCurrency(totalInvest, true)}</div>
-        <div class="big-sub">KH vốn năm: ${formatCurrency(project.annualPlan, true)}</div>
+        <div class="big-sub">Kế hoạch vốn năm ${project.planYear || '—'}: ${formatCurrency(project.annualPlan, true)}</div>
       </div>
       <div class="report-summary-card glass-card">
         <h4>Tỷ lệ giải ngân</h4>
@@ -1295,8 +1455,11 @@ function renderReports() {
         <button class="btn btn-secondary" onclick="exportSettlementWarrantyReport()">
           <span class="material-symbols-rounded">receipt_long</span> Báo cáo Quyết toán & Bảo hành
         </button>
-        <button class="btn btn-accent" onclick="exportExcel()">
-          <span class="material-symbols-rounded">table</span> Xuất Excel (.xlsx)
+        <button class="btn btn-accent" onclick="exportExcel('current')">
+          <span class="material-symbols-rounded">table</span> Xuất Excel (dự án hiện tại)
+        </button>
+        <button class="btn btn-accent" onclick="exportExcel('all')">
+          <span class="material-symbols-rounded">table</span> Xuất Excel (tất cả dự án)
         </button>
       </div>
     </div>
@@ -1601,9 +1764,34 @@ function exportSettlementWarrantyReport() {
   `);
 }
 
-// ---- Xuất Excel toàn bộ dữ liệu ----
-function exportExcel() {
-  window.open('/api/export/excel', '_blank');
+// ---- Xuất Excel (dự án hiện tại hoặc toàn bộ dữ liệu) ----
+async function exportExcel(scope) {
+  try {
+    let url = `${API_BASE}/export/excel`;
+    let filename = 'QLDA_Export.xlsx';
+    if (scope === 'current') {
+      const project = getCurrentProject();
+      if (!project) { showToast('Chưa có dự án nào để xuất', 'error'); return; }
+      url += `?projectId=${encodeURIComponent(project.id)}`;
+      filename = `QLDA_${project.name}.xlsx`;
+    }
+    const res = handleAuthResponse(await fetch(url));
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Xuất Excel thất bại (HTTP ' + res.status + ')');
+    }
+    const blob = await res.blob();
+    const objUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(objUrl);
+  } catch (err) {
+    showToast('Lỗi khi xuất Excel: ' + err.message, 'error');
+  }
 }
 
 // ============================================================
@@ -1923,8 +2111,14 @@ function getSettlementTemplates(project) {
 // Tra cứu văn bản pháp lý áp dụng cho dự án
 function getApplicableLegalDocs(project) {
   const docs = state.config?.legalDocuments || [];
-  const submissionDate = project?.settlementSubmissionDate || '';
-  return docs.filter(d => !d.effectiveDate || d.effectiveDate <= submissionDate);
+  const projectDates = [
+    project?.settlementSubmissionDate,
+    project?.completionDate,
+    project?.startDate,
+    new Date().toISOString().slice(0, 10)
+  ].filter(Boolean);
+  const referenceDate = projectDates[0];
+  return docs.filter(d => !d.effectiveDate || d.effectiveDate <= referenceDate);
 }
 
 function getSettlementStats(project) {
@@ -2546,10 +2740,11 @@ function getPackageFormData() {
 function generateDocChecklist() {
   return [
     {
-      stage: '01_Pháp lý đầu vào',
+      stage: '01_Pháp lý đầu vào — NĐ 217, 206, 212/2026',
       items: [
         { id: generateId(), name: 'Kế hoạch vốn / Quyết định giao dự toán', required: true, done: false },
-        { id: generateId(), name: 'Quyết định phê duyệt dự án / BCKTKT', required: true, done: false },
+        { id: generateId(), name: 'Quyết định phê duyệt dự án / BCKTKT và tổng mức đầu tư', required: true, done: false },
+        { id: generateId(), name: 'Mã định danh dự án/công trình và hồ sơ năng lực liên quan', required: true, done: false },
         { id: generateId(), name: 'Hợp đồng kinh tế & Phụ lục', required: true, done: false },
         { id: generateId(), name: 'Mẫu 02.a/TT - Bảng tổng hợp thông tin HĐ', required: false, done: false },
         { id: generateId(), name: 'Mẫu 02.b/TT - Bảng tổng hợp dự toán chi phí', required: false, done: false },
@@ -2557,7 +2752,7 @@ function generateDocChecklist() {
       ]
     },
     {
-      stage: '02_Tạm ứng',
+      stage: '02_Tạm ứng — NĐ 210/2026 và quy định thanh toán vốn',
       items: [
         { id: generateId(), name: 'Mẫu 04.a/TT - Giấy đề nghị thanh toán (tạm ứng)', required: true, done: false },
         { id: generateId(), name: 'Mẫu 05.a/TT - Giấy rút vốn / rút dự toán', required: true, done: false },
@@ -2565,7 +2760,7 @@ function generateDocChecklist() {
       ]
     },
     {
-      stage: '03_Thanh toán KLHT',
+      stage: '03_Thanh toán KLHT — NĐ 206, 210/2026',
       items: [
         { id: generateId(), name: 'Mẫu 03.a/TT - Bảng xác định giá trị KLHT', required: true, done: false },
         { id: generateId(), name: 'Mẫu 04.a/TT - Giấy đề nghị thanh toán (thực chi)', required: true, done: false },
@@ -2574,15 +2769,16 @@ function generateDocChecklist() {
       ]
     },
     {
-      stage: '04_Nghiệm thu hoàn thành',
+      stage: '04_Nghiệm thu hoàn thành — NĐ 207, 209/2026',
       items: [
         { id: generateId(), name: 'Biên bản nghiệm thu hoàn thành toàn bộ HĐ', required: true, done: false },
         { id: generateId(), name: 'Biên bản nghiệm thu hoàn thành công trình', required: true, done: false },
+        { id: generateId(), name: 'Hồ sơ chất lượng vật liệu, cấu kiện, thiết bị', required: true, done: false },
         { id: generateId(), name: 'Biên bản bàn giao đưa vào sử dụng', required: true, done: false }
       ]
     },
     {
-      stage: '05_Quyết toán A-B & Thanh lý',
+      stage: '05_Quyết toán A-B & Thanh lý — NĐ 210/2026',
       items: [
         { id: generateId(), name: 'Bảng tính quyết toán A-B (Mẫu 01/QTDA)', required: true, done: false },
         { id: generateId(), name: 'Biên bản thanh lý hợp đồng', required: true, done: false },
@@ -2590,7 +2786,7 @@ function generateDocChecklist() {
       ]
     },
     {
-      stage: '06_Hồ sơ trình duyệt',
+      stage: '06_Hồ sơ trình duyệt — NĐ 193/2026',
       items: [
         { id: generateId(), name: 'Tờ trình đề nghị phê duyệt quyết toán', required: true, done: false },
         { id: generateId(), name: 'Mẫu 01-07/QTDA - Hệ thống mẫu biểu quyết toán', required: true, done: false },
@@ -3375,6 +3571,8 @@ function getProjectFormHTML(proj = null) {
     <div class="form-group"><label>Chủ đầu tư</label><input type="text" id="f-proj-owner" value="${esc(proj?.owner || '')}"></div>
     <div class="form-group"><label>Mã số thuế CĐT</label><input type="text" id="f-proj-taxCode" value="${esc(proj?.investorTaxCode || '')}"></div>
     <div class="form-group"><label>Địa điểm</label><input type="text" id="f-proj-location" value="${esc(proj?.location || '')}"></div>
+    <div class="form-group"><label>Năm bắt đầu thực hiện</label><input type="number" id="f-proj-startYear" min="1900" max="2200" value="${proj?.startYear ?? ''}" placeholder="Ví dụ: 2025"></div>
+    <div class="form-group"><label>Năm kết thúc dự kiến</label><input type="number" id="f-proj-endYear" min="1900" max="2200" value="${proj?.endYear ?? ''}" placeholder="Ví dụ: 2027"></div>
     <div class="form-group">
       <label>Nhóm dự án</label>
       <select id="f-proj-group">
@@ -3390,8 +3588,9 @@ function getProjectFormHTML(proj = null) {
       </select>
     </div>
       <div class="form-group"><label>Tổng mức đầu tư (VNĐ)</label><input type="number" id="f-proj-totalInvestment" value="${proj?.totalInvestment ?? ''}"></div>
-      <div class="form-group"><label>KH vốn trong năm (VNĐ)</label><input type="number" id="f-proj-annualPlan" value="${proj?.annualPlan ?? ''}"></div>
-      <div class="form-group"><label>Lũy kế KH vốn (VNĐ)</label><input type="number" id="f-proj-cumulativePlan" value="${proj?.cumulativePlan ?? ''}"></div>
+      <div class="form-group"><label>Năm kế hoạch vốn</label><input type="number" id="f-proj-planYear" min="1900" max="2200" value="${proj?.planYear ?? new Date().getFullYear()}"></div>
+      <div class="form-group"><label>Kế hoạch vốn của năm (VNĐ)</label><input type="number" id="f-proj-annualPlan" value="${proj?.annualPlan ?? ''}"><p class="field-hint">Số vốn được giao riêng trong năm kế hoạch.</p></div>
+      <div class="form-group"><label>Lũy kế vốn đã phân bổ (VNĐ)</label><input type="number" id="f-proj-cumulativePlan" value="${proj?.cumulativePlan ?? ''}"><p class="field-hint">Tổng vốn đã giao từ đầu dự án đến hết năm kế hoạch.</p></div>
 
       <div class="form-group full-width" style="grid-column:1/-1;display:flex;align-items:center;gap:8px;padding:10px 14px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px">
         <input type="checkbox" id="f-proj-small" ${isSmall ? 'checked' : ''} style="width:auto;height:16px;width:16px" onchange="toggleSmallProjectForm(this.checked)">
@@ -3561,9 +3760,12 @@ function getProjectFormData() {
     owner: document.getElementById('f-proj-owner').value.trim(),
     investorTaxCode: document.getElementById('f-proj-taxCode').value.trim(),
     location: document.getElementById('f-proj-location').value.trim(),
+    startYear: Number(document.getElementById('f-proj-startYear').value) || null,
+    endYear: Number(document.getElementById('f-proj-endYear').value) || null,
     projectGroup: document.getElementById('f-proj-group').value,
     investmentSource: document.getElementById('f-proj-investmentSource').value,
     totalInvestment: Number(document.getElementById('f-proj-totalInvestment').value) || 0,
+    planYear: Number(document.getElementById('f-proj-planYear').value) || new Date().getFullYear(),
     annualPlan: Number(document.getElementById('f-proj-annualPlan').value) || 0,
     cumulativePlan: Number(document.getElementById('f-proj-cumulativePlan').value) || 0,
     smallProject: document.getElementById('f-proj-small').checked,
@@ -3599,6 +3801,26 @@ function getProjectFormData() {
   };
 }
 
+function validateProjectYears(data) {
+  if (data.startYear && data.endYear && data.endYear < data.startYear) {
+    showToast('Năm kết thúc dự kiến không được nhỏ hơn năm bắt đầu', 'error');
+    return false;
+  }
+  if (data.planYear && data.startYear && data.planYear < data.startYear) {
+    showToast('Năm kế hoạch vốn không được trước năm bắt đầu dự án', 'error');
+    return false;
+  }
+  if (data.planYear && data.endYear && data.planYear > data.endYear) {
+    showToast('Năm kế hoạch vốn không được sau năm kết thúc dự kiến', 'error');
+    return false;
+  }
+  if (data.cumulativePlan < data.annualPlan) {
+    showToast('Lũy kế vốn đã phân bổ không được nhỏ hơn kế hoạch vốn của năm', 'error');
+    return false;
+  }
+  return true;
+}
+
 document.getElementById('btn-add-project').addEventListener('click', () => {
   if (!requireEditPermission()) return;
   openModal('Thêm dự án mới', getProjectFormHTML(), `
@@ -3612,6 +3834,7 @@ document.getElementById('btn-add-project').addEventListener('click', () => {
 function saveNewProject() {
   const data = getProjectFormData();
   if (!data.name) { showToast('Vui lòng nhập tên dự án', 'error'); return; }
+  if (!validateProjectYears(data)) return;
   const proj = { id: generateId(), ...data, categories: [] };
   state.projects.push(proj);
   state.currentProjectId = proj.id;
@@ -3638,6 +3861,7 @@ document.getElementById('btn-edit-project').addEventListener('click', () => {
 function saveEditProject() {
   const data = getProjectFormData();
   if (!data.name) { showToast('Vui lòng nhập tên dự án', 'error'); return; }
+  if (!validateProjectYears(data)) return;
   const project = getCurrentProject();
   if (!project) return;
   Object.assign(project, data);
@@ -4277,33 +4501,6 @@ async function init() {
   renderProjectInfoBar();
   renderDashboard();
 
-  // Idle timeout — 15 phút không hoạt động → về trang login
-  (function setupIdleTimeout() {
-    const IDLE_MS = 15 * 60 * 1000;
-    const KEY = 'qlda_last_activity';
-    let checkTimer;
-
-    function updateActivity() { localStorage.setItem(KEY, Date.now().toString()); }
-
-    function checkIdle() {
-      if (!currentUser) return;
-      if (Date.now() - parseInt(localStorage.getItem(KEY) || Date.now(), 10) >= IDLE_MS) {
-        clearInterval(checkTimer);
-        document.cookie.split(';').forEach(function(c) {
-          var name = c.split('=')[0].trim();
-          document.cookie = name + '=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/';
-        });
-        apiLogout().catch(function(){});
-        window.location.replace('/login.html?timeout=1');
-      }
-    }
-
-    if (!localStorage.getItem(KEY)) updateActivity();
-    ['mousemove','mousedown','keydown','scroll','touchstart','click'].forEach(function(e) {
-      window.addEventListener(e, updateActivity, { passive: true });
-    });
-    checkTimer = setInterval(checkIdle, 30000);
-  })();
 }
 
 document.addEventListener('DOMContentLoaded', init);

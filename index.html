@@ -13,69 +13,71 @@
   <link rel="manifest" href="/manifest.json">
   <link rel="icon" type="image/png" href="logoCTEC.png">
   <link rel="apple-touch-icon" href="logoCTEC.png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,1,0" rel="stylesheet">
+  <!-- Bundled locally so icon ligatures do not degrade to their raw names when Google Fonts is blocked. -->
+  <link href="/assets/material-symbols-rounded.css" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <!-- ========== TOP NAVIGATION ========== -->
   <nav id="navbar">
-    <div class="nav-brand">
-      <span class="brand-icon"><img src="logoCTEC.png" alt="Logo CTEC"></span>
-      <div class="brand-text">
-        <h1>Quản lý Dự án</h1>
+    <div class="nav-primary">
+      <div class="nav-brand">
+        <span class="brand-icon"><img src="logoCTEC.png" alt="Logo CTEC"></span>
+        <div class="brand-text">
+          <h1>Quản lý Dự án</h1>
+        </div>
       </div>
-    </div>
 
-    <div class="nav-tabs">
-      <button class="nav-tab active" data-view="dashboard">
-        <span class="material-symbols-rounded">dashboard</span>
-        <span>Tổng quan</span>
-      </button>
-      <button class="nav-tab" data-view="initiation">
-        <span class="material-symbols-rounded">rocket_launch</span>
-        <span>Chủ trương</span>
-      </button>
-      <button class="nav-tab" data-view="packages">
-        <span class="material-symbols-rounded">inventory_2</span>
-        <span>Gói thầu</span>
-      </button>
-      <button class="nav-tab" data-view="settlement">
-        <span class="material-symbols-rounded">fact_check</span>
-        <span>Quyết toán</span>
-      </button>
-      <button class="nav-tab" data-view="reports">
-        <span class="material-symbols-rounded">bar_chart</span>
-        <span>Báo cáo</span>
-      </button>
+      <div class="nav-tabs">
+        <button class="nav-tab active" data-view="dashboard">
+          <span class="material-symbols-rounded">dashboard</span>
+          <span>Tổng quan</span>
+        </button>
+        <button class="nav-tab" data-view="initiation">
+          <span class="material-symbols-rounded">rocket_launch</span>
+          <span>Chủ trương</span>
+        </button>
+        <button class="nav-tab" data-view="packages">
+          <span class="material-symbols-rounded">inventory_2</span>
+          <span>Gói thầu</span>
+        </button>
+        <button class="nav-tab" data-view="settlement">
+          <span class="material-symbols-rounded">fact_check</span>
+          <span>Quyết toán</span>
+        </button>
+        <button class="nav-tab" data-view="reports">
+          <span class="material-symbols-rounded">bar_chart</span>
+          <span>Báo cáo</span>
+        </button>
+      </div>
     </div>
 
     <div class="nav-actions">
       <select id="project-selector" title="Chọn dự án"></select>
-      <button id="btn-add-project" class="btn-icon edit-only" title="Thêm dự án mới">
-        <span class="material-symbols-rounded">add_circle</span>
-      </button>
-      <button id="btn-edit-project" class="btn-icon edit-only" title="Sửa thông tin dự án">
-        <span class="material-symbols-rounded">edit_note</span>
-      </button>
-      <button id="btn-manage-users" class="btn-icon hidden" title="Quản lý người dùng">
-        <span class="material-symbols-rounded">group</span>
-      </button>
-      <button id="btn-backup-restore" class="btn-icon hidden" title="Sao lưu & Phục hồi dữ liệu">
-        <span class="material-symbols-rounded">cloud_sync</span>
-      </button>
-      <button id="btn-sys-config" class="btn-icon hidden" title="Cấu hình nghiệp vụ">
-        <span class="material-symbols-rounded">settings</span>
-      </button>
-      <button id="btn-audit-log" class="btn-icon" title="Lịch sử chỉnh sửa">
-        <span class="material-symbols-rounded">history</span>
-      </button>
-      <span id="current-username" class="current-username"></span>
-      <button id="btn-logout" class="btn-icon" title="Đăng xuất">
-        <span class="material-symbols-rounded">logout</span>
-      </button>
+      <div class="nav-action-buttons">
+        <button id="btn-add-project" class="btn-icon edit-only" title="Thêm dự án mới">
+          <span class="material-symbols-rounded">add_circle</span>
+        </button>
+        <button id="btn-edit-project" class="btn-icon edit-only" title="Sửa thông tin dự án">
+          <span class="material-symbols-rounded">edit_note</span>
+        </button>
+        <button id="btn-manage-users" class="btn-icon hidden" title="Quản lý người dùng">
+          <span class="material-symbols-rounded">group</span>
+        </button>
+        <button id="btn-backup-restore" class="btn-icon hidden" title="Sao lưu & Phục hồi dữ liệu">
+          <span class="material-symbols-rounded">cloud_sync</span>
+        </button>
+        <button id="btn-sys-config" class="btn-icon hidden" title="Cấu hình nghiệp vụ">
+          <span class="material-symbols-rounded">settings</span>
+        </button>
+        <button id="btn-audit-log" class="btn-icon" title="Lịch sử chỉnh sửa">
+          <span class="material-symbols-rounded">history</span>
+        </button>
+        <span id="current-username" class="current-username"></span>
+        <button id="btn-logout" class="btn-icon" title="Đăng xuất">
+          <span class="material-symbols-rounded">logout</span>
+        </button>
+      </div>
     </div>
   </nav>
 
@@ -87,6 +89,7 @@
     <!-- Dashboard View -->
     <section id="view-dashboard" class="view active">
       <div id="kpi-cards" class="kpi-grid"></div>
+      <div id="capital-summary"></div>
       <div class="charts-row">
         <div class="chart-card glass-card">
           <h3><span class="material-symbols-rounded">donut_large</span> Phân bổ chi phí theo danh mục</h3>

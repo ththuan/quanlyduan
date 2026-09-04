@@ -16,7 +16,6 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const ROOT_DIR = path.join(__dirname, '..');
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const SESSION_COOKIE = 'qlda_sid';
 
 // ---- Optional HTTPS (self-signed for LAN) ----
 // Ưu tiên: HTTPS_PFX (+ HTTPS_PFX_PASSPHRASE). Nếu không: HTTPS_CERT + HTTPS_KEY (PEM).
@@ -43,12 +42,12 @@ app.use((req, res, next) => {
   res.setHeader('Referrer-Policy', 'same-origin');
   res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
-  // CSP: chỉ cho phép tài nguyên cùng nguồn + Google Fonts + inline style cần thiết cho SPA
+  // CSP: chỉ cho phép tài nguyên cùng nguồn và inline style cần thiết cho SPA
   res.setHeader('Content-Security-Policy',
     "default-src 'self'; " +
     "script-src 'self' 'unsafe-inline'; " +
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-    "font-src 'self' https://fonts.gstatic.com; " +
+    "style-src 'self' 'unsafe-inline'; " +
+    "font-src 'self'; " +
     "img-src 'self' data: blob:; " +
     "connect-src 'self'; " +
     "object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
@@ -56,38 +55,15 @@ app.use((req, res, next) => {
   next();
 });
 
-// ---- Cookie helpers (no external dependency) ----
-function parseCookies(req) {
-  const header = req.headers.cookie;
-  const cookies = {};
-  if (!header) return cookies;
-  header.split(';').forEach(part => {
-    const idx = part.indexOf('=');
-    if (idx === -1) return;
-    const key = part.slice(0, idx).trim();
-    const val = part.slice(idx + 1).trim();
-    if (key) cookies[key] = decodeURIComponent(val);
-  });
-  return cookies;
-}
-
-function setSessionCookie(res, token) {
-  const secure = IS_HTTPS ? '; Secure' : '';
-  res.setHeader('Set-Cookie', `${SESSION_COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${7 * 24 * 60 * 60}${secure}`);
-}
-
-function clearSessionCookie(res) {
-  const secure = IS_HTTPS ? '; Secure' : '';
-  res.setHeader('Set-Cookie', `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure}`);
-}
-
 // ---- Auth middleware ----
 function requireAuth(req, res, next) {
-  const token = parseCookies(req)[SESSION_COOKIE];
-  const session = token && db.getSession(token);
+  const auth = req.headers.authorization || '';
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+  const session = db.getSessionByAccessToken(token);
   if (!session) return res.status(401).json({ error: 'Chưa đăng nhập' });
   const user = db.getUserById(session.user_id);
   if (!user) return res.status(401).json({ error: 'Chưa đăng nhập' });
+  req.sessionId = session.id;
   req.user = { id: user.id, username: user.username, role: user.role, mustChangePassword: !!user.must_change_password };
   // Ép đổi mật khẩu: chặn mọi API trừ logout, đổi mật khẩu, /api/me
   if (req.user.mustChangePassword) {
@@ -121,6 +97,10 @@ app.get('/style.css', (req, res) => res.sendFile(path.join(ROOT_DIR, 'style.css'
 app.get('/logoCTEC.png', (req, res) => res.sendFile(path.join(ROOT_DIR, 'logoCTEC.png'), { headers: { 'Cache-Control': 'public, max-age=31536000' } }));
 app.get('/manifest.json', (req, res) => res.sendFile(path.join(ROOT_DIR, 'manifest.json'), { headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Content-Type': 'application/manifest+json' } }));
 app.get('/sw.js', (req, res) => res.sendFile(path.join(ROOT_DIR, 'sw.js'), { headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' } }));
+app.get('/assets/material-symbols-rounded.css', (req, res) => res.sendFile(path.join(ROOT_DIR, 'assets', 'material-symbols-rounded.css'), { headers: { 'Cache-Control': 'public, max-age=31536000, immutable' } }));
+app.get('/assets/material-symbols-rounded.woff2', (req, res) => res.sendFile(path.join(ROOT_DIR, 'assets', 'material-symbols-rounded.woff2'), { headers: { 'Cache-Control': 'public, max-age=31536000, immutable' } }));
+app.get('/assets/inter-vietnamese.woff2', (req, res) => res.sendFile(path.join(ROOT_DIR, 'assets', 'inter-vietnamese.woff2'), { headers: { 'Cache-Control': 'public, max-age=31536000, immutable' } }));
+app.get('/assets/inter-latin.woff2', (req, res) => res.sendFile(path.join(ROOT_DIR, 'assets', 'inter-latin.woff2'), { headers: { 'Cache-Control': 'public, max-age=31536000, immutable' } }));
 
 // ---- Auth API ----
 // Rate limiter đơn giản theo IP (in-memory)
@@ -159,15 +139,32 @@ app.post('/api/login', (req, res) => {
   }
   db.resetFailedLogin(user.id);
   const session = db.createSession(user.id);
-  setSessionCookie(res, session.id);
-  res.json({ username: user.username, role: user.role, id: user.id, mustChangePassword: !!user.must_change_password });
+  res.json({
+    accessToken: session.accessToken, refreshToken: session.refreshToken,
+    accessExpiresAt: session.accessExpiresAt, expiresAt: session.expiresAt,
+    user: { username: user.username, role: user.role, id: user.id, mustChangePassword: !!user.must_change_password }
+  });
 });
 
 app.post('/api/logout', (req, res) => {
-  const token = parseCookies(req)[SESSION_COOKIE];
-  if (token) db.deleteSession(token);
-  clearSessionCookie(res);
+  const { refreshToken } = req.body || {};
+  db.deleteSessionByRefreshToken(refreshToken);
   res.json({ ok: true });
+});
+
+app.post('/api/refresh', (req, res) => {
+  const renewed = db.refreshSession(req.body?.refreshToken);
+  if (!renewed) return res.status(401).json({ error: 'Phiên đăng nhập đã hết hạn' });
+  const user = db.getUserById(renewed.userId);
+  if (!user) {
+    db.deleteSession(renewed.sessionId);
+    return res.status(401).json({ error: 'Tài khoản không còn tồn tại' });
+  }
+  res.json({
+    accessToken: renewed.accessToken, refreshToken: renewed.refreshToken,
+    accessExpiresAt: renewed.accessExpiresAt, expiresAt: renewed.expiresAt,
+    user: { username: user.username, role: user.role, id: user.id, mustChangePassword: !!user.must_change_password }
+  });
 });
 
 app.get('/api/me', requireAuth, (req, res) => {
@@ -263,7 +260,17 @@ const upload = multer({
   }
 });
 
-app.post('/api/pdfs', requireAuth, requireAdmin, upload.single('file'), (req, res) => {
+app.post('/api/pdfs', requireAuth, requireAdmin, (req, res, next) => {
+  upload.single('file')(req, res, (err) => {
+    if (err) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ error: 'File quá lớn (tối đa 50MB)' });
+      }
+      return res.status(400).json({ error: err.message || 'Tải file thất bại' });
+    }
+    next();
+  });
+}, (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Không có file được tải lên' });
   let filename = req.file.originalname;
   try {
@@ -394,10 +401,13 @@ app.put('/api/config', requireAuth, requireAdmin, (req, res) => {
 app.get('/api/export/excel', requireAuth, (req, res) => {
   try {
     const state = db.getState();
+    const { projectId } = req.query;
+    const projects = projectId ? state.projects.filter(p => p.id === projectId) : state.projects;
+    if (projectId && projects.length === 0) return res.status(404).json({ error: 'Không tìm thấy dự án' });
     const wb = XLSX.utils.book_new();
 
     // Sheet 1: Danh sách dự án
-    const projRows = state.projects.map(p => ({
+    const projRows = projects.map(p => ({
       'Tên dự án': p.name,
       'Tên đầy đủ': p.fullName || '',
       'Chủ đầu tư': p.owner || '',
@@ -412,7 +422,7 @@ app.get('/api/export/excel', requireAuth, (req, res) => {
 
     // Sheet 2: Gói thầu
     const pkgRows = [];
-    state.projects.forEach(p => {
+    projects.forEach(p => {
       (p.categories || []).forEach(c => {
         (c.packages || []).forEach(pkg => {
           pkgRows.push({
@@ -433,7 +443,7 @@ app.get('/api/export/excel', requireAuth, (req, res) => {
 
     // Sheet 3: Thanh toán
     const payRows = [];
-    state.projects.forEach(p => {
+    projects.forEach(p => {
       (p.categories || []).forEach(c => {
         (c.packages || []).forEach(pkg => {
           (pkg.payments || []).forEach(pm => {
@@ -455,7 +465,7 @@ app.get('/api/export/excel', requireAuth, (req, res) => {
 
     // Sheet 4: Phát sinh
     const varRows = [];
-    state.projects.forEach(p => {
+    projects.forEach(p => {
       (p.categories || []).forEach(c => {
         (c.packages || []).forEach(pkg => {
           (pkg.variations || []).forEach(vr => {
@@ -476,7 +486,14 @@ app.get('/api/export/excel', requireAuth, (req, res) => {
     XLSX.utils.book_append_sheet(wb, ws4, 'Phát sinh');
 
     const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
-    res.setHeader('Content-Disposition', 'attachment; filename=QLDA_Export.xlsx');
+    const rawName = projects.length === 1 ? projects[0].name : 'Export';
+    // Content-Disposition chỉ chấp nhận ASCII trong phần filename=; dùng filename*= (RFC 5987) cho tên có dấu
+    const asciiName = rawName
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/đ/g, 'd').replace(/Đ/g, 'D')
+      .replace(/[^A-Za-z0-9_-]+/g, '_').slice(0, 60) || 'Export';
+    const utf8Name = encodeURIComponent(`QLDA_${rawName}.xlsx`);
+    res.setHeader('Content-Disposition', `attachment; filename="QLDA_${asciiName}.xlsx"; filename*=UTF-8''${utf8Name}`);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.send(buf);
   } catch (err) {
@@ -511,8 +528,9 @@ app.post('/api/ai/chat', requireAuth, async (req, res) => {
 
     // Legal documents reference
     const config = db.getConfig();
+    const referenceDate = new Date().toISOString().slice(0, 10);
     const legalRef = (config.legalDocuments || []).map(d =>
-      `${d.type} ${d.number} — ${d.title} (hiệu lực ${d.effectiveDate}${d.replaces ? ', thay thế: ' + d.replaces.join(', ') : ''}${d.note ? '. Lưu ý: ' + d.note : ''})`
+      `${d.type} ${d.number} — ${d.title} (hiệu lực ${d.effectiveDate}; trạng thái tại ${referenceDate}: ${!d.effectiveDate || d.effectiveDate <= referenceDate ? 'đang áp dụng' : 'chưa có hiệu lực'}${d.domains ? '; lĩnh vực: ' + d.domains.join(', ') : ''}${d.workflowStages ? '; bước quy trình: ' + d.workflowStages.join(', ') : ''}${d.replaces ? '; thay thế/bãi bỏ: ' + d.replaces.join(', ') : ''}${d.note ? '. Nội dung: ' + d.note : ''})`
     ).join('\n');
 
     const systemPrompt = `Bạn là trợ lý AI chuyên về quản lý dự án đầu tư xây dựng, tích hợp trong phần mềm QLDA của Trường Cao đẳng Kinh tế - Kỹ thuật Cần Thơ.
@@ -530,6 +548,17 @@ ${legalRef}
 
 QUY TRÌNH CHÍNH:
 1. Lập & phê duyệt dự án → 2. Lựa chọn nhà thầu → 3. Ký hợp đồng → 4. Thi công/Thực hiện → 5. Nghiệm thu → 6. Thanh toán (qua Kho bạc) → 7. Quyết toán A-B → 8. Quyết toán dự án hoàn thành → 9. Bảo hành.
+
+ÁNH XẠ 07 NGHỊ ĐỊNH HƯỚNG DẪN LUẬT XÂY DỰNG 135/2025/QH15:
+1. NĐ 217/2026: chuẩn bị, thẩm định, phê duyệt, quản lý dự án, giấy phép, BIM.
+2. NĐ 206/2026: tổng mức đầu tư, dự toán, giá gói thầu, định mức và quản lý chi phí.
+3. NĐ 207/2026: thi công, chất lượng, an toàn, nghiệm thu, bàn giao, bảo hành và bảo trì.
+4. NĐ 209/2026: lựa chọn, sử dụng và kiểm soát chất lượng vật liệu xây dựng.
+5. NĐ 210/2026: ký, thực hiện, điều chỉnh, thanh toán, quyết toán và thanh lý hợp đồng xây dựng.
+6. NĐ 212/2026: năng lực, chứng chỉ, mã định danh và dữ liệu dự án/công trình.
+7. NĐ 193/2026: hồ sơ, kiểm toán, thẩm tra, phê duyệt quyết toán vốn, công nợ và tài sản.
+
+Khi trả lời hoặc đánh giá quy trình: xác định ngày phát sinh nghiệp vụ trước; chỉ viện dẫn văn bản đã có hiệu lực tại ngày đó. Nêu rõ nghị định áp dụng cho từng bước, hồ sơ còn thiếu, rủi ro và hành động tiếp theo. Không tự suy diễn số điều/khoản nếu dữ liệu hệ thống không cung cấp.
 
 LƯU Ý QUAN TRỌNG:
 - Hạn mức chỉ định thầu theo NĐ 214/2025: tư vấn 800 triệu, xây lắp/hàng hóa/hỗn hợp 2 tỷ, mua sắm không dự án 500 triệu.
