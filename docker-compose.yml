@@ -9,7 +9,7 @@ services:
     container_name: qlda
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "${QLDA_PORT:-3000}:3000"
     environment:
       - NODE_ENV=production
       - PORT=3000
