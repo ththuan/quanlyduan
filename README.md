@@ -70,49 +70,21 @@ cd quanlyduan
 
 > Tạo PAT tại GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic) → Generate new token, tick quyền `repo`.
 
-**2. Tạo/sửa `docker-compose.yml`**
+**2. Tạo file `.env` (cổng host + API key riêng của server này)**
 
-```yaml
-services:
-  qlda:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: qlda
-    restart: unless-stopped
-    ports:
-      - "8091:3000"      # đổi 8091 nếu trùng cổng khác trên host, giữ 3000 bên phải
-    environment:
-      - PORT=3000
-      - GEMINI_API_KEY=your_real_gemini_key_here   # tùy chọn, lấy tại aistudio.google.com/apikey
-    volumes:
-      - qlda_data:/app/server/data
-      - qlda_uploads:/app/server/uploads
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
+`docker-compose.yml` đã có sẵn trong repo, cổng host lấy từ biến `QLDA_PORT` (mặc định `3000` nếu không đặt) — không cần sửa `docker-compose.yml`:
 
-  cloudflared:
-    image: cloudflare/cloudflared:latest
-    container_name: qlda-tunnel
-    restart: unless-stopped
-    command: tunnel --config /home/nonroot/.cloudflared/config.yml run
-    volumes:
-      - ./cloudflared:/home/nonroot/.cloudflared
-    depends_on:
-      - qlda
-
-volumes:
-  qlda_data:
-  qlda_uploads:
+```bash
+cat > .env <<'EOF'
+QLDA_PORT=8091
+GEMINI_API_KEY=your_real_gemini_key_here
+EOF
 ```
 
-> **Lưu ý:**
-> - `context: .` bắt buộc chạy `docker compose` từ đúng thư mục chứa `Dockerfile` (không dùng URL git trực tiếp làm build context vì repo private sẽ lỗi xác thực).
-> - `PORT=3000` bên trong container phải khớp vế phải của port mapping (`8091:3000`).
-> - Nếu chưa cần expose ra Internet, có thể xoá hẳn service `cloudflared`, thêm lại sau.
+> - Đổi `8091` nếu trùng cổng service khác đang chạy trên host (VD AdGuard mặc định dùng cổng `3000`).
+> - `GEMINI_API_KEY` tùy chọn, lấy tại aistudio.google.com/apikey.
+> - File `.env` nằm trong `.gitignore` — deploy lại (`git pull`) sau này **không bao giờ ghi đè** cổng bạn đã chọn.
+
 
 **3. (Tuỳ chọn) Cập nhật model AI nếu bị deprecate**
 
@@ -238,6 +210,19 @@ quanlyduan/
 ## CI/CD & Cập nhật
 
 > **Lưu ý:** Push code lên GitHub **không tự động cập nhật** bất kỳ server nào đang chạy — mỗi server dùng snapshot Docker image build tại thời điểm build. Cần chủ động đồng bộ theo hướng dẫn dưới đây tuỳ hệ điều hành.
+
+### File cấu hình riêng của server (không bao giờ bị `git pull`/`reset --hard` ghi đè)
+
+Các file dưới đây nằm trong `.gitignore` — chỉ tồn tại local trên từng server, sửa code và deploy lại **không ảnh hưởng** tới chúng:
+
+| File | Vai trò |
+|---|---|
+| `.env` | Chứa `QLDA_PORT` (đổi cổng host nếu trùng service khác như AdGuard) và `GEMINI_API_KEY` |
+| `cloudflared/config.yml` | Tunnel-id + hostname riêng của server (copy từ `cloudflared/config.yml.example`) |
+| `cloudflared/*.json`, `cloudflared/cert.pem` | Credentials tunnel Cloudflare riêng, không được commit |
+| `server/data/`, `server/uploads/` | Dữ liệu thật (SQLite + file đính kèm), qua Docker volume |
+
+> Nếu server báo lỗi `port is already allocated` hoặc `Tunnel credentials file ... doesn't exist` sau khi deploy — nguyên nhân **không phải do code mới**, mà do 1 trong các file trên bị thiếu/sai, hãy kiểm tra lại chứ đừng nghi code.
 
 ### Cập nhật thủ công (Windows)
 
