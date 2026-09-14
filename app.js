@@ -4001,8 +4001,19 @@ async function removeTempPDF(pdfId) {
   }
 }
 
-function viewPDF(pdfId) {
-  window.open(`${API_BASE}/pdfs/${pdfId}`, '_blank');
+async function viewPDF(pdfId) {
+  try {
+    // window.open() navigates directly and skips our fetch wrapper, so the
+    // Authorization header never reaches the server -> fetch as blob instead.
+    const res = handleAuthResponse(await fetch(`${API_BASE}/pdfs/${pdfId}`));
+    if (!res.ok) throw new Error('Không tải được file');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  } catch (err) {
+    showToast('Lỗi mở file: ' + err.message, 'error');
+  }
 }
 
 async function removePDF(catId, pkgId, pdfId) {
