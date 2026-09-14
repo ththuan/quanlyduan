@@ -7,4 +7,5 @@ server/uploads/
 certs/
 cloudflared/cert.pem
 cloudflared/*.json
+cloudflared/config.yml
 .env

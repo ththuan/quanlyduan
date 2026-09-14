@@ -1,7 +1,0 @@
-tunnel: fce15591-9b59-461f-a902-3d0cdfb90138
-credentials-file: /home/nonroot/.cloudflared/fce15591-9b59-461f-a902-3d0cdfb90138.json
-
-ingress:
-  - hostname: quanlyduanctec.dpdns.org
-    service: http://qlda:3000
-  - service: http_status:404

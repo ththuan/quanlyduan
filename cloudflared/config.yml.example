@@ -1,0 +1,7 @@
+tunnel: <tunnel-id-cua-ban>
+credentials-file: /home/nonroot/.cloudflared/<tunnel-id-cua-ban>.json
+
+ingress:
+  - hostname: ten-mien-cua-ban.com
+    service: http://qlda:3000
+  - service: http_status:404
