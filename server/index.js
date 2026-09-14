@@ -503,7 +503,9 @@ app.get('/api/export/excel', requireAuth, (req, res) => {
 
 // ---- AI Assistant (Gemini) ----
 const GEMINI_KEY = process.env.GEMINI_API_KEY || '';
-const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent';
+// Model đổi được qua env GEMINI_MODEL (không cần sửa code khi Google deprecate model)
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 app.post('/api/ai/chat', requireAuth, async (req, res) => {
   if (!GEMINI_KEY) return res.status(503).json({ error: 'Chưa cấu hình GEMINI_API_KEY' });

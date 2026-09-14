@@ -86,11 +86,12 @@ EOF
 > - File `.env` nằm trong `.gitignore` — deploy lại (`git pull`) sau này **không bao giờ ghi đè** cổng bạn đã chọn.
 
 
-**3. (Tuỳ chọn) Cập nhật model AI nếu bị deprecate**
+**3. (Tuỳ chọn) Đổi model AI nếu bị deprecate**
 
-Model Gemini có thể bị đổi theo thời gian. Nếu gặp lỗi kiểu "model X no longer available", sửa `server/index.js`:
+Model Gemini có thể bị đổi theo thời gian. Nếu gặp lỗi kiểu "model X no longer available", **không cần sửa code** — thêm dòng sau vào `.env` rồi restart (không cần build lại):
 ```bash
-sed -i "s/gemini-2.5-flash/gemini-3.6-flash/" server/index.js
+echo "GEMINI_MODEL=gemini-3.6-flash" >> .env
+docker compose up -d qlda
 ```
 
 **4. Build & chạy**
@@ -217,12 +218,14 @@ Các file dưới đây nằm trong `.gitignore` — chỉ tồn tại local tr�
 
 | File | Vai trò |
 |---|---|
-| `.env` | Chứa `QLDA_PORT` (đổi cổng host nếu trùng service khác như AdGuard) và `GEMINI_API_KEY` |
+| `.env` | Chứa `QLDA_PORT` (đổi cổng host nếu trùng service khác như AdGuard), `GEMINI_API_KEY` và `GEMINI_MODEL` |
 | `cloudflared/config.yml` | Tunnel-id + hostname riêng của server (copy từ `cloudflared/config.yml.example`) |
 | `cloudflared/*.json`, `cloudflared/cert.pem` | Credentials tunnel Cloudflare riêng, không được commit |
 | `server/data/`, `server/uploads/` | Dữ liệu thật (SQLite + file đính kèm), qua Docker volume |
 
 > Nếu server báo lỗi `port is already allocated` hoặc `Tunnel credentials file ... doesn't exist` sau khi deploy — nguyên nhân **không phải do code mới**, mà do 1 trong các file trên bị thiếu/sai, hãy kiểm tra lại chứ đừng nghi code.
+>
+> **Model AI bị deprecate** (VD "model X no longer available") — **không cần sửa code**, chỉ cần thêm/sửa dòng `GEMINI_MODEL=ten-model-moi` trong `.env` trên server rồi `docker compose up -d qlda` (không cần build lại vì chỉ đổi biến môi trường).
 
 ### Cập nhật thủ công (Windows)
 
@@ -284,7 +287,7 @@ Mỗi lần push lên GitHub, workflow tự động build Docker image và kiể
 | `Tunnel credentials file ... doesn't exist` | Dùng lại config/tunnel-id có sẵn trong repo (của người khác) | Tự tạo tunnel riêng bằng tài khoản Cloudflare của bạn |
 | `SyntaxError: Unexpected identifier` khi chạy `node -e` có dấu `!` | Bash history expansion | Viết lại logic không dùng `!`, hoặc `set +H` trước khi chạy |
 | Dữ liệu hiển thị là demo, không phải dữ liệu thật | Volume Docker mới, database rỗng, tự seed dữ liệu mẫu | Restore `qlda.sqlite` + `uploads/` thật bằng `docker cp` |
-| Lỗi model AI "no longer available" | Google đổi/khai tử model Gemini theo thời gian | Cập nhật tên model mới nhất trong `server/index.js` |
+| Lỗi model AI "no longer available" | Google đổi/khai tử model Gemini theo thời gian | Sửa `GEMINI_MODEL=` trong `.env` rồi `docker compose up -d qlda` (không cần build lại) |
 
 ## License
 
