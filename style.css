@@ -110,8 +110,8 @@ body.read-only .edit-only { display: none !important; }
   justify-content: flex-start;
   padding: 10px 24px;
   background: var(--bg-glass);
-  backdrop-filter: blur(16px) saturate(1.4);
-  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   border-bottom: 1px solid var(--border-glass);
   box-shadow: var(--shadow-sm);
   z-index: 1000;
@@ -1172,7 +1172,6 @@ canvas {
   position: fixed;
   inset: 0;
   background: rgba(15,23,42,0.45);
-  backdrop-filter: blur(3px);
   z-index: 2000;
   animation: fadeIn 0.2s ease;
 }
