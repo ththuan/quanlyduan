@@ -857,20 +857,17 @@ function renderProjectInfoBar() {
   const project = getCurrentProject();
   const bar = document.getElementById('project-info-bar');
   if (!project) { bar.innerHTML = ''; return; }
+  const scopeLabel = project.projectScope === 'nonProject'
+    ? '<div class="info-item"><span class="badge badge-warning">Mua sắm / sửa chữa thường xuyên</span></div>'
+    : '<div class="info-item"><span class="badge badge-info">Dự án</span></div>';
   bar.innerHTML = `
-    <div class="info-item"><span class="info-label">Dự án:</span><span class="info-value">${esc(project.fullName || project.name)}</span></div>
-    <div class="info-item"><span class="info-label">Chủ đầu tư:</span><span class="info-value">${esc(project.owner)}</span></div>
-    <div class="info-item"><span class="info-label">Địa điểm:</span><span class="info-value">${esc(project.location)}</span></div>
+    <div class="info-item"><span class="info-label">${project.projectScope === 'nonProject' ? 'Mua sắm:' : 'Dự án:'}</span><span class="info-value">${esc(project.fullName || project.name)}</span></div>
+    ${scopeLabel}
+    <div class="info-item"><span class="info-label">Chủ đầu tư / Đơn vị:</span><span class="info-value">${esc(project.owner || '—')}</span></div>
+    <div class="info-item"><span class="info-label">Địa điểm:</span><span class="info-value">${esc(project.location || '—')}</span></div>
     <div class="info-item"><span class="info-label">Thời gian:</span><span class="info-value">${project.startYear || project.endYear ? `${project.startYear || '...'}–${project.endYear || '...'}` : 'Chưa cập nhật'}</span></div>
-    <div class="info-item"><span class="info-label">Nhóm:</span><span class="info-value">${esc(project.projectGroup || '—')}</span></div>
-    <div class="info-item"><span class="info-label">Năm KH vốn:</span><span class="info-value">${project.planYear || '—'}</span></div>
     <div class="info-item"><span class="info-label">Nguồn vốn:</span><span class="info-value">${esc(project.investmentSource || '—')}</span></div>
-    <div class="info-item"><span class="info-label">Tổng mức đầu tư:</span><span class="info-value" style="color:var(--accent-cyan);font-weight:700">${formatCurrency(project.totalInvestment, true)}</span></div>
-    ${project.identifierCode ? `<div class="info-item"><span class="info-label">Mã ĐD:</span><span class="info-value">${esc(project.identifierCode)}</span></div>` : ''}
-    ${project.projectType ? `<div class="info-item"><span class="badge badge-neutral">${esc(project.projectType)}</span></div>` : ''}
-    ${project.buildingGrade ? `<div class="info-item"><span class="badge badge-info">Cấp ${project.buildingGrade}</span></div>` : ''}
-    ${project.bimRequired ? `<div class="info-item"><span class="badge badge-success">BIM</span></div>` : ''}
-    ${project.smallProject ? `<div class="info-item"><span class="badge badge-warning">Dự án nhỏ lẻ / giá trị thấp</span></div>` : ''}
+    ${project.totalInvestment ? `<div class="info-item"><span class="info-label">Tổng mức đầu tư:</span><span class="info-value" style="color:var(--accent-cyan);font-weight:700">${formatCurrency(project.totalInvestment, true)}</span></div>` : ''}
   `;
 }
 
@@ -2656,13 +2653,6 @@ function getPackageFormHTML(pkg = null, catId = '') {
         <input type="date" id="f-acceptanceDate" value="${pkg?.acceptanceDate || ''}">
       </div>
 
-      <div data-show="construction mixed goods" class="pkg-show">
-      <div class="form-group">
-        <label>Thất thoát, lãng phí</label>
-        <input type="number" id="f-loss" value="${pkg?.loss || ''}">
-      </div>
-      </div>
-
       <div class="form-section-title"><span class="material-symbols-rounded">receipt</span> Hóa đơn GTGT (NĐ 123/2020)</div>
       <div class="form-group">
         <label>Số hóa đơn GTGT</label>
@@ -2682,44 +2672,6 @@ function getPackageFormHTML(pkg = null, catId = '') {
         </label>
       </div>
 
-      <div data-show="construction mixed goods" class="pkg-show">
-        <div class="form-section-title"><span class="material-symbols-rounded">verified</span> Bàn giao & Bảo hành</div>
-        <div class="form-group">
-          <label>Ngày bàn giao</label>
-          <input type="date" id="f-handoverDate" value="${pkg?.handoverDate || ''}">
-        </div>
-        <div class="form-group">
-          <label>Thời hạn bảo hành (tháng)</label>
-          <input type="number" id="f-warrantyMonths" min="1" value="${pkg?.warrantyMonths ?? ''}" placeholder="Tự động theo cấp công trình">
-        </div>
-      </div>
-      <div data-show="consulting nonConsulting" data-hide="construction mixed goods" class="pkg-show">
-        <div class="form-section-title"><span class="material-symbols-rounded">verified</span> Bàn giao sản phẩm tư vấn</div>
-        <div class="form-group">
-          <label>Ngày bàn giao sản phẩm</label>
-          <input type="date" id="f-handoverDate" value="${pkg?.handoverDate || ''}">
-        </div>
-      </div>
-
-      <div class="form-section-title"><span class="material-symbols-rounded">receipt_long</span> Quyết toán (A-B)</div>
-      <div class="form-group">
-        <label>Trạng thái quyết toán</label>
-        <select id="f-settlementStatus">
-          ${SETTLEMENT_STATUSES.map(s => `<option value="${s}" ${(pkg?.settlementStatus || SETTLEMENT_STATUSES[0]) === s ? 'selected' : ''}>${s}</option>`).join('')}
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Giá trị quyết toán (VNĐ)</label>
-        <input type="number" id="f-settlementValue" value="${pkg?.settlementValue ?? ''}">
-      </div>
-      <div class="form-group">
-        <label>Khối lượng phát sinh (VNĐ)</label>
-        <input type="number" id="f-arisingValue" value="${pkg?.arisingValue ?? ''}">
-      </div>
-      <div class="form-group">
-        <label>Ngày quyết toán</label>
-        <input type="date" id="f-settlementDate" value="${pkg?.settlementDate || ''}">
-      </div>
       <div class="form-group full-width">
         <label>Ghi chú</label>
         <textarea id="f-notes">${pkg?.notes || ''}</textarea>
@@ -2790,7 +2742,6 @@ function getPackageFormData() {
     acceptanceValue: Number(document.getElementById('f-acceptanceValue').value) || 0,
     acceptanceStatus: document.getElementById('f-acceptanceStatus').value,
     acceptanceDate: document.getElementById('f-acceptanceDate').value,
-    loss: Number(document.getElementById('f-loss').value) || 0,
     contractType: document.getElementById('f-contractType').value,
     contractSignDate: document.getElementById('f-contractSignDate').value,
     contractStartDate: document.getElementById('f-contractStartDate').value,
@@ -2802,12 +2753,6 @@ function getPackageFormData() {
     invoiceDate: document.getElementById('f-invoiceDate').value,
     invoiceValue: Number(document.getElementById('f-invoiceValue').value) || 0,
     invoiceXml: document.getElementById('f-invoiceXml').checked,
-    handoverDate: document.getElementById('f-handoverDate').value,
-    warrantyMonths: document.getElementById('f-warrantyMonths').value ? Number(document.getElementById('f-warrantyMonths').value) : null,
-    settlementStatus: document.getElementById('f-settlementStatus').value,
-    settlementValue: Number(document.getElementById('f-settlementValue').value) || 0,
-    arisingValue: Number(document.getElementById('f-arisingValue').value) || 0,
-    settlementDate: document.getElementById('f-settlementDate').value,
     notes: document.getElementById('f-notes').value.trim()
   };
 }
@@ -2892,8 +2837,6 @@ function saveNewPackage(catId) {
   if (!cat) return;
   data.id = generateId();
   data.pdfs = [...tempUploadedPDFs];
-  data.documentChecklist = generateDocChecklist();
-  data.constructionLog = [];
   cat.packages.push(data);
   addAudit(project, 'create', 'gói thầu', data.name, `Danh mục: ${esc(cat.name || '')}`);
   saveState();
@@ -3176,12 +3119,6 @@ function viewPackageDetail(catId, pkgId) {
         <span class="detail-label">Ngày</span>
         <span class="detail-value">${formatDateVN(pkg.acceptanceDate)}</span>
       </div>
-      ${pkg.pkgType !== 'consulting' && pkg.pkgType !== 'nonConsulting' ? `
-      <div class="detail-item">
-        <span class="detail-label">Thất thoát, lãng phí</span>
-        <span class="detail-value" style="color:${pkg.loss ? 'var(--accent-red)' : 'var(--text-secondary)'}">${pkg.loss ? formatCurrency(pkg.loss) : '0'}</span>
-      </div>
-      ` : ''}
 
       <div class="detail-section-title">Hóa đơn GTGT (NĐ 123/2020)</div>
       <div class="detail-item">
@@ -3202,113 +3139,7 @@ function viewPackageDetail(catId, pkgId) {
       </div>
       ${(() => { const ca = computeContractAlerts(pkg); return ca.length ? `<div class="detail-item full-width"><span class="detail-label">Cảnh báo hợp đồng</span><span class="detail-value">${ca.map(a => `<div class="log-item" style="margin-top:2px"><span class="material-symbols-rounded" style="font-size:16px;color:var(--accent-${a.level === 'danger' ? 'red' : 'amber'})">${a.icon}</span> ${esc(a.message)}</div>`).join('')}</span></div>` : ''; })()}
 
-      ${pkg.pkgType === 'consulting' || pkg.pkgType === 'nonConsulting' ? `
-      <div class="detail-item">
-        <span class="detail-label">Ngày bàn giao</span>
-        <span class="detail-value">${formatDateVN(pkg.handoverDate)}</span>
-      </div>
-      ` : `
-      <div class="detail-section-title">Bàn giao & Bảo hành</div>
-      <div class="detail-item">
-        <span class="detail-label">Ngày bàn giao</span>
-        <span class="detail-value">${formatDateVN(pkg.handoverDate)}</span>
-      </div>
-      <div class="detail-item">
-        <span class="detail-label">Thời hạn bảo hành</span>
-        <span class="detail-value">${pkg.warrantyMonths || computeWarrantyMonths(project.buildingGrade)} tháng</span>
-      </div>
-      <div class="detail-item">
-        <span class="detail-label">Ngày hết hạn bảo hành</span>
-        <span class="detail-value">${(() => {
-      if (!pkg.handoverDate) return '—';
-      const end = addMonths(pkg.handoverDate, pkg.warrantyMonths || computeWarrantyMonths(project.buildingGrade));
-      const d = daysUntil(end);
-      const cls = d < 0 ? 'badge-danger' : (d <= 60 ? 'badge-warning' : 'badge-success');
-      return `${formatDateVN(end)} <span class="badge ${cls}">${d < 0 ? 'Hết hạn' : d + ' ngày còn lại'}</span>`;
-    })()}</span>
-      </div>
-      `}
-
-      <div class="detail-section-title">Quyết toán (A-B)</div>
-      <div class="detail-item">
-        <span class="detail-label">Trạng thái quyết toán</span>
-        <span class="detail-value"><span class="badge ${pkg.settlementStatus === 'Đã quyết toán' ? 'badge-success' : 'badge-info'}">${pkg.settlementStatus || 'Chưa quyết toán'}</span></span>
-      </div>
-      <div class="detail-item">
-        <span class="detail-label">Giá trị quyết toán</span>
-        <span class="detail-value money">${formatCurrency(pkg.settlementValue)}</span>
-      </div>
-      <div class="detail-item">
-        <span class="detail-label">Khối lượng phát sinh</span>
-        <span class="detail-value money">${formatCurrency(pkg.arisingValue)}</span>
-      </div>
-      <div class="detail-item">
-        <span class="detail-label">Ngày quyết toán</span>
-        <span class="detail-value">${formatDateVN(pkg.settlementDate)}</span>
-      </div>
       ${pkg.notes ? `<div class="detail-item full-width"><span class="detail-label">Ghi chú</span><span class="detail-value">${esc(pkg.notes)}</span></div>` : ''}
-
-      ${(pkg.pkgType === 'consulting' || pkg.pkgType === 'nonConsulting') ? `
-      <div class="detail-section-title">Sản phẩm giao nộp (Tư vấn)</div>
-      ${(pkg.deliverables || []).length ? `
-      <table style="width:100%;font-size:0.78rem;margin:8px 0"><thead><tr style="color:var(--text-muted)"><th>Đợt</th><th>Sản phẩm</th><th>Trạng thái</th><th>Người duyệt</th><th style="width:60px"></th></tr></thead>
-      <tbody>${pkg.deliverables.map(d => `
-        <tr style="border-top:1px solid var(--border)">
-          <td>${esc(d.phase)}</td>
-          <td>${esc(d.name)}${d.isSignedDigital ? ' <span class="badge badge-success">Ký số</span>' : ''}</td>
-          <td><span class="badge ${d.approvalStatus === 'APPROVED' ? 'badge-success' : (d.approvalStatus === 'REJECTED' ? 'badge-danger' : (d.approvalStatus === 'SUBMITTED' ? 'badge-info' : 'badge-neutral'))}">${d.approvalStatus === 'APPROVED' ? 'Đã duyệt' : (d.approvalStatus === 'REJECTED' ? 'Từ chối' : (d.approvalStatus === 'SUBMITTED' ? 'Đã nộp' : 'Bản nháp'))}</span></td>
-          <td>${esc(d.approvedBy || '—')}${d.approvedAt ? `<br><small>${formatDateVN(d.approvedAt)}</small>` : ''}</td>
-          <td><button class="btn-icon edit-only" title="Xóa" onclick="deleteDeliverable('${catId}','${pkgId}','${d.id}')"><span class="material-symbols-rounded" style="font-size:16px">close</span></button></td>
-        </tr>`).join('')}</tbody></table>
-      ` : '<p style="color:var(--text-muted);font-size:0.78rem;padding:4px 0">Chưa có sản phẩm giao nộp.</p>'}
-      <button class="btn btn-secondary btn-sm edit-only" onclick="addDeliverable('${catId}','${pkgId}')" style="margin-top:4px">+ Giao nộp sản phẩm</button>
-      ` : ''}
-
-      <div class="detail-section-title">Phát sinh khối lượng</div>
-      ${(() => {
-        const vars = pkg.variations || [];
-        if (vars.length) {
-          const totalVar = vars.reduce((s, v) => s + (v.amount || 0), 0);
-          const pendingCount = vars.filter(v => v.status === 'pending').length;
-          return `
-          <table style="width:100%;font-size:0.78rem;margin:8px 0"><thead><tr style="color:var(--text-muted)"><th>Ngày</th><th>Lý do</th><th>Giá trị</th><th>Trạng thái</th><th>Người duyệt</th><th style="width:60px"></th></tr></thead>
-          <tbody>${vars.map(v => `
-            <tr style="border-top:1px solid var(--border)">
-              <td>${formatDateVN(v.date)}</td>
-              <td style="font-size:0.75rem">${esc(v.reason || '—')}</td>
-              <td class="text-right">${formatCurrency(v.amount, true)}</td>
-              <td><span class="badge ${v.status === 'approved' ? 'badge-success' : (v.status === 'rejected' ? 'badge-danger' : 'badge-warning')}">${v.status === 'approved' ? 'Đã duyệt' : (v.status === 'rejected' ? 'Từ chối' : 'Chờ duyệt')}</span></td>
-              <td>${esc(v.approvedBy || '—')}</td>
-              <td><button class="btn-icon edit-only" title="Xóa" onclick="deleteVariation('${catId}','${pkgId}','${v.id}')"><span class="material-symbols-rounded" style="font-size:16px">close</span></button></td>
-            </tr>`).join('')}</tbody></table>
-            <div style="font-size:0.75rem;color:var(--text-muted);text-align:right;margin:4px 0">
-              Tổng phát sinh: <strong>${formatCurrency(totalVar, true)}</strong> &nbsp;|&nbsp;
-              Chờ duyệt: <strong>${pendingCount}</strong>
-            </div>`;
-        }
-        return '<p style="color:var(--text-muted);font-size:0.78rem;padding:4px 0">Chưa có phát sinh khối lượng.</p>';
-      })()}
-      <button class="btn btn-secondary btn-sm edit-only" onclick="addVariation('${catId}','${pkgId}')" style="margin-top:4px">+ Thêm phát sinh</button>
-
-      <div class="detail-section-title">Danh mục hồ sơ</div>
-${(pkg.documentChecklist || []).map(stage => `
-  <div style="margin-bottom:8px;border:1px solid var(--border);border-radius:8px;overflow:hidden">
-    <div style="padding:8px 12px;background:rgba(148,163,184,.06);font-weight:600;font-size:0.8rem;display:flex;justify-content:space-between;align-items:center">
-      <span>${esc(stage.stage.replace(/_/g, ' - '))}</span>
-      <span style="font-size:0.7rem;color:var(--text-muted)">${stage.items.filter(i => i.done).length}/${stage.items.length}</span>
-    </div>
-    <div style="padding:4px 12px">
-      ${stage.items.map(item => `
-        <label style="display:flex;align-items:center;gap:8px;padding:3px 0;font-size:0.78rem;cursor:pointer">
-          <input type="checkbox" ${item.done ? 'checked' : ''} onchange="toggleDocChecklistItem('${catId}','${pkgId}','${stage.stage}','${item.id}',this.checked)" style="width:14px;height:14px">
-          <span style="${item.required === true ? 'font-weight:500' : 'color:var(--text-muted)'}">${esc(item.name)}</span>
-          ${item.required === true ? '<span style="color:var(--accent-red);font-size:0.65rem">*bắt buộc</span>' : (typeof item.required === 'string' ? `<span style="color:var(--accent-amber);font-size:0.65rem">${esc(item.required)}</span>` : '')}
-        </label>
-      `).join('')}
-    </div>
-  </div>
-`).join('')}
-${!(pkg.documentChecklist || []).length ? '<p style="color:var(--text-muted);font-size:0.78rem;padding:4px 0">Danh mục hồ sơ sẽ tự động tạo khi thêm gói thầu mới.</p>' : ''}
 
       <div class="pdf-section">
         <h4><span class="material-symbols-rounded">attach_file</span> Hồ sơ đính kèm</h4>
@@ -3602,7 +3433,6 @@ function saveNewCategory() {
 
 // ---- Add / Edit Project ----
 function getProjectFormHTML(proj = null) {
-  const isSmall = !!(proj?.smallProject);
   const isNonProject = (proj ? (proj.projectScope || 'project') : state.projectScope) === 'nonProject';
   return `
     <div class="form-grid">
@@ -3621,196 +3451,24 @@ function getProjectFormHTML(proj = null) {
     <div class="form-group"><label>Năm bắt đầu thực hiện</label><input type="number" id="f-proj-startYear" min="1900" max="2200" value="${proj?.startYear ?? ''}" placeholder="Ví dụ: 2025"></div>
     <div class="form-group"><label>Năm kết thúc dự kiến</label><input type="number" id="f-proj-endYear" min="1900" max="2200" value="${proj?.endYear ?? ''}" placeholder="Ví dụ: 2027"></div>
     <div id="proj-investment-fields" ${isNonProject ? 'style="display:none"' : ''}>
-    <div class="form-group">
-      <label>Nhóm dự án</label>
-      <select id="f-proj-group">
-        <option value="">— Chọn —</option>
-        ${['Quan trọng quốc gia','Nhóm A','Nhóm B','Nhóm C'].map(g => `<option value="${g}" ${proj?.projectGroup === g ? 'selected' : ''}>${g}</option>`).join('')}
-      </select>
-    </div>
-    <div class="form-group">
-      <label>Nguồn vốn đầu tư</label>
-      <select id="f-proj-investmentSource">
-        <option value="">— Chọn —</option>
-        ${['Đầu tư công','PPP','Chi thường xuyên ngân sách','Vốn khác'].map(s => `<option value="${s}" ${proj?.investmentSource === s ? 'selected' : ''}>${s}</option>`).join('')}
-      </select>
-    </div>
+      <div class="form-group">
+        <label>Nguồn vốn đầu tư</label>
+        <select id="f-proj-investmentSource">
+          <option value="">— Chọn —</option>
+          ${['Đầu tư công','PPP','Chi thường xuyên ngân sách','Vốn khác'].map(s => `<option value="${s}" ${proj?.investmentSource === s ? 'selected' : ''}>${s}</option>`).join('')}
+        </select>
+      </div>
       <div class="form-group"><label>Tổng mức đầu tư (VNĐ)</label><input type="number" id="f-proj-totalInvestment" value="${proj?.totalInvestment ?? ''}"></div>
-      <div class="form-group"><label>Năm kế hoạch vốn</label><input type="number" id="f-proj-planYear" min="1900" max="2200" value="${proj?.planYear ?? new Date().getFullYear()}"></div>
-      <div class="form-group"><label>Kế hoạch vốn của năm (VNĐ)</label><input type="number" id="f-proj-annualPlan" value="${proj?.annualPlan ?? ''}"><p class="field-hint">Số vốn được giao riêng trong năm kế hoạch.</p></div>
-      <div class="form-group"><label>Lũy kế vốn đã phân bổ (VNĐ)</label><input type="number" id="f-proj-cumulativePlan" value="${proj?.cumulativePlan ?? ''}"><p class="field-hint">Tổng vốn đã giao từ đầu dự án đến hết năm kế hoạch.</p></div>
-
-      <div class="form-group full-width" style="grid-column:1/-1;display:flex;align-items:center;gap:8px;padding:10px 14px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px">
-        <input type="checkbox" id="f-proj-small" ${isSmall ? 'checked' : ''} style="width:auto;height:16px;width:16px" onchange="toggleSmallProjectForm(this.checked)">
-        <label for="f-proj-small" style="text-transform:none;font-size:0.9rem;font-weight:600;color:var(--accent-blue);cursor:pointer;margin:0">
-          Đánh dấu là dự án nhỏ lẻ / giá trị thấp
-        </label>
-        <span class="material-symbols-rounded" style="color:var(--accent-blue)">lightbulb</span>
-      </div>
-      <div class="form-group full-width" id="f-proj-small-note" style="grid-column:1/-1;${isSmall ? '' : 'display:none'}">
-        <p style="font-size:0.8rem;color:var(--text-secondary);background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:8px 12px;line-height:1.5">
-          Dự án nhỏ lẻ thường chỉ có 1-2 gói thầu, giá trị thấp: hệ thống sẽ ẩn bớt các mục phức tạp (phân loại pháp lý, BCNCKT/thẩm định, giấy phép xây dựng) và cho phép quyết toán trọn gói một lần.
-        </p>
-      </div>
-    </div>
-
-      <div id="proj-heavy-sections" ${isSmall || isNonProject ? 'style="display:none"' : ''}>
-      <div class="form-section-title"><span class="material-symbols-rounded">category</span> Phân loại & Pháp lý dự án</div>
-      <div class="form-group">
-        <label>Loại dự án</label>
-        <select id="f-proj-type">
-          <option value="">— Chọn —</option>
-          ${PROJECT_TYPES.map(t => `<option value="${t}" ${proj?.projectType === t ? 'selected' : ''}>${t}</option>`).join('')}
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Cấp công trình</label>
-        <select id="f-proj-grade">
-          <option value="">— Chọn —</option>
-          ${BUILDING_GRADES.map(g => `<option value="${g}" ${proj?.buildingGrade === g ? 'selected' : ''}>${g}</option>`).join('')}
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Mã định danh dự án</label>
-        <input type="text" id="f-proj-code" value="${esc(proj?.identifierCode || '')}" placeholder="Mã trên HTTT quốc gia">
-      </div>
-      <div class="form-group" style="display:flex;align-items:flex-end;gap:6px">
-        <label style="display:flex;align-items:center;gap:6px;text-transform:none;font-size:0.85rem">
-          <input type="checkbox" id="f-proj-bim" ${proj?.bimRequired ? 'checked' : ''} style="width:auto"> Thuộc diện bắt buộc áp dụng BIM
-        </label>
-      </div>
-
-      <div class="form-section-title"><span class="material-symbols-rounded">fact_check</span> Báo cáo nghiên cứu khả thi (BCNCKT) & Thẩm định</div>
-      <div class="form-group">
-        <label>Trạng thái thẩm định</label>
-        <select id="f-proj-feas-status">
-          ${FEASIBILITY_STATUSES.map(s => `<option value="${s}" ${(proj?.feasibility?.status || FEASIBILITY_STATUSES[0]) === s ? 'selected' : ''}>${s}</option>`).join('')}
-        </select>
-      </div>
-      <div class="form-group"><label>Ngày nộp thẩm định</label><input type="date" id="f-proj-feas-submitted" value="${proj?.feasibility?.submittedDate || ''}"></div>
-      <div class="form-group"><label>Ngày có kết quả thẩm định</label><input type="date" id="f-proj-feas-appraised" value="${proj?.feasibility?.appraisedDate || ''}"></div>
-
-      <div class="form-section-title"><span class="material-symbols-rounded">apartment</span> Công trình thuộc dự án</div>
-      <div id="constructions-list">
-        ${(proj?.constructions || []).length === 0 && !proj?.permit ? `
-        <div style="display:flex;gap:6px;flex-wrap:wrap;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:0.78rem">
-          <input placeholder="Tên công trình" style="flex:1;min-width:150px" class="cons-name">
-          <input placeholder="Loại công trình" style="width:120px" class="cons-type">
-          <input placeholder="Cấp" style="width:80px" class="cons-grade">
-          <input placeholder="Số GPXD" style="width:100px" class="cons-permit">
-          <input type="date" style="width:130px" class="cons-permit-date" title="Ngày cấp GPXD">
-          <input placeholder="Quy mô (VD: 5 tầng, 2000m²)" style="flex:1;min-width:150px" class="cons-specs">
-          <button type="button" class="btn-icon" onclick="this.closest('div').remove()" title="Xóa"><span class="material-symbols-rounded" style="font-size:18px">close</span></button>
-        </div>` : (proj?.constructions || []).map(cons => `
-        <div style="display:flex;gap:6px;flex-wrap:wrap;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:0.78rem;margin-bottom:6px">
-          <input value="${esc(cons.name)}" placeholder="Tên công trình" style="flex:1;min-width:150px" class="cons-name">
-          <input value="${esc(cons.type)}" placeholder="Loại công trình" style="width:120px" class="cons-type">
-          <input value="${esc(cons.grade)}" placeholder="Cấp" style="width:80px" class="cons-grade">
-          <input value="${esc(cons.permitNumber)}" placeholder="Số GPXD" style="width:100px" class="cons-permit">
-          <input type="date" value="${cons.permitIssueDate || ''}" style="width:130px" class="cons-permit-date" title="Ngày cấp GPXD">
-          <input value="${esc(cons.mainSpecs)}" placeholder="Quy mô (VD: 5 tầng, 2000m²)" style="flex:1;min-width:150px" class="cons-specs">
-          <button type="button" class="btn-icon" onclick="this.closest('div').remove()" title="Xóa"><span class="material-symbols-rounded" style="font-size:18px">close</span></button>
-        </div>`).join('')}
-      </div>
-      <button type="button" class="btn btn-secondary btn-sm" onclick="addConstructionRow()" style="margin-top:4px">+ Thêm công trình</button>
-
-      <div class="form-section-title"><span class="material-symbols-rounded">engineering</span> Nhân sự chủ chốt (Năng lực cá nhân)</div>
-      <div id="indi-list">
-        ${(proj?.individuals || []).map((ind, i) => `
-        <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center;flex-wrap:wrap;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:0.78rem">
-          <input value="${esc(ind.fullName)}" placeholder="Họ tên" style="flex:1;min-width:100px" class="indi-name">
-          <input value="${esc(ind.nationalId)}" placeholder="CCCD" style="width:100px" class="indi-id">
-          <input value="${esc(ind.practiceField)}" placeholder="Lĩnh vực" style="width:100px" class="indi-field">
-          <input value="${esc(ind.certificateLevel)}" placeholder="Hạng" style="width:80px" class="indi-level">
-          <input value="${esc(ind.certificateNumber)}" placeholder="Số CCHN" style="width:100px" class="indi-cert">
-          <input type="date" value="${ind.expiryDate || ''}" style="width:130px" class="indi-expiry">
-          <button type="button" class="btn-icon" onclick="this.closest('div').remove()" title="Xóa"><span class="material-symbols-rounded" style="font-size:18px">close</span></button>
-        </div>`).join('')}
-      </div>
-      <button type="button" class="btn btn-secondary btn-sm" onclick="addIndividualRow()" style="margin-top:4px">+ Thêm nhân sự</button>
-
-      <div class="form-section-title"><span class="material-symbols-rounded">receipt_long</span> Quyết toán dự án hoàn thành</div>
-      <div class="form-group">
-        <label>Trạng thái quyết toán</label>
-        <select id="f-proj-settlement-status">
-          ${SETTLEMENT_STATUSES.map(s => `<option value="${s}" ${(proj?.settlement?.status || SETTLEMENT_STATUSES[0]) === s ? 'selected' : ''}>${s}</option>`).join('')}
-        </select>
-      </div>
-      <div class="form-group"><label>Giá trị quyết toán (VNĐ)</label><input type="number" id="f-proj-settlement-value" value="${proj?.settlement?.totalValue ?? ''}"></div>
-      <div class="form-group"><label>Ngày phê duyệt quyết toán</label><input type="date" id="f-proj-settlement-date" value="${proj?.settlement?.approvedDate || ''}"></div>
-      <div class="form-group">
-        <label>Loại quyết toán</label>
-        <select id="f-proj-settlement-type">
-          <option value="completion" ${(proj?.settlementType || 'completion') === 'completion' ? 'selected' : ''}>Dự án hoàn thành</option>
-          <option value="annual" ${proj?.settlementType === 'annual' ? 'selected' : ''}>Niên độ ngân sách</option>
-        </select>
-      </div>
-      <div class="form-group"><label>Ngày nộp hồ sơ quyết toán</label><input type="date" id="f-proj-settlement-submissionDate" value="${proj?.settlementSubmissionDate || ''}"><p style="font-size:0.75rem;color:var(--text-muted);margin-top:2px">Dùng để xác định phiên bản mẫu biểu áp dụng</p></div>
     </div>
   `;
-}
-
-function toggleSmallProjectForm(isSmall) {
-  const heavy = document.getElementById('proj-heavy-sections');
-  const note = document.getElementById('f-proj-small-note');
-  if (heavy) heavy.style.display = isSmall ? 'none' : '';
-  if (note) note.style.display = isSmall ? '' : 'none';
 }
 
 function toggleProjectScopeForm() {
   const scope = document.getElementById('f-proj-scope');
   const invest = document.getElementById('proj-investment-fields');
-  const heavy = document.getElementById('proj-heavy-sections');
-  const small = document.getElementById('f-proj-small');
   if (!scope) return;
   const isNonProject = scope.value === 'nonProject';
   if (invest) invest.style.display = isNonProject ? 'none' : '';
-  if (heavy) heavy.style.display = (isNonProject || (small && small.checked)) ? 'none' : '';
-}
-
-function addConstructionRow() {
-  const list = document.getElementById('constructions-list');
-  if (!list) return;
-  const d = document.createElement('div');
-  d.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:0.78rem;margin-bottom:6px';
-  d.innerHTML = `
-    <input placeholder="Tên công trình" style="flex:1;min-width:150px" class="cons-name">
-    <input placeholder="Loại công trình" style="width:120px" class="cons-type">
-    <input placeholder="Cấp" style="width:80px" class="cons-grade">
-    <input placeholder="Số GPXD" style="width:100px" class="cons-permit">
-    <input type="date" style="width:130px" class="cons-permit-date" title="Ngày cấp GPXD">
-    <input placeholder="Quy mô (VD: 5 tầng, 2000m²)" style="flex:1;min-width:150px" class="cons-specs">
-    <button type="button" class="btn-icon" onclick="this.closest('div').remove()" title="Xóa"><span class="material-symbols-rounded" style="font-size:18px">close</span></button>`;
-  list.appendChild(d);
-}
-
-function collectConstructions() {
-  const rows = document.querySelectorAll('#constructions-list > div');
-  return Array.from(rows).map(r => ({
-    id: generateId(),
-    name: r.querySelector('.cons-name')?.value?.trim() || '',
-    type: r.querySelector('.cons-type')?.value?.trim() || '',
-    grade: r.querySelector('.cons-grade')?.value?.trim() || '',
-    permitNumber: r.querySelector('.cons-permit')?.value?.trim() || '',
-    permitIssueDate: r.querySelector('.cons-permit-date')?.value || '',
-    mainSpecs: r.querySelector('.cons-specs')?.value?.trim() || ''
-  })).filter(c => c.name);
-}
-
-function addIndividualRow() {
-  const container = document.getElementById('indi-list');
-  if (!container) return;
-  const div = document.createElement('div');
-  div.style.cssText = 'display:flex;gap:6px;margin-bottom:6px;align-items:center;flex-wrap:wrap;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:0.78rem';
-  div.innerHTML = `
-    <input placeholder="Họ tên" style="flex:1;min-width:100px" class="indi-name">
-    <input placeholder="CCCD" style="width:100px" class="indi-id">
-    <input placeholder="Lĩnh vực" style="width:100px" class="indi-field">
-    <input placeholder="Hạng" style="width:80px" class="indi-level">
-    <input placeholder="Số CCHN" style="width:100px" class="indi-cert">
-    <input type="date" style="width:130px" class="indi-expiry">
-    <button type="button" class="btn-icon" onclick="this.closest('div').remove()" title="Xóa"><span class="material-symbols-rounded" style="font-size:18px">close</span></button>`;
-  container.appendChild(div);
 }
 
 function getProjectFormData() {
@@ -3823,42 +3481,8 @@ function getProjectFormData() {
     location: document.getElementById('f-proj-location').value.trim(),
     startYear: Number(document.getElementById('f-proj-startYear').value) || null,
     endYear: Number(document.getElementById('f-proj-endYear').value) || null,
-    projectGroup: document.getElementById('f-proj-group').value,
     investmentSource: document.getElementById('f-proj-investmentSource').value,
-    totalInvestment: Number(document.getElementById('f-proj-totalInvestment').value) || 0,
-    planYear: Number(document.getElementById('f-proj-planYear').value) || new Date().getFullYear(),
-    annualPlan: Number(document.getElementById('f-proj-annualPlan').value) || 0,
-    cumulativePlan: Number(document.getElementById('f-proj-cumulativePlan').value) || 0,
-    smallProject: document.getElementById('f-proj-small').checked,
-    projectType: document.getElementById('f-proj-type').value,
-    buildingGrade: document.getElementById('f-proj-grade').value,
-    identifierCode: document.getElementById('f-proj-code').value.trim(),
-    bimRequired: document.getElementById('f-proj-bim').checked,
-    feasibility: {
-      status: document.getElementById('f-proj-feas-status').value,
-      submittedDate: document.getElementById('f-proj-feas-submitted').value,
-      appraisedDate: document.getElementById('f-proj-feas-appraised').value
-    },
-    constructions: collectConstructions(),
-    individuals: (function(){
-      const rows = document.querySelectorAll('#indi-list > div');
-      return Array.from(rows).map(r => ({
-        id: generateId(),
-        fullName: r.querySelector('.indi-name')?.value?.trim() || '',
-        nationalId: r.querySelector('.indi-id')?.value?.trim() || '',
-        practiceField: r.querySelector('.indi-field')?.value?.trim() || '',
-        certificateLevel: r.querySelector('.indi-level')?.value?.trim() || '',
-        certificateNumber: r.querySelector('.indi-cert')?.value?.trim() || '',
-        expiryDate: r.querySelector('.indi-expiry')?.value || ''
-      })).filter(i => i.fullName);
-    })(),
-    settlement: {
-      status: document.getElementById('f-proj-settlement-status').value,
-      totalValue: Number(document.getElementById('f-proj-settlement-value').value) || 0,
-      approvedDate: document.getElementById('f-proj-settlement-date').value
-    },
-    settlementType: document.getElementById('f-proj-settlement-type').value,
-    settlementSubmissionDate: document.getElementById('f-proj-settlement-submissionDate').value
+    totalInvestment: Number(document.getElementById('f-proj-totalInvestment').value) || 0
   };
 }
 
