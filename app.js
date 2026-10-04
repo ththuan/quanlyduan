@@ -680,17 +680,26 @@ function renderDonutChart() {
   ctx.clearRect(0, 0, size, size);
 
   const project = getCurrentProject();
-  if (!project) return;
+  const legendEl = document.getElementById('donut-legend');
 
-  const data = getSortedCategories(project).map((cat, i) => ({
+  const cats = project ? getSortedCategories(project) : [];
+  const invTotal = cats.reduce((s, c) => s + getCatInvestTotal(c), 0);
+  const bidTotal = cats.reduce((s, c) => s + getCatBidTotal(c), 0);
+  const estTotal = cats.reduce((s, c) => s + getCatEstimateTotal(c), 0);
+
+  let valueFn, centerLabel;
+  if (invTotal > 0) { valueFn = getCatInvestTotal; centerLabel = 'TỔNG MỨC ĐẦU TƯ'; }
+  else if (bidTotal > 0) { valueFn = getCatBidTotal; centerLabel = 'GIÁ TRỊ TRÚNG THẦU'; }
+  else { valueFn = getCatEstimateTotal; centerLabel = 'GIÁ TRỊ DỰ TOÁN'; }
+
+  const data = cats.map((cat, i) => ({
     label: cat.code + '. ' + cat.name,
-    value: getCatInvestTotal(cat),
+    value: valueFn(cat),
     color: cat.color || CAT_COLORS[i % CAT_COLORS.length]
   }));
 
   const total = data.reduce((s, d) => s + d.value, 0);
   const cx = size / 2, cy = size / 2;
-  const legendEl = document.getElementById('donut-legend');
 
   if (total === 0) {
     ctx.fillStyle = '#94a3b8';
@@ -731,10 +740,10 @@ function renderDonutChart() {
   // Center text
   const centerMaxWidth = innerR * 1.7;
   ctx.fillStyle = '#334155';
-  fitFontSize(ctx, 'TỔNG MỨC ĐẦU TƯ', centerMaxWidth, 700, 16);
+  fitFontSize(ctx, centerLabel, centerMaxWidth, 700, 16);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('TỔNG MỨC ĐẦU TƯ', cx, cy - 14);
+  ctx.fillText(centerLabel, cx, cy - 14);
   const totalLabel = formatCurrency(total);
   const totalSize = fitFontSize(ctx, totalLabel, centerMaxWidth, 600, 15);
   ctx.font = `600 ${totalSize}px Inter, sans-serif`;
@@ -891,7 +900,8 @@ function renderDashboard() {
     document.getElementById('kpi-cards').innerHTML = '';
     document.getElementById('capital-summary').innerHTML = '';
     document.getElementById('alerts-panel').innerHTML = '';
-    document.querySelectorAll('.chart-wrapper').forEach(el => { el.innerHTML = ''; });
+    renderDonutChart();
+    renderBarChart();
     return;
   }
 
