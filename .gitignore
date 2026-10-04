@@ -9,3 +9,4 @@ cloudflared/cert.pem
 cloudflared/*.json
 cloudflared/config.yml
 .env
+*.pdf
