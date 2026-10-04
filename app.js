@@ -276,6 +276,7 @@ async function loadState() {
         if (!pkg.pkgType || (isConsultingLike && pkg.pkgType !== 'consulting' && pkg.pkgType !== 'nonConsulting')) {
           pkg.pkgType = isConsultingLike ? 'consulting' : (pkg.pkgType || 'construction');
         }
+        pkg.pkgScope = pkg.pkgScope || 'project';
         pkg.milestones = pkg.milestones || [];
         pkg.deliverables = pkg.deliverables || [];
         pkg.payments = pkg.payments || [];
@@ -297,6 +298,7 @@ function applyConfig() {
   if (!c) return;
   if (c.limits) {
     if (typeof c.limits.ktkt === 'number') CONTRACT_ROUTE_KTKT_LIMIT = c.limits.ktkt;
+    if (typeof c.limits.directPurchase === 'number') CONTRACT_ROUTE_DIRECT_PURCHASE_LIMIT = c.limits.directPurchase;
     if (c.limits.directAppointment && typeof c.limits.directAppointment === 'object') CONTRACT_ROUTE_DIRECT_LIMITS = c.limits.directAppointment;
     // Backward compat: nếu config cũ có limits.direct thì merge vào nonProject
     else if (typeof c.limits.direct === 'number' && !c.limits.directAppointment) {
@@ -307,11 +309,13 @@ function applyConfig() {
   }
   if (typeof c.contractDeadlineWarnDays === 'number') CONTRACT_DEADLINE_WARN_DAYS = c.contractDeadlineWarnDays;
   if (Array.isArray(c.lists?.projectTypes)) PROJECT_TYPES = c.lists.projectTypes;
+  if (Array.isArray(c.lists?.fundSources)) FUND_SOURCES = c.lists.fundSources;
   if (Array.isArray(c.lists?.buildingGrades)) BUILDING_GRADES = c.lists.buildingGrades;
   if (Array.isArray(c.lists?.contractTypes)) CONTRACT_TYPES = c.lists.contractTypes;
   if (Array.isArray(c.lists?.feasibilityStatuses)) FEASIBILITY_STATUSES = c.lists.feasibilityStatuses;
   if (Array.isArray(c.lists?.acceptanceStatuses)) ACCEPTANCE_STATUSES = c.lists.acceptanceStatuses;
   if (Array.isArray(c.lists?.settlementStatuses)) SETTLEMENT_STATUSES = c.lists.settlementStatuses;
+  if (Array.isArray(c.lists?.selectionMethods)) SELECTION_METHODS = c.lists.selectionMethods;
   if (Array.isArray(c.agencies)) CHU_TRUONG_AGENCIES = c.agencies;
   if (Array.isArray(c.templates?.qtnd)) QTNĐ_TITLES = c.templates.qtnd;
   if (Array.isArray(c.templates?.qtda)) QTDA_TITLES = c.templates.qtda;
@@ -381,31 +385,57 @@ function formatFileSize(bytes) {
 
 // ---- Project classification & legal lookup tables (per readme.md quy trình) ----
 let PROJECT_TYPES = ['Đầu tư công', 'PPP', 'Vốn đầu tư chi thường xuyên', 'Đầu tư kinh doanh'];
+let FUND_SOURCES = ['Kinh phí quỹ phát triển sự nghiệp', 'Ngân sách thành phố', 'Đầu tư công'];
 let BUILDING_GRADES = ['Đặc biệt', 'I', 'II', 'III', 'IV'];
 let CONTRACT_TYPES = ['Tư vấn (khảo sát, thiết kế, giám sát)', 'Thi công xây dựng', 'Hỗn hợp EPC', 'Hỗn hợp EC', 'Hỗn hợp PC', 'Hợp đồng trọn gói'];
 let FEASIBILITY_STATUSES = ['Chưa lập', 'Đã lập, chờ thẩm định', 'Đã thẩm định'];
 let ACCEPTANCE_STATUSES = ['Chưa nghiệm thu', 'Đã nghiệm thu', 'Đang kiểm tra CQCM'];
 let SETTLEMENT_STATUSES = ['Chưa quyết toán', 'Đang thẩm tra', 'Đã quyết toán'];
+let SELECTION_METHODS = [
+  'Đấu thầu rộng rãi qua mạng',
+  'Đấu thầu rộng rãi trong nước',
+  'Đấu thầu rộng rãi quốc tế',
+  'Đấu thầu hạn chế',
+  'Chào hàng cạnh tranh qua mạng',
+  'Chào hàng cạnh tranh trong nước',
+  'Chào hàng cạnh tranh quốc tế',
+  'Chỉ định thầu thông thường',
+  'Chỉ định thầu rút gọn',
+  'Mua sắm trực tiếp',
+  'Đặt hàng (NĐ 32/2019)',
+  'Tự thực hiện',
+  'Không áp dụng',
+  'Khác'
+];
 
 // ---- Module 2: Hợp đồng & Pháp lý (NĐ 210/2026, NĐ 254/2025, NĐ 123/2020) ----
-// Hạn mức chỉ định thầu theo loại gói (khoản 4 Điều 78 NĐ 214/2025/NĐ-CP)
-let CONTRACT_ROUTE_DIRECT_LIMITS = { consulting: 800000000, construction: 2000000000, goods: 2000000000, mixed: 2000000000, nonConsulting: 2000000000, nonProject: 500000000 };
+// Hạn mức chỉ định thầu theo loại gói (khoản 4 Điều 78 NĐ 214/2025/NĐ-CP, sửa đổi bởi NĐ 349/2026/NĐ-CP)
+let CONTRACT_ROUTE_DIRECT_LIMITS = { consulting: 3000000000, construction: 5000000000, goods: 5000000000, mixed: 5000000000, nonConsulting: 5000000000, nonProject: 1000000000 };
+let CONTRACT_ROUTE_DIRECT_PURCHASE_LIMIT = 100000000; // ngưỡng mua sắm trực tiếp (khoản 4 Điều 80 NĐ 214/2025/NĐ-CP, sửa đổi bởi NĐ 349/2026/NĐ-CP)
 
 let CONTRACT_ROUTE_KTKT_LIMIT = 20000000000;      // ngưỡng bắt buộc lập BCNCKT
 // Độ dài ngày báo sớm cho cảnh báo đỏ tiến độ hợp đồng
 let CONTRACT_DEADLINE_WARN_DAYS = 30;
 
-// Lấy hạn mức chỉ định thầu theo loại gói
-function getDirectLimit(pkgType) {
-  return CONTRACT_ROUTE_DIRECT_LIMITS[pkgType] || CONTRACT_ROUTE_DIRECT_LIMITS.construction || 2000000000;
+// Lấy hạn mức chỉ định thầu theo loại gói + phạm vi (thuộc dự án / không hình thành dự án)
+function getDirectLimit(pkgType, scope) {
+  if (scope === 'nonProject') return CONTRACT_ROUTE_DIRECT_LIMITS.nonProject;
+  return CONTRACT_ROUTE_DIRECT_LIMITS[pkgType] || CONTRACT_ROUTE_DIRECT_LIMITS.construction;
 }
 
-// Đường phân nhánh hồ sơ hợp đồng theo giá trị gói
+// Đường phân nhánh hồ sơ hợp đồng theo giá trị gói + phạm vi (thuộc dự án / không hình thành dự án)
 function getContractRoute(pkg) {
   const v = Number(pkg?.bidValue) || 0;
+  if (v > 0 && v <= CONTRACT_ROUTE_DIRECT_PURCHASE_LIMIT) return { code: 'directPurchase', name: 'Mua sắm trực tiếp', hint: `Không quá ${Math.round(CONTRACT_ROUTE_DIRECT_PURCHASE_LIMIT/1e6)} triệu: thủ trưởng đơn vị quyết định, không cần quy trình LCNT` };
+  // Mua sắm không hình thành dự án: hạn mức chỉ định thầu 1 tỷ, trên 1 tỷ phải đấu thầu rộng rãi
+  if (pkg?.pkgScope === 'nonProject') {
+    const d = CONTRACT_ROUTE_DIRECT_LIMITS.nonProject;
+    if (v > d) return { code: 'competitive', name: 'Đấu thầu rộng rãi', hint: `Trên ${Math.round(d/1e6)} triệu (mua sắm không dự án): phải tổ chức đấu thầu rộng rãi` };
+    return { code: 'direct', name: 'Chỉ định thầu', hint: `Dưới ${Math.round(d/1e6)} triệu (mua sắm không dự án)` };
+  }
   const k = CONTRACT_ROUTE_KTKT_LIMIT;
   if (v >= k) return { code: 'bcnckt', name: 'Lập BCNCKT / thiết kế kỹ thuật', hint: `Từ ${Math.round(k/1e9)} tỷ: lập BCNCKT` };
-  const d = getDirectLimit(pkg?.pkgType);
+  const d = getDirectLimit(pkg?.pkgType, pkg?.pkgScope);
   if (v >= d) return { code: 'ktkt', name: 'Bắt buộc lập Báo cáo kinh tế - kỹ thuật', hint: `${Math.round(d/1e6)} triệu → ${Math.round(k/1e9)} tỷ` };
   return { code: 'direct', name: 'Triển khai trực tiếp', hint: `Dưới ${Math.round(d/1e6)} triệu` };
 }
@@ -1158,7 +1188,7 @@ function renderPackages(searchTerm = '') {
                     <td class="pkg-wrap">${esc(pkg.selectionMethod || '—')}</td>
                     <td class="pkg-wrap">${esc(pkg.contractor || '—')}</td>
                     <td>
-                      <span class="badge ${(() => { const r = getContractRoute(pkg); return r.code === 'ktkt' ? 'badge-warning' : (r.code === 'bcnckt' ? 'badge-info' : 'badge-neutral'); })()}">${getContractRoute(pkg).name}</span>
+                      <span class="badge ${(() => { const r = getContractRoute(pkg); return r.code === 'ktkt' ? 'badge-warning' : (r.code === 'bcnckt' ? 'badge-info' : (r.code === 'competitive' ? 'badge-info' : (r.code === 'directPurchase' ? 'badge-success' : 'badge-neutral'))); })()}">${getContractRoute(pkg).name}</span>
                       ${pkg.pkgType !== 'consulting' && pkg.pkgType !== 'nonConsulting' ? `
                       <div class="progress-bar" style="margin-top:4px"><div class="progress-fill ${progressClass}" style="width:${pkg.progress}%"></div></div>
                       <span>${pkg.progress}%</span>
@@ -2388,12 +2418,23 @@ function togglePkgTypeFields() {
   });
 }
 
+function togglePkgScopeFields() {
+  const scope = document.getElementById('f-pkgScope');
+  const fund = document.getElementById('f-fundSource');
+  if (!scope || !fund) return;
+  if (scope.value === 'nonProject' && !fund.value) {
+    fund.value = FUND_SOURCES[0] || 'Kinh phí quỹ phát triển sự nghiệp';
+  }
+}
+
 let tempUploadedPDFs = [];
 let tempPayments = [];
 
 // ---- Package CRUD ----
 function getPackageFormHTML(pkg = null, catId = '') {
-  const methods = ['Đấu thầu rộng rãi qua mạng', 'Chào hàng cạnh tranh qua mạng', 'Chỉ định thầu rút gọn', 'Không áp dụng', 'Khác'];
+  const methods = SELECTION_METHODS;
+  const fundOptions = FUND_SOURCES.map(f => `<option value="${f}" ${(pkg?.fundSource || '') === f ? 'selected' : ''}>${f}</option>`).join('');
+  const legacyFund = pkg?.fundSource && !FUND_SOURCES.includes(pkg.fundSource) ? `<option value="${esc(pkg.fundSource)}" selected>${esc(pkg.fundSource)}</option>` : '';
   const pdfs = pkg ? (pkg.pdfs || []) : tempUploadedPDFs;
   const pdfListHTML = pdfs.length ? pdfs.map(pdf => `
     <div class="pdf-item">
@@ -2422,6 +2463,13 @@ function getPackageFormHTML(pkg = null, catId = '') {
           <option value="nonConsulting" ${pkg?.pkgType === 'nonConsulting' ? 'selected' : ''}>Phi tư vấn</option>
         </select>
       </div>
+      <div class="form-group">
+        <label>Phạm vi gói thầu</label>
+        <select id="f-pkgScope" onchange="togglePkgScopeFields()">
+          <option value="project" ${(pkg?.pkgScope || 'project') === 'project' ? 'selected' : ''}>Thuộc dự án</option>
+          <option value="nonProject" ${pkg?.pkgScope === 'nonProject' ? 'selected' : ''}>Không hình thành dự án (dự toán mua sắm)</option>
+        </select>
+      </div>
       <div class="form-section-title"><span class="material-symbols-rounded">payments</span> Thông tin tài chính</div>
       <div class="form-group">
         <label>Giá trị dự toán (VNĐ)</label>
@@ -2433,7 +2481,11 @@ function getPackageFormHTML(pkg = null, catId = '') {
       </div>
       <div class="form-group">
         <label>Nguồn vốn</label>
-        <input type="text" id="f-fundSource" value="${esc(pkg?.fundSource || '')}">
+        <select id="f-fundSource">
+          <option value="">— Chọn —</option>
+          ${fundOptions}
+          ${legacyFund}
+        </select>
       </div>
       <div class="form-section-title"><span class="material-symbols-rounded">description</span> Thông tin hợp đồng</div>
       <div class="form-group">
@@ -2477,6 +2529,47 @@ function getPackageFormHTML(pkg = null, catId = '') {
       <div class="form-group">
         <label>Đơn vị trúng thầu</label>
         <input type="text" id="f-contractor" value="${esc(pkg?.contractor || '')}">
+      </div>
+      <div class="form-section-title"><span class="material-symbols-rounded">fact_check</span> Quy trình lựa chọn nhà thầu (NĐ 349/2026)</div>
+      <div class="form-group">
+        <label>Số QĐ phê duyệt KHLCNT</label>
+        <input type="text" id="f-khlcntNumber" value="${esc(pkg?.khlcntNumber || '')}" placeholder="Kế hoạch lựa chọn nhà thầu">
+      </div>
+      <div class="form-group">
+        <label>Ngày phê duyệt KHLCNT</label>
+        <input type="date" id="f-khlcntDate" value="${pkg?.khlcntDate || ''}">
+      </div>
+      <div class="form-group">
+        <label>Số HSMT / HSYC</label>
+        <input type="text" id="f-hsmtNumber" value="${esc(pkg?.hsmtNumber || '')}" placeholder="Hồ sơ mời thầu / hồ sơ yêu cầu">
+      </div>
+      <div class="form-group">
+        <label>Ngày phát hành HSMT/HSYC</label>
+        <input type="date" id="f-hsmtDate" value="${pkg?.hsmtDate || ''}">
+      </div>
+      <div class="form-group">
+        <label>Ngày đóng thầu</label>
+        <input type="date" id="f-bidCloseDate" value="${pkg?.bidCloseDate || ''}">
+      </div>
+      <div class="form-group">
+        <label>Ngày mở thầu</label>
+        <input type="date" id="f-bidOpenDate" value="${pkg?.bidOpenDate || ''}">
+      </div>
+      <div class="form-group">
+        <label>Ngày đánh giá HSDT/HSĐX</label>
+        <input type="date" id="f-evaluationDate" value="${pkg?.evaluationDate || ''}">
+      </div>
+      <div class="form-group">
+        <label>Ngày phê duyệt KQLCNT</label>
+        <input type="date" id="f-resultApprovalDate" value="${pkg?.resultApprovalDate || ''}">
+      </div>
+      <div class="form-group">
+        <label>Ngày công khai KQLCNT</label>
+        <input type="date" id="f-resultPublishDate" value="${pkg?.resultPublishDate || ''}">
+      </div>
+      <div class="form-group full-width">
+        <label>Căn cứ chỉ định thầu</label>
+        <input type="text" id="f-directBasis" value="${esc(pkg?.directBasis || '')}" placeholder="VD: điểm e1 khoản 2 Điều 78 NĐ 214/2025 (sửa bởi NĐ 349/2026)">
       </div>
       <div class="form-section-title"><span class="material-symbols-rounded">schedule</span> Tiến độ & Thời gian</div>
       <div data-show="construction" class="pkg-show">
@@ -2684,6 +2777,7 @@ function getPackageFormData() {
   return {
     name: document.getElementById('f-name').value.trim(),
     pkgType: document.getElementById('f-pkgType').value || 'construction',
+    pkgScope: document.getElementById('f-pkgScope').value || 'project',
     estimateValue: Number(document.getElementById('f-estimateValue').value) || 0,
     bidValue: Number(document.getElementById('f-bidValue').value) || 0,
     fundSource: document.getElementById('f-fundSource').value.trim(),
@@ -2691,6 +2785,16 @@ function getPackageFormData() {
     contract: document.getElementById('f-contract').value.trim(),
     selectionMethod: document.getElementById('f-selectionMethod').value,
     contractor: document.getElementById('f-contractor').value.trim(),
+    khlcntNumber: document.getElementById('f-khlcntNumber').value.trim(),
+    khlcntDate: document.getElementById('f-khlcntDate').value,
+    hsmtNumber: document.getElementById('f-hsmtNumber').value.trim(),
+    hsmtDate: document.getElementById('f-hsmtDate').value,
+    bidCloseDate: document.getElementById('f-bidCloseDate').value,
+    bidOpenDate: document.getElementById('f-bidOpenDate').value,
+    evaluationDate: document.getElementById('f-evaluationDate').value,
+    resultApprovalDate: document.getElementById('f-resultApprovalDate').value,
+    resultPublishDate: document.getElementById('f-resultPublishDate').value,
+    directBasis: document.getElementById('f-directBasis').value.trim(),
     duration: document.getElementById('f-duration').value.trim(),
     progress: Number(document.getElementById('f-progress').value) || 0,
     periodValue: Number(document.getElementById('f-periodValue').value) || 0,
@@ -2940,6 +3044,10 @@ function viewPackageDetail(catId, pkgId) {
         <span class="detail-label">Nguồn vốn</span>
         <span class="detail-value">${esc(pkg.fundSource || '—')}</span>
       </div>
+      <div class="detail-item">
+        <span class="detail-label">Phạm vi gói thầu</span>
+        <span class="detail-value">${pkg.pkgScope === 'nonProject' ? 'Không hình thành dự án (dự toán mua sắm)' : 'Thuộc dự án'}</span>
+      </div>
       <div class="detail-section-title">Thông tin hợp đồng</div>
       <div class="detail-item">
         <span class="detail-label">QĐ trúng thầu</span>
@@ -2968,7 +3076,7 @@ function viewPackageDetail(catId, pkgId) {
       </div>` : ''}
       <div class="detail-item">
         <span class="detail-label">Phân nhánh hồ sơ</span>
-        <span class="detail-value"><span class="badge badge-warning">${getContractRoute(pkg).name}</span> <small class="detail-sub">${getContractRoute(pkg).hint}</small></span>
+        <span class="detail-value"><span class="badge ${(() => { const r = getContractRoute(pkg); return r.code === 'ktkt' ? 'badge-warning' : (r.code === 'bcnckt' ? 'badge-info' : (r.code === 'competitive' ? 'badge-info' : (r.code === 'directPurchase' ? 'badge-success' : 'badge-neutral'))); })()}">${getContractRoute(pkg).name}</span> <small class="detail-sub">${getContractRoute(pkg).hint}</small></span>
       </div>
       <div class="detail-item ${pkg.contractExtension ? '' : 'full-width'}">
         <span class="detail-label">PL gia hạn</span>
@@ -2978,6 +3086,49 @@ function viewPackageDetail(catId, pkgId) {
         <span class="detail-label">Hình thức lựa chọn</span>
         <span class="detail-value">${esc(pkg.selectionMethod || '—')}</span>
       </div>
+      ${pkg.khlcntNumber || pkg.khlcntDate || pkg.hsmtNumber || pkg.hsmtDate || pkg.bidCloseDate || pkg.bidOpenDate || pkg.evaluationDate || pkg.resultApprovalDate || pkg.resultPublishDate || pkg.directBasis ? `
+      <div class="detail-section-title">Quy trình lựa chọn nhà thầu</div>
+      ${pkg.khlcntNumber || pkg.khlcntDate ? `
+      <div class="detail-item">
+        <span class="detail-label">KHLCNT</span>
+        <span class="detail-value">${esc(pkg.khlcntNumber || '—')}${pkg.khlcntDate ? ` — ${formatDateVN(pkg.khlcntDate)}` : ''}</span>
+      </div>` : ''}
+      ${pkg.hsmtNumber || pkg.hsmtDate ? `
+      <div class="detail-item">
+        <span class="detail-label">HSMT/HSYC</span>
+        <span class="detail-value">${esc(pkg.hsmtNumber || '—')}${pkg.hsmtDate ? ` — phát hành ${formatDateVN(pkg.hsmtDate)}` : ''}</span>
+      </div>` : ''}
+      ${pkg.bidCloseDate ? `
+      <div class="detail-item">
+        <span class="detail-label">Đóng thầu</span>
+        <span class="detail-value">${formatDateVN(pkg.bidCloseDate)}</span>
+      </div>` : ''}
+      ${pkg.bidOpenDate ? `
+      <div class="detail-item">
+        <span class="detail-label">Mở thầu</span>
+        <span class="detail-value">${formatDateVN(pkg.bidOpenDate)}</span>
+      </div>` : ''}
+      ${pkg.evaluationDate ? `
+      <div class="detail-item">
+        <span class="detail-label">Đánh giá HSDT/HSĐX</span>
+        <span class="detail-value">${formatDateVN(pkg.evaluationDate)}</span>
+      </div>` : ''}
+      ${pkg.resultApprovalDate ? `
+      <div class="detail-item">
+        <span class="detail-label">Phê duyệt KQLCNT</span>
+        <span class="detail-value">${formatDateVN(pkg.resultApprovalDate)}</span>
+      </div>` : ''}
+      ${pkg.resultPublishDate ? `
+      <div class="detail-item">
+        <span class="detail-label">Công khai KQLCNT</span>
+        <span class="detail-value">${formatDateVN(pkg.resultPublishDate)}</span>
+      </div>` : ''}
+      ${pkg.directBasis ? `
+      <div class="detail-item full-width">
+        <span class="detail-label">Căn cứ chỉ định thầu</span>
+        <span class="detail-value">${esc(pkg.directBasis)}</span>
+      </div>` : ''}
+      ` : ''}
       <div class="detail-item">
         <span class="detail-label">Đơn vị trúng thầu</span>
         <span class="detail-value">${esc(pkg.contractor || '—')}</span>
@@ -4224,17 +4375,18 @@ function openSysConfigModal() {
     </div>
 
     <div id="cfg-panel-limits" class="cfg-panel show">
-      <div class="cfg-section-title">HẠN MỨC CHỈ ĐỊNH THẦU (K4 Đ78 NĐ 214/2025)</div>
+      <div class="cfg-section-title">HẠN MỨC CHỈ ĐỊNH THẦU (K4 Đ78 NĐ 214/2025, SỬA BỞI NĐ 349/2026)</div>
       <div class="cfg-grid">
-        <div class="cfg-row"><label>Gói tư vấn</label><input id="cfg-limit-consulting" type="number" step="1" value="${da.consulting ?? 800000000}"></div>
-        <div class="cfg-row"><label>Gói xây lắp</label><input id="cfg-limit-construction" type="number" step="1" value="${da.construction ?? 2000000000}"></div>
-        <div class="cfg-row"><label>Gói hàng hóa</label><input id="cfg-limit-goods" type="number" step="1" value="${da.goods ?? 2000000000}"></div>
-        <div class="cfg-row"><label>Gói hỗn hợp</label><input id="cfg-limit-mixed" type="number" step="1" value="${da.mixed ?? 2000000000}"></div>
-        <div class="cfg-row"><label>Gói phi tư vấn</label><input id="cfg-limit-nonConsulting" type="number" step="1" value="${da.nonConsulting ?? 2000000000}"></div>
-        <div class="cfg-row"><label>Mua sắm (không dự án)</label><input id="cfg-limit-nonProject" type="number" step="1" value="${da.nonProject ?? 500000000}"></div>
+        <div class="cfg-row"><label>Gói tư vấn</label><input id="cfg-limit-consulting" type="number" step="1" value="${da.consulting ?? 3000000000}"></div>
+        <div class="cfg-row"><label>Gói xây lắp</label><input id="cfg-limit-construction" type="number" step="1" value="${da.construction ?? 5000000000}"></div>
+        <div class="cfg-row"><label>Gói hàng hóa</label><input id="cfg-limit-goods" type="number" step="1" value="${da.goods ?? 5000000000}"></div>
+        <div class="cfg-row"><label>Gói hỗn hợp</label><input id="cfg-limit-mixed" type="number" step="1" value="${da.mixed ?? 5000000000}"></div>
+        <div class="cfg-row"><label>Gói phi tư vấn</label><input id="cfg-limit-nonConsulting" type="number" step="1" value="${da.nonConsulting ?? 5000000000}"></div>
+        <div class="cfg-row"><label>Mua sắm (không dự án)</label><input id="cfg-limit-nonProject" type="number" step="1" value="${da.nonProject ?? 1000000000}"></div>
       </div>
       <div class="cfg-section-title" style="margin-top:12px">NGƯỠNG KHÁC</div>
       <div class="cfg-grid">
+        <div class="cfg-row"><label>Mua sắm trực tiếp (≤)</label><input id="cfg-limit-directPurchase" type="number" step="1" value="${lim.directPurchase ?? 100000000}"></div>
         <div class="cfg-row"><label>Bắt buộc BCNCKT</label><input id="cfg-limit-ktkt" type="number" step="1" value="${lim.ktkt ?? 20000000000}"></div>
         <div class="cfg-row"><label>Cảnh báo trước hạn HĐ (ngày)</label><input id="cfg-deadline-days" type="number" step="1" value="${cfg.contractDeadlineWarnDays ?? 30}"></div>
       </div>
@@ -4257,11 +4409,13 @@ function openSysConfigModal() {
       <div class="cfg-section-title" style="margin-top:12px">DANH MỤC PHÂN LOẠI</div>
       <div class="cfg-grid">
         <div><label style="font-size:0.78rem;color:var(--text-muted)">Loại dự án</label><textarea id="cfg-list-projectTypes" rows="3" style="width:100%">${esc(arrToText(lst.projectTypes))}</textarea></div>
+        <div><label style="font-size:0.78rem;color:var(--text-muted)">Nguồn vốn</label><textarea id="cfg-list-fundSources" rows="3" style="width:100%">${esc(arrToText(lst.fundSources))}</textarea></div>
         <div><label style="font-size:0.78rem;color:var(--text-muted)">Cấp công trình</label><textarea id="cfg-list-buildingGrades" rows="3" style="width:100%">${esc(arrToText(lst.buildingGrades))}</textarea></div>
         <div><label style="font-size:0.78rem;color:var(--text-muted)">Loại hợp đồng</label><textarea id="cfg-list-contractTypes" rows="3" style="width:100%">${esc(arrToText(lst.contractTypes))}</textarea></div>
         <div><label style="font-size:0.78rem;color:var(--text-muted)">BCNCKT</label><textarea id="cfg-list-feasibility" rows="2" style="width:100%">${esc(arrToText(lst.feasibilityStatuses))}</textarea></div>
         <div><label style="font-size:0.78rem;color:var(--text-muted)">Nghiệm thu</label><textarea id="cfg-list-acceptance" rows="2" style="width:100%">${esc(arrToText(lst.acceptanceStatuses))}</textarea></div>
         <div><label style="font-size:0.78rem;color:var(--text-muted)">Quyết toán</label><textarea id="cfg-list-settlement" rows="2" style="width:100%">${esc(arrToText(lst.settlementStatuses))}</textarea></div>
+        <div><label style="font-size:0.78rem;color:var(--text-muted)">Hình thức lựa chọn nhà thầu</label><textarea id="cfg-list-selectionMethods" rows="6" style="width:100%">${esc(arrToText(lst.selectionMethods))}</textarea></div>
       </div>
     </div>
 
@@ -4297,13 +4451,14 @@ async function saveSysConfig() {
   const cfg = {
     limits: {
       directAppointment: {
-        consulting: Number(document.getElementById('cfg-limit-consulting')?.value) || 800000000,
-        construction: Number(document.getElementById('cfg-limit-construction')?.value) || 2000000000,
-        goods: Number(document.getElementById('cfg-limit-goods')?.value) || 2000000000,
-        mixed: Number(document.getElementById('cfg-limit-mixed')?.value) || 2000000000,
-        nonConsulting: Number(document.getElementById('cfg-limit-nonConsulting')?.value) || 2000000000,
-        nonProject: Number(document.getElementById('cfg-limit-nonProject')?.value) || 500000000
+        consulting: Number(document.getElementById('cfg-limit-consulting')?.value) || 3000000000,
+        construction: Number(document.getElementById('cfg-limit-construction')?.value) || 5000000000,
+        goods: Number(document.getElementById('cfg-limit-goods')?.value) || 5000000000,
+        mixed: Number(document.getElementById('cfg-limit-mixed')?.value) || 5000000000,
+        nonConsulting: Number(document.getElementById('cfg-limit-nonConsulting')?.value) || 5000000000,
+        nonProject: Number(document.getElementById('cfg-limit-nonProject')?.value) || 1000000000
       },
+      directPurchase: Number(document.getElementById('cfg-limit-directPurchase')?.value) || 100000000,
       ktkt: Number(document.getElementById('cfg-limit-ktkt')?.value) || 20000000000
     },
     contractDeadlineWarnDays: Number(document.getElementById('cfg-deadline-days')?.value) || 30,
@@ -4314,11 +4469,13 @@ async function saveSysConfig() {
     agencies: textToArr('cfg-agencies'),
     lists: {
       projectTypes: textToArr('cfg-list-projectTypes'),
+      fundSources: textToArr('cfg-list-fundSources'),
       buildingGrades: textToArr('cfg-list-buildingGrades'),
       contractTypes: textToArr('cfg-list-contractTypes'),
       feasibilityStatuses: textToArr('cfg-list-feasibility'),
       acceptanceStatuses: textToArr('cfg-list-acceptance'),
-      settlementStatuses: textToArr('cfg-list-settlement')
+      settlementStatuses: textToArr('cfg-list-settlement'),
+      selectionMethods: textToArr('cfg-list-selectionMethods')
     }
   };
   try {

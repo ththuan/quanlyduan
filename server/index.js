@@ -429,7 +429,10 @@ app.get('/api/export/excel', requireAuth, (req, res) => {
             'Dự án': p.name,
             'Danh mục': c.name,
             'Tên gói thầu': pkg.name,
+            'Phạm vi gói thầu': pkg.pkgScope === 'nonProject' ? 'Không hình thành dự án' : 'Thuộc dự án',
             'Giá trị trúng thầu': pkg.bidValue || 0,
+            'Hình thức LCNT': pkg.selectionMethod || '',
+            'KHLCNT': pkg.khlcntNumber || '',
             'Nhà thầu': pkg.contractor || '',
             'Tiến độ (%)': (pkg.pkgType === 'consulting' || pkg.pkgType === 'nonConsulting') ? '—' : (pkg.progress || 0),
             'Giải ngân lũy kế': pkg.cumulativeDisbursed || 0,
@@ -563,7 +566,7 @@ QUY TRÌNH CHÍNH:
 Khi trả lời hoặc đánh giá quy trình: xác định ngày phát sinh nghiệp vụ trước; chỉ viện dẫn văn bản đã có hiệu lực tại ngày đó. Nêu rõ nghị định áp dụng cho từng bước, hồ sơ còn thiếu, rủi ro và hành động tiếp theo. Không tự suy diễn số điều/khoản nếu dữ liệu hệ thống không cung cấp.
 
 LƯU Ý QUAN TRỌNG:
-- Hạn mức chỉ định thầu theo NĐ 214/2025: tư vấn 800 triệu, xây lắp/hàng hóa/hỗn hợp 2 tỷ, mua sắm không dự án 500 triệu.
+- Hạn mức chỉ định thầu theo NĐ 349/2026 (sửa NĐ 214/2025): tư vấn 3 tỷ, phi tư vấn/hàng hóa/xây lắp/hỗn hợp 5 tỷ, mua sắm không dự án 1 tỷ; mua sắm trực tiếp ≤100 triệu.
 - Quyết toán dự án hoàn thành phải nộp trong 4 tháng kể từ ngày bàn giao đưa vào sử dụng (NĐ 193/2026).
 - Mẫu biểu quyết toán hiện hành: TT 73/2026/TT-BTC (gồm Mẫu 01-12/QTDA).
 - Hóa đơn GTGT phải cùng ngày với biên bản nghiệm thu (NĐ 123/2020).

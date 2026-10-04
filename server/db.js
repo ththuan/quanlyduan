@@ -261,15 +261,16 @@ function listAllPdfs() {
 const DEFAULT_CONFIG = {
   updatedAt: null,
   limits: {
-    // Hạn mức chỉ định thầu theo loại gói (khoản 4 Điều 78 NĐ 214/2025/NĐ-CP)
+    // Hạn mức chỉ định thầu theo loại gói (khoản 4 Điều 78 NĐ 214/2025/NĐ-CP, sửa đổi bởi NĐ 349/2026/NĐ-CP)
     directAppointment: {
-      consulting: 800000000,      // gói tư vấn thuộc dự án
-      construction: 2000000000,   // gói xây lắp thuộc dự án
-      goods: 2000000000,          // gói hàng hóa thuộc dự án
-      mixed: 2000000000,          // gói hỗn hợp thuộc dự án
-      nonConsulting: 2000000000,  // gói phi tư vấn thuộc dự án
-      nonProject: 500000000       // gói mua sắm không hình thành dự án
+      consulting: 3000000000,      // gói dịch vụ tư vấn thuộc dự án
+      construction: 5000000000,    // gói xây lắp thuộc dự án
+      goods: 5000000000,           // gói hàng hóa thuộc dự án
+      mixed: 5000000000,           // gói hỗn hợp thuộc dự án
+      nonConsulting: 5000000000,   // gói dịch vụ phi tư vấn thuộc dự án
+      nonProject: 1000000000       // gói thuộc dự toán mua sắm không hình thành dự án
     },
+    directPurchase: 100000000,     // ngưỡng mua sắm trực tiếp (khoản 4 Điều 80 NĐ 214/2025/NĐ-CP, sửa đổi bởi NĐ 349/2026/NĐ-CP)
     ktkt: 20000000000             // ngưỡng nghiệp vụ lập BCNCKT; quy trình quản lý dự án theo NĐ 217/2026
   },
   contractDeadlineWarnDays: 30,
@@ -294,11 +295,28 @@ const DEFAULT_CONFIG = {
   agencies: ['Ủy ban nhân dân thành phố', 'Sở Tài chính', 'Sở Xây dựng', 'Cơ quan khác'],
   lists: {
     projectTypes: ['Đầu tư công', 'PPP', 'Vốn đầu tư chi thường xuyên', 'Đầu tư kinh doanh'],
+    fundSources: ['Kinh phí quỹ phát triển sự nghiệp', 'Ngân sách thành phố', 'Đầu tư công'],
     buildingGrades: ['Đặc biệt', 'I', 'II', 'III', 'IV'],
     contractTypes: ['Tư vấn (khảo sát, thiết kế, giám sát)', 'Thi công xây dựng', 'Hỗn hợp EPC', 'Hỗn hợp EC', 'Hỗn hợp PC', 'Hợp đồng trọn gói'],
     feasibilityStatuses: ['Chưa lập', 'Đã lập, chờ thẩm định', 'Đã thẩm định'],
     acceptanceStatuses: ['Chưa nghiệm thu', 'Đã nghiệm thu', 'Đang kiểm tra CQCM'],
-    settlementStatuses: ['Chưa quyết toán', 'Đang thẩm tra', 'Đã quyết toán']
+    settlementStatuses: ['Chưa quyết toán', 'Đang thẩm tra', 'Đã quyết toán'],
+    selectionMethods: [
+      'Đấu thầu rộng rãi qua mạng',
+      'Đấu thầu rộng rãi trong nước',
+      'Đấu thầu rộng rãi quốc tế',
+      'Đấu thầu hạn chế',
+      'Chào hàng cạnh tranh qua mạng',
+      'Chào hàng cạnh tranh trong nước',
+      'Chào hàng cạnh tranh quốc tế',
+      'Chỉ định thầu thông thường',
+      'Chỉ định thầu rút gọn',
+      'Mua sắm trực tiếp',
+      'Đặt hàng (NĐ 32/2019)',
+      'Tự thực hiện',
+      'Không áp dụng',
+      'Khác'
+    ]
   },
   // Danh mục văn bản pháp lý (để tra cứu + giải thích mốc thời gian hiệu lực)
   legalDocuments: [
@@ -315,7 +333,8 @@ const DEFAULT_CONFIG = {
     { id: 'ND209-2026', type: 'Nghị định', number: '209/2026/NĐ-CP', title: 'Quản lý vật liệu xây dựng', date: '2026-06-15', effectiveDate: '2026-07-01', replaces: ['NĐ 09/2021/NĐ-CP', 'Bãi bỏ Điều 14 NĐ 144/2025/NĐ-CP'], domains: ['vật liệu xây dựng', 'khoáng sản', 'amiăng', 'vật liệu tái chế', 'vật liệu xanh', 'vật liệu không nung', 'chất lượng sản phẩm'], workflowStages: [1, 2, 4, 5], note: 'Chiến lược, quy hoạch phát triển vật liệu; vật liệu mới, tái chế, xanh, nhẹ, thông minh, không nung; quản lý chất lượng sản phẩm, hàng hóa VLXD.' },
     { id: 'ND210-2026', type: 'Nghị định', number: '210/2026/NĐ-CP', title: 'Hợp đồng xây dựng', date: '2026-06-15', effectiveDate: '2026-07-01', replaces: ['NĐ 37/2015/NĐ-CP', 'NĐ 50/2021/NĐ-CP', 'Bãi bỏ Điều 9 NĐ 35/2023/NĐ-CP'], domains: ['hợp đồng', 'hình thức giá', 'tiến độ', 'khối lượng', 'tạm ứng', 'thanh toán', 'điều chỉnh hợp đồng', 'tạm dừng', 'chấm dứt', 'quyết toán A-B', 'thanh lý', 'EPC'], workflowStages: [3, 4, 5, 6, 7], note: 'Phân loại hợp đồng; hồ sơ; hình thức giá; tiến độ, chất lượng, khối lượng; tạm ứng, thanh toán; điều chỉnh, tạm dừng, chấm dứt; quyết toán, thanh lý; EPC và thầu phụ.' },
     { id: 'ND212-2026', type: 'Nghị định', number: '212/2026/NĐ-CP', title: 'Năng lực và cơ sở dữ liệu xây dựng', date: '2026-06-17', effectiveDate: '2026-07-01', replaces: ['NĐ 111/2024/NĐ-CP', 'Một phần các nghị định liên quan'], domains: ['cơ sở dữ liệu xây dựng', 'mã định danh', 'dữ liệu quy hoạch', 'dữ liệu dự án', 'chứng chỉ hành nghề', 'năng lực tổ chức', 'nhà thầu nước ngoài'], workflowStages: [1, 2, 3, 4, 5], note: 'Hệ thống thông tin, CSDL quốc gia, mã định danh; dữ liệu quy hoạch, dự án, công trình; chứng chỉ hành nghề; công khai năng lực; giấy phép nhà thầu nước ngoài.' },
-    { id: 'ND214-2025', type: 'Nghị định', number: '214/2025/NĐ-CP', title: 'Quy định chi tiết về đấu thầu', date: '2025-11-20', effectiveDate: '2025-11-20', provisions: [{ provision: 'K4 Điều 78: hạn mức chỉ định thầu 500tr/800tr/2tỷ' }], replaces: ['NĐ 24/2024/NĐ-CP'] },
+    { id: 'ND214-2025', type: 'Nghị định', number: '214/2025/NĐ-CP', title: 'Quy định chi tiết về đấu thầu', date: '2025-11-20', effectiveDate: '2025-11-20', provisions: [{ provision: 'K4 Điều 78: hạn mức chỉ định thầu 500tr/800tr/2tỷ (đã sửa đổi bởi NĐ 349/2026)' }], replaces: ['NĐ 24/2024/NĐ-CP'] },
+    { id: 'ND349-2026', type: 'Nghị định', number: '349/2026/NĐ-CP', title: 'Sửa đổi, bổ sung một số điều của các nghị định quy định chi tiết và biện pháp thi hành Luật Đấu thầu về lựa chọn nhà thầu', date: '2026-09-09', effectiveDate: '2026-09-09', replaces: ['Sửa đổi NĐ 214/2025/NĐ-CP', 'NĐ 32/2019/NĐ-CP'], note: 'Hạn mức chỉ định thầu: tư vấn 3 tỷ, phi tư vấn/hàng hóa/xây lắp/hỗn hợp 5 tỷ, mua sắm không dự án 1 tỷ; mua sắm trực tiếp ≤100 triệu; bổ sung quy trình chỉ định thầu thông thường/rút gọn' },
     { id: 'ND254-2025', type: 'Nghị định', number: '254/2025/NĐ-CP', title: 'Quản lý, thanh toán, quyết toán vốn đầu tư công và chi thường xuyên', date: '2025-09-26', effectiveDate: '2025-09-26', replaces: ['NĐ 99/2021/NĐ-CP'], note: 'Hồ sơ tạm ứng, thanh toán; mẫu 02a-05a/TT; giao dịch Kho bạc; áp dụng cho cả chi thường xuyên NSNN' },
     { id: 'ND193-2026', type: 'Nghị định', number: '193/2026/NĐ-CP', title: 'Quyết toán vốn đầu tư dự án', date: '2026-06-01', effectiveDate: '2026-07-01', replaces: ['Bãi bỏ một phần NĐ 254/2025/NĐ-CP', 'Một số nội dung của NĐ 88/2025/NĐ-CP', 'Một số nội dung của NĐ 358/2025/NĐ-CP'], domains: ['quyết toán vốn', 'hồ sơ quyết toán', 'báo cáo quyết toán', 'dự án thành phần', 'bồi thường tái định cư', 'kiểm toán độc lập', 'thẩm tra', 'phê duyệt quyết toán', 'công nợ', 'tài sản'], workflowStages: [7, 8], note: 'Vốn được quyết toán; hồ sơ, báo cáo; dự án thành phần; bồi thường, tái định cư; kiểm toán độc lập; thẩm tra, phê duyệt; xử lý công nợ và tài sản.' },
     { id: 'ND347-2025', type: 'Nghị định', number: '347/2025/NĐ-CP', title: 'Kiểm soát chi NSNN qua Kho bạc Nhà nước', date: '2025-09-26', effectiveDate: '2025-09-26', note: 'Giấy rút vốn, rút dự toán; kiểm soát cam kết chi' },
