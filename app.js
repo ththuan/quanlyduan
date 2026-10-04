@@ -200,6 +200,7 @@ let state = {
   projects: [],
   currentProjectId: null,
   currentView: 'dashboard',
+  projectScope: 'project',
   config: null
 };
 let currentUser = null;
@@ -310,6 +311,7 @@ function applyConfig() {
   if (typeof c.contractDeadlineWarnDays === 'number') CONTRACT_DEADLINE_WARN_DAYS = c.contractDeadlineWarnDays;
   if (Array.isArray(c.lists?.projectTypes)) PROJECT_TYPES = c.lists.projectTypes;
   if (Array.isArray(c.lists?.fundSources)) FUND_SOURCES = c.lists.fundSources;
+  if (Array.isArray(c.lists?.purchaseTypes)) PURCHASE_TYPES = c.lists.purchaseTypes;
   if (Array.isArray(c.lists?.buildingGrades)) BUILDING_GRADES = c.lists.buildingGrades;
   if (Array.isArray(c.lists?.contractTypes)) CONTRACT_TYPES = c.lists.contractTypes;
   if (Array.isArray(c.lists?.feasibilityStatuses)) FEASIBILITY_STATUSES = c.lists.feasibilityStatuses;
@@ -329,7 +331,9 @@ function saveState() {
 }
 
 function getCurrentProject() {
-  return state.projects.find(p => p.id === state.currentProjectId) || state.projects[0];
+  const p = state.projects.find(p => p.id === state.currentProjectId);
+  if (p && (p.projectScope || 'project') === state.projectScope) return p;
+  return getScopeProjects()[0] || null;
 }
 
 function selectProject(id) {
@@ -386,6 +390,7 @@ function formatFileSize(bytes) {
 // ---- Project classification & legal lookup tables (per readme.md quy trình) ----
 let PROJECT_TYPES = ['Đầu tư công', 'PPP', 'Vốn đầu tư chi thường xuyên', 'Đầu tư kinh doanh'];
 let FUND_SOURCES = ['Kinh phí quỹ phát triển sự nghiệp', 'Ngân sách thành phố', 'Đầu tư công'];
+let PURCHASE_TYPES = ['Mua sắm tài sản', 'Sửa chữa, bảo trì thường xuyên', 'Mua sắm vật tư, hàng hóa tiêu hao', 'Dịch vụ khác'];
 let BUILDING_GRADES = ['Đặc biệt', 'I', 'II', 'III', 'IV'];
 let CONTRACT_TYPES = ['Tư vấn (khảo sát, thiết kế, giám sát)', 'Thi công xây dựng', 'Hỗn hợp EPC', 'Hỗn hợp EC', 'Hỗn hợp PC', 'Hợp đồng trọn gói'];
 let FEASIBILITY_STATUSES = ['Chưa lập', 'Đã lập, chờ thẩm định', 'Đã thẩm định'];
@@ -804,68 +809,39 @@ function renderBarChart() {
 // ============================================================
 // TIẾN ĐỘ: danh sách thẻ gói thầu
 // ============================================================
-function renderGanttChart() {
-  const el = document.getElementById('gantt-chart');
-  if (!el) return;
-  const project = getCurrentProject();
-  if (!project) return;
-
-  const all = [];
-  getSortedCategories(project).forEach(c => c.packages.forEach(pkg => all.push({ cat: c, pkg })));
-
-  if (!all.length) {
-    el.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:20px">Chưa có gói thầu nào.</p>';
-    return;
-  }
-
-  const rows = all.map(({ cat, pkg }, idx) => {
-    const pc = (pkg.pkgType === 'consulting' || pkg.pkgType === 'nonConsulting') ? null : (pkg.progress || 0);
-    const isConsulting = pkg.pkgType === 'consulting' || pkg.pkgType === 'nonConsulting';
-    let status, badgeCls;
-    if (isConsulting) {
-      status = isPackageComplete(pkg) ? 'Hoàn thành' : 'Đang thực hiện';
-      badgeCls = isPackageComplete(pkg) ? 'badge-success' : 'badge-info';
-    } else {
-      status = isPackageComplete(pkg) ? 'Hoàn thành' : (pkg.contractEndDate && daysUntil(pkg.contractEndDate) < 0 ? 'Quá hạn' : 'Đang thực hiện');
-      badgeCls = isPackageComplete(pkg) ? 'badge-success' : (pkg.contractEndDate && daysUntil(pkg.contractEndDate) < 0 ? 'badge-danger' : 'badge-info');
-    }
-    const name = pkg.name;
-    const start = pkg.contractStartDate || pkg.contractSignDate || pkg.handoverDate;
-    const end = pkg.contractEndDate || pkg.handoverDate;
-    const dateInfo = start ? `${formatDateShort(start)}${end ? ' → ' + formatDateShort(end) : ''}` : '';
-    const contractor = pkg.contractor || '';
-
-    return `
-    <div class="gantt-row">
-      <div class="gantt-row-info">
-        <div class="gantt-row-name" title="${esc(pkg.name)}">${idx + 1}. ${esc(name)}</div>
-        <div class="gantt-row-meta">
-          ${dateInfo ? `<span>${esc(dateInfo)}</span>` : ''}
-          ${contractor ? `<span> · ${esc(contractor)}</span>` : ''}
-        </div>
-      </div>
-      <div class="gantt-row-status"><span class="badge ${badgeCls}">${status}${pc !== null ? ` ${pc}%` : ''}</span></div>
-    </div>`;
-  }).join('');
-
-  el.innerHTML = rows;
-}
-
-function formatDateShort(dateStr) {
-  if (!dateStr) return '—';
-  const d = new Date(dateStr);
-  if (isNaN(d)) return '—';
-  return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
-}
-
 // ============================================================
 // SECTION 6: UI RENDERING
 // ============================================================
+function getScopeProjects() {
+  return state.projects.filter(p => (p.projectScope || 'project') === state.projectScope);
+}
+
 function renderProjectSelector() {
   const select = document.getElementById('project-selector');
-  select.innerHTML = state.projects.map(p =>
+  const list = getScopeProjects();
+  if (!list.length) {
+    select.innerHTML = '<option value="">— Chưa có —</option>';
+    select.value = '';
+    return;
+  }
+  if (!list.some(p => p.id === state.currentProjectId)) {
+    state.currentProjectId = list[0].id;
+  }
+  select.innerHTML = list.map(p =>
     `<option value="${esc(p.id)}" ${p.id === state.currentProjectId ? 'selected' : ''}>${esc(p.name)}</option>`
   ).join('');
+}
+
+function switchScope(scope) {
+  if (scope !== 'project' && scope !== 'nonProject') return;
+  state.projectScope = scope;
+  document.querySelectorAll('.scope-btn').forEach(b => b.classList.toggle('active', b.dataset.scope === scope));
+  const list = getScopeProjects();
+  if (list.length) state.currentProjectId = list[0].id;
+  else state.currentProjectId = null;
+  saveState();
+  renderProjectSelector();
+  renderAll();
 }
 
 function renderProjectInfoBar() {
@@ -911,7 +887,13 @@ function renderAlertsPanel(project) {
 
 function renderDashboard() {
   const project = getCurrentProject();
-  if (!project) return;
+  if (!project) {
+    document.getElementById('kpi-cards').innerHTML = '';
+    document.getElementById('capital-summary').innerHTML = '';
+    document.getElementById('alerts-panel').innerHTML = '';
+    document.querySelectorAll('.chart-wrapper').forEach(el => { el.innerHTML = ''; });
+    return;
+  }
 
   renderAlertsPanel(project);
 
@@ -1038,7 +1020,6 @@ function renderDashboard() {
 
   renderDonutChart();
   renderBarChart();
-  renderGanttChart();
 }
 
 function renderCapitalSummary() {
@@ -2470,6 +2451,13 @@ function getPackageFormHTML(pkg = null, catId = '') {
           <option value="nonProject" ${pkg?.pkgScope === 'nonProject' ? 'selected' : ''}>Không hình thành dự án (dự toán mua sắm)</option>
         </select>
       </div>
+      <div class="form-group">
+        <label>Loại hình mua sắm</label>
+        <select id="f-purchaseType">
+          <option value="">— Chọn —</option>
+          ${PURCHASE_TYPES.map(t => `<option value="${t}" ${pkg?.purchaseType === t ? 'selected' : ''}>${t}</option>`).join('')}
+        </select>
+      </div>
       <div class="form-section-title"><span class="material-symbols-rounded">payments</span> Thông tin tài chính</div>
       <div class="form-group">
         <label>Giá trị dự toán (VNĐ)</label>
@@ -2520,6 +2508,14 @@ function getPackageFormHTML(pkg = null, catId = '') {
         <input type="text" id="f-contractExtension" value="${esc(pkg?.contractExtension || '')}" placeholder="VD: PL01/HĐ ngày ...">
       </div>
       <div class="form-group">
+        <label>Ngày thanh lý hợp đồng</label>
+        <input type="date" id="f-liquidationDate" value="${pkg?.liquidationDate || ''}">
+      </div>
+      <div class="form-group">
+        <label>Giá trị thanh lý (VNĐ)</label>
+        <input type="number" id="f-liquidationValue" value="${pkg?.liquidationValue || ''}">
+      </div>
+      <div class="form-group">
         <label>Hình thức lựa chọn nhà thầu</label>
         <select id="f-selectionMethod">
           <option value="">— Chọn —</option>
@@ -2531,6 +2527,19 @@ function getPackageFormHTML(pkg = null, catId = '') {
         <input type="text" id="f-contractor" value="${esc(pkg?.contractor || '')}">
       </div>
       <div class="form-section-title"><span class="material-symbols-rounded">fact_check</span> Quy trình lựa chọn nhà thầu (NĐ 349/2026)</div>
+      <div class="form-section-title" style="font-size:0.8rem;color:var(--accent-amber)"><span class="material-symbols-rounded">price_check</span> Báo giá (Điều 1 NĐ 349/2026)</div>
+      <div class="form-group">
+        <label>Số yêu cầu báo giá</label>
+        <input type="text" id="f-quoteNumber" value="${esc(pkg?.quoteNumber || '')}" placeholder="Số YCBG / báo giá">
+      </div>
+      <div class="form-group">
+        <label>Ngày đăng yêu cầu báo giá</label>
+        <input type="date" id="f-quoteDate" value="${pkg?.quoteDate || ''}">
+      </div>
+      <div class="form-group">
+        <label>Số báo giá nhận được</label>
+        <input type="number" id="f-quoteCount" min="0" value="${pkg?.quoteCount ?? ''}" placeholder="Tối thiểu 01 báo giá">
+      </div>
       <div class="form-group">
         <label>Số QĐ phê duyệt KHLCNT</label>
         <input type="text" id="f-khlcntNumber" value="${esc(pkg?.khlcntNumber || '')}" placeholder="Kế hoạch lựa chọn nhà thầu">
@@ -2589,47 +2598,6 @@ function getPackageFormHTML(pkg = null, catId = '') {
           <label>Tiến độ (%)</label>
           <input type="number" id="f-progress" min="0" max="100" value="${pkg?.progress ?? ''}">
         </div>
-      </div>
-      <div data-show="construction" class="pkg-show">
-        <div class="form-section-title"><span class="material-symbols-rounded">flag</span> Tiến độ từng mốc (Milestones)</div>
-        <div style="background:rgba(148,163,184,.06);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:8px">
-          <p style="font-size:0.75rem;color:var(--text-muted);margin-bottom:8px">Nhập mốc tiến độ chi tiết. Nếu bỏ trống, hệ thống sẽ dùng tiến độ chung bên trên.</p>
-        ${['KhoiCong','Mong','Than','HoanThien','BanGiao'].map((key, idx) => {
-          const names = {KhoiCong:'Khởi công',Mong:'Móng',Than:'Thân',HoanThien:'Hoàn thiện',BanGiao:'Bàn giao'};
-          const defWeights = {KhoiCong:10,Mong:20,Than:30,HoanThien:25,BanGiao:15};
-          const existing = (pkg?.milestones || []).find(m => m.id === key) || {};
-          return `
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:0.8rem">
-            <span style="flex:0 0 100px;font-weight:600;color:var(--text-secondary)">${names[key]}</span>
-            <input type="date" id="f-ms-${key}-planned" value="${existing.plannedDate || ''}" style="flex:1;min-width:0" placeholder="Dự kiến" title="Dự kiến">
-            <input type="date" id="f-ms-${key}-actual" value="${existing.actualDate || ''}" style="flex:1;min-width:0" placeholder="Thực tế" title="Thực tế">
-            <input type="number" id="f-ms-${key}-weight" value="${existing.weight ?? defWeights[key]}" min="0" max="100" step="1" style="width:55px;text-align:right" title="Trọng số %">
-            <span style="font-size:0.7rem;color:var(--text-muted)">%</span>
-          </div>`;
-        }).join('')}
-        <div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px" id="ms-weight-sum">Tổng trọng số: <span id="ms-weight-total">100</span>%</div>
-      </div>
-      <script>
-        (function(){
-          const ids = ['KhoiCong','Mong','Than','HoanThien','BanGiao'];
-          function recalc(){
-            let s=0;
-            ids.forEach(k=>{
-              const el=document.getElementById('f-ms-'+k+'-weight');
-              s += el ? (Number(el.value)||0) : 0;
-            });
-            const totalEl=document.getElementById('ms-weight-total');
-            if(totalEl){
-              totalEl.textContent = s;
-              totalEl.style.color = s===100 ? 'var(--accent-green)' : 'var(--accent-red)';
-            }
-          }
-          ids.forEach(k=>{
-            const el=document.getElementById('f-ms-'+k+'-weight');
-            if(el) el.addEventListener('input', recalc);
-          });
-        })();
-      </script>
       </div>
       <div class="form-section-title"><span class="material-symbols-rounded">assessment</span> Giá trị thực hiện</div>
       <div class="form-group">
@@ -2778,6 +2746,7 @@ function getPackageFormData() {
     name: document.getElementById('f-name').value.trim(),
     pkgType: document.getElementById('f-pkgType').value || 'construction',
     pkgScope: document.getElementById('f-pkgScope').value || 'project',
+    purchaseType: document.getElementById('f-purchaseType').value,
     estimateValue: Number(document.getElementById('f-estimateValue').value) || 0,
     bidValue: Number(document.getElementById('f-bidValue').value) || 0,
     fundSource: document.getElementById('f-fundSource').value.trim(),
@@ -2785,6 +2754,9 @@ function getPackageFormData() {
     contract: document.getElementById('f-contract').value.trim(),
     selectionMethod: document.getElementById('f-selectionMethod').value,
     contractor: document.getElementById('f-contractor').value.trim(),
+    quoteNumber: document.getElementById('f-quoteNumber').value.trim(),
+    quoteDate: document.getElementById('f-quoteDate').value,
+    quoteCount: Number(document.getElementById('f-quoteCount').value) || 0,
     khlcntNumber: document.getElementById('f-khlcntNumber').value.trim(),
     khlcntDate: document.getElementById('f-khlcntDate').value,
     hsmtNumber: document.getElementById('f-hsmtNumber').value.trim(),
@@ -2814,6 +2786,8 @@ function getPackageFormData() {
     contractStartDate: document.getElementById('f-contractStartDate').value,
     contractEndDate: document.getElementById('f-contractEndDate').value,
     contractExtension: document.getElementById('f-contractExtension').value.trim(),
+    liquidationDate: document.getElementById('f-liquidationDate').value,
+    liquidationValue: Number(document.getElementById('f-liquidationValue').value) || 0,
     invoiceNumber: document.getElementById('f-invoiceNumber').value.trim(),
     invoiceDate: document.getElementById('f-invoiceDate').value,
     invoiceValue: Number(document.getElementById('f-invoiceValue').value) || 0,
@@ -2824,20 +2798,7 @@ function getPackageFormData() {
     settlementValue: Number(document.getElementById('f-settlementValue').value) || 0,
     arisingValue: Number(document.getElementById('f-arisingValue').value) || 0,
     settlementDate: document.getElementById('f-settlementDate').value,
-    notes: document.getElementById('f-notes').value.trim(),
-    milestones: (() => {
-      const keys = ['KhoiCong','Mong','Than','HoanThien','BanGiao'];
-      const names = {KhoiCong:'Khởi công',Mong:'Móng',Than:'Thân',HoanThien:'Hoàn thiện',BanGiao:'Bàn giao'};
-      const ms = keys.map(k => ({
-        id: k,
-        name: names[k],
-        plannedDate: document.getElementById('f-ms-'+k+'-planned')?.value || '',
-        actualDate: document.getElementById('f-ms-'+k+'-actual')?.value || '',
-        weight: Number(document.getElementById('f-ms-'+k+'-weight')?.value) || 0
-      }));
-      const hasData = ms.some(m => m.plannedDate || m.actualDate || m.weight);
-      return hasData ? ms : [];
-    })()
+    notes: document.getElementById('f-notes').value.trim()
   };
 }
 
@@ -3048,6 +3009,11 @@ function viewPackageDetail(catId, pkgId) {
         <span class="detail-label">Phạm vi gói thầu</span>
         <span class="detail-value">${pkg.pkgScope === 'nonProject' ? 'Không hình thành dự án (dự toán mua sắm)' : 'Thuộc dự án'}</span>
       </div>
+      ${pkg.purchaseType ? `
+      <div class="detail-item">
+        <span class="detail-label">Loại hình mua sắm</span>
+        <span class="detail-value">${esc(pkg.purchaseType)}</span>
+      </div>` : ''}
       <div class="detail-section-title">Thông tin hợp đồng</div>
       <div class="detail-item">
         <span class="detail-label">QĐ trúng thầu</span>
@@ -3082,12 +3048,26 @@ function viewPackageDetail(catId, pkgId) {
         <span class="detail-label">PL gia hạn</span>
         <span class="detail-value">${esc(pkg.contractExtension || 'Không có')}</span>
       </div>
+      ${pkg.liquidationDate || pkg.liquidationValue ? `
+      <div class="detail-item">
+        <span class="detail-label">Ngày thanh lý hợp đồng</span>
+        <span class="detail-value">${formatDateVN(pkg.liquidationDate)}</span>
+      </div>
+      <div class="detail-item">
+        <span class="detail-label">Giá trị thanh lý</span>
+        <span class="detail-value money">${formatCurrency(pkg.liquidationValue)}</span>
+      </div>` : ''}
       <div class="detail-item">
         <span class="detail-label">Hình thức lựa chọn</span>
         <span class="detail-value">${esc(pkg.selectionMethod || '—')}</span>
       </div>
-      ${pkg.khlcntNumber || pkg.khlcntDate || pkg.hsmtNumber || pkg.hsmtDate || pkg.bidCloseDate || pkg.bidOpenDate || pkg.evaluationDate || pkg.resultApprovalDate || pkg.resultPublishDate || pkg.directBasis ? `
+      ${pkg.quoteNumber || pkg.quoteDate || pkg.quoteCount || pkg.khlcntNumber || pkg.khlcntDate || pkg.hsmtNumber || pkg.hsmtDate || pkg.bidCloseDate || pkg.bidOpenDate || pkg.evaluationDate || pkg.resultApprovalDate || pkg.resultPublishDate || pkg.directBasis ? `
       <div class="detail-section-title">Quy trình lựa chọn nhà thầu</div>
+      ${pkg.quoteNumber || pkg.quoteDate || pkg.quoteCount ? `
+      <div class="detail-item">
+        <span class="detail-label">Báo giá</span>
+        <span class="detail-value">${esc(pkg.quoteNumber || '—')}${pkg.quoteDate ? ` — đăng ${formatDateVN(pkg.quoteDate)}` : ''}${pkg.quoteCount ? ` · ${pkg.quoteCount} báo giá` : ''}</span>
+      </div>` : ''}
       ${pkg.khlcntNumber || pkg.khlcntDate ? `
       <div class="detail-item">
         <span class="detail-label">KHLCNT</span>
@@ -3144,37 +3124,6 @@ function viewPackageDetail(catId, pkgId) {
         <span class="detail-label">Tiến độ</span>
         <span class="detail-value">${pkg.progress}%</span>
       </div>
-      <div class="detail-section-title">Tiến độ từng mốc</div>
-      ${(() => {
-        const ms = pkg.milestones || [];
-        if (ms.length) {
-          const weightedProgress = ms.reduce((s, m) => {
-            const done = m.actualDate ? 100 : 0;
-            return s + (m.weight || 0) * done / 100;
-          }, 0);
-          const totalWeight = ms.reduce((s, m) => s + (m.weight || 0), 0);
-          const agg = totalWeight > 0 ? Math.round(weightedProgress / totalWeight) : 0;
-          const msHTML = ms.map(m => {
-            const done = !!m.actualDate;
-            return `
-            <div class="detail-item">
-              <span class="detail-label">${done ? '<span style="color:var(--accent-green)">&#10003;</span> ' : ''}${esc(m.name)}</span>
-              <span class="detail-value">Dự kiến: ${formatDateVN(m.plannedDate)} | Thực tế: ${formatDateVN(m.actualDate)} | Trọng số: ${m.weight || 0}%</span>
-            </div>`;
-          }).join('');
-          return `
-          <div style="margin-bottom:8px">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-              <div style="flex:1;height:8px;background:var(--border);border-radius:4px;overflow:hidden">
-                <div style="height:100%;width:${agg}%;background:var(--accent-green);border-radius:4px;transition:width .3s"></div>
-              </div>
-              <span style="font-weight:700;font-size:0.9rem">${agg}%</span>
-            </div>
-            ${msHTML}
-          </div>`;
-        }
-        return '<p style="color:var(--text-muted);font-size:0.78rem;padding:4px 0">Chưa có mốc tiến độ. Sử dụng tiến độ chung.</p>';
-      })()}
 ` : ''}
       <div class="detail-section-title">Giá trị thực hiện</div>
       <div class="detail-item">
@@ -3289,25 +3238,6 @@ function viewPackageDetail(catId, pkgId) {
       </div>
       ${pkg.notes ? `<div class="detail-item full-width"><span class="detail-label">Ghi chú</span><span class="detail-value">${esc(pkg.notes)}</span></div>` : ''}
 
-      <div class="detail-section-title">Lịch sử thanh toán / nghiệm thu</div>
-      ${(pkg.payments || []).length ? `
-      <table style="width:100%;font-size:0.78rem;margin:8px 0"><thead><tr style="color:var(--text-muted)"><th>Ngày</th><th>Nghiệm thu</th><th>Hóa đơn</th><th>Số HĐ</th><th>Ghi chú</th><th style="width:60px"></th></tr></thead>
-      <tbody>${pkg.payments.map(pm => `
-        <tr style="border-top:1px solid var(--border)">
-          <td>${formatDateVN(pm.date)}</td>
-          <td class="text-right">${formatCurrency(pm.acceptanceValue, true)}</td>
-          <td class="text-right">${formatCurrency(pm.invoiceValue, true)}</td>
-          <td>${esc(pm.invoiceNumber || '—')}${pm.invoiceXml ? ' <span class="badge badge-success">XML</span>' : ''}</td>
-          <td style="font-size:0.7rem;color:var(--text-muted)">${esc(pm.note || '—')}</td>
-          <td><button class="btn-icon edit-only" title="Xóa" onclick="deletePayment('${catId}','${pkgId}','${pm.id}')"><span class="material-symbols-rounded" style="font-size:16px">close</span></button></td>
-        </tr>`).join('')}</tbody></table>
-        <div style="font-size:0.75rem;color:var(--text-muted);text-align:right;margin:4px 0">
-          Tổng nghiệm thu: <strong>${formatCurrency(pkg.payments.reduce((s,p)=>s+(p.acceptanceValue||0),0), true)}</strong> &nbsp;|&nbsp;
-          Tổng hóa đơn: <strong>${formatCurrency(pkg.payments.reduce((s,p)=>s+(p.invoiceValue||0),0), true)}</strong>
-        </div>
-      ` : '<p style="color:var(--text-muted);font-size:0.78rem;padding:4px 0">Chưa có đợt thanh toán nào.</p>'}
-      <button class="btn btn-secondary btn-sm edit-only" onclick="addPayment('${catId}','${pkgId}')" style="margin-top:4px">+ Thêm đợt thanh toán</button>
-
       ${(pkg.pkgType === 'consulting' || pkg.pkgType === 'nonConsulting') ? `
       <div class="detail-section-title">Sản phẩm giao nộp (Tư vấn)</div>
       ${(pkg.deliverables || []).length ? `
@@ -3387,58 +3317,6 @@ ${!(pkg.documentChecklist || []).length ? '<p style="color:var(--text-muted);fon
       <span class="material-symbols-rounded">edit</span> Sửa
     </button>
   `);
-}
-
-function addPayment(catId, pkgId) {
-  if (!requireEditPermission()) return;
-  openModal('Thêm đợt thanh toán', `
-    <div class="form-grid" style="grid-template-columns:1fr 1fr">
-      <div class="form-group"><label>Ngày</label><input type="date" id="pm-date"></div>
-      <div class="form-group"><label>Giá trị nghiệm thu (VNĐ)</label><input type="number" id="pm-acceptanceValue"></div>
-      <div class="form-group"><label>Giá trị hóa đơn (VNĐ)</label><input type="number" id="pm-invoiceValue"></div>
-      <div class="form-group"><label>Số hóa đơn</label><input type="text" id="pm-invoiceNumber"></div>
-      <div class="form-group" style="display:flex;align-items:flex-end;gap:6px"><label style="display:flex;align-items:center;gap:6px;text-transform:none;font-size:0.85rem"><input type="checkbox" id="pm-invoiceXml" style="width:auto"> HĐ điện tử XML</label></div>
-      <div class="form-group full-width"><label>Ghi chú</label><input type="text" id="pm-note"></div>
-    </div>
-  `, `
-    <button class="btn btn-secondary" onclick="closeModal()">Hủy</button>
-    <button class="btn btn-primary" onclick="savePayment('${catId}','${pkgId}')">Lưu</button>
-  `);
-}
-
-function savePayment(catId, pkgId) {
-  const project = getCurrentProject();
-  const cat = project.categories.find(c => c.id === catId);
-  const pkg = cat?.packages.find(p => p.id === pkgId);
-  if (!pkg) return;
-  pkg.payments = pkg.payments || [];
-  pkg.payments.push({
-    id: generateId(),
-    date: document.getElementById('pm-date').value,
-    acceptanceValue: Number(document.getElementById('pm-acceptanceValue').value) || 0,
-    invoiceValue: Number(document.getElementById('pm-invoiceValue').value) || 0,
-    invoiceNumber: document.getElementById('pm-invoiceNumber').value.trim(),
-    invoiceXml: document.getElementById('pm-invoiceXml').checked,
-    note: document.getElementById('pm-note').value.trim()
-  });
-  addAudit(project, 'create', 'thanh toán', pkg.name, `Đợt ${pkg.payments.length}`);
-  saveState();
-  closeModal();
-  viewPackageDetail(catId, pkgId);
-  showToast('Đã thêm đợt thanh toán');
-}
-
-function deletePayment(catId, pkgId, paymentId) {
-  if (!requireEditPermission()) return;
-  const project = getCurrentProject();
-  const cat = project.categories.find(c => c.id === catId);
-  const pkg = cat?.packages.find(p => p.id === pkgId);
-  if (!pkg?.payments) return;
-  pkg.payments = pkg.payments.filter(pm => pm.id !== paymentId);
-  addAudit(project, 'delete', 'thanh toán', pkg.name);
-  saveState();
-  viewPackageDetail(catId, pkgId);
-  showToast('Đã xóa đợt thanh toán', 'info');
 }
 
 function toggleDocChecklistItem(catId, pkgId, stageName, itemId, checked) {
@@ -3715,15 +3593,24 @@ function saveNewCategory() {
 // ---- Add / Edit Project ----
 function getProjectFormHTML(proj = null) {
   const isSmall = !!(proj?.smallProject);
+  const isNonProject = (proj ? (proj.projectScope || 'project') : state.projectScope) === 'nonProject';
   return `
     <div class="form-grid">
 <div class="form-group full-width"><label>Tên dự án *</label><input type="text" id="f-proj-name" value="${esc(proj?.name || '')}"></div>
+    <div class="form-group full-width">
+      <label>Phạm vi</label>
+      <select id="f-proj-scope" onchange="toggleProjectScopeForm()">
+        <option value="project" ${isNonProject ? '' : 'selected'}>Hình thành dự án (đầu tư công / xây dựng)</option>
+        <option value="nonProject" ${isNonProject ? 'selected' : ''}>Không hình thành dự án (mua sắm thường xuyên)</option>
+      </select>
+    </div>
     <div class="form-group full-width"><label>Tên đầy đủ</label><input type="text" id="f-proj-fullName" value="${esc(proj?.fullName || '')}"></div>
     <div class="form-group"><label>Chủ đầu tư</label><input type="text" id="f-proj-owner" value="${esc(proj?.owner || '')}"></div>
     <div class="form-group"><label>Mã số thuế CĐT</label><input type="text" id="f-proj-taxCode" value="${esc(proj?.investorTaxCode || '')}"></div>
     <div class="form-group"><label>Địa điểm</label><input type="text" id="f-proj-location" value="${esc(proj?.location || '')}"></div>
     <div class="form-group"><label>Năm bắt đầu thực hiện</label><input type="number" id="f-proj-startYear" min="1900" max="2200" value="${proj?.startYear ?? ''}" placeholder="Ví dụ: 2025"></div>
     <div class="form-group"><label>Năm kết thúc dự kiến</label><input type="number" id="f-proj-endYear" min="1900" max="2200" value="${proj?.endYear ?? ''}" placeholder="Ví dụ: 2027"></div>
+    <div id="proj-investment-fields" ${isNonProject ? 'style="display:none"' : ''}>
     <div class="form-group">
       <label>Nhóm dự án</label>
       <select id="f-proj-group">
@@ -3755,8 +3642,9 @@ function getProjectFormHTML(proj = null) {
           Dự án nhỏ lẻ thường chỉ có 1-2 gói thầu, giá trị thấp: hệ thống sẽ ẩn bớt các mục phức tạp (phân loại pháp lý, BCNCKT/thẩm định, giấy phép xây dựng) và cho phép quyết toán trọn gói một lần.
         </p>
       </div>
+    </div>
 
-      <div id="proj-heavy-sections" ${isSmall ? 'style="display:none"' : ''}>
+      <div id="proj-heavy-sections" ${isSmall || isNonProject ? 'style="display:none"' : ''}>
       <div class="form-section-title"><span class="material-symbols-rounded">category</span> Phân loại & Pháp lý dự án</div>
       <div class="form-group">
         <label>Loại dự án</label>
@@ -3859,6 +3747,17 @@ function toggleSmallProjectForm(isSmall) {
   if (note) note.style.display = isSmall ? '' : 'none';
 }
 
+function toggleProjectScopeForm() {
+  const scope = document.getElementById('f-proj-scope');
+  const invest = document.getElementById('proj-investment-fields');
+  const heavy = document.getElementById('proj-heavy-sections');
+  const small = document.getElementById('f-proj-small');
+  if (!scope) return;
+  const isNonProject = scope.value === 'nonProject';
+  if (invest) invest.style.display = isNonProject ? 'none' : '';
+  if (heavy) heavy.style.display = (isNonProject || (small && small.checked)) ? 'none' : '';
+}
+
 function addConstructionRow() {
   const list = document.getElementById('constructions-list');
   if (!list) return;
@@ -3907,6 +3806,7 @@ function addIndividualRow() {
 function getProjectFormData() {
   return {
     name: document.getElementById('f-proj-name').value.trim(),
+    projectScope: document.getElementById('f-proj-scope').value || 'project',
     fullName: document.getElementById('f-proj-fullName').value.trim(),
     owner: document.getElementById('f-proj-owner').value.trim(),
     investorTaxCode: document.getElementById('f-proj-taxCode').value.trim(),
@@ -4204,7 +4104,6 @@ function switchView(viewName) {
   if (viewName === 'dashboard') renderDashboard();
   else if (viewName === 'packages') renderPackages();
   else if (viewName === 'initiation') renderInitiationView();
-  else if (viewName === 'settlement') renderSettlementView();
   else if (viewName === 'reports') renderReports();
 }
 
@@ -4213,13 +4112,17 @@ function renderAll() {
   if (state.currentView === 'dashboard') renderDashboard();
   else if (state.currentView === 'packages') renderPackages();
   else if (state.currentView === 'initiation') renderInitiationView();
-  else if (state.currentView === 'settlement') renderSettlementView();
   else if (state.currentView === 'reports') renderReports();
 }
 
 // Nav tabs
 document.querySelectorAll('.nav-tab').forEach(tab => {
   tab.addEventListener('click', () => switchView(tab.dataset.view));
+});
+
+// Scope switch (Dự án / Mua sắm)
+document.querySelectorAll('.scope-btn').forEach(btn => {
+  btn.addEventListener('click', () => switchScope(btn.dataset.scope));
 });
 
 // Project selector
@@ -4410,6 +4313,7 @@ function openSysConfigModal() {
       <div class="cfg-grid">
         <div><label style="font-size:0.78rem;color:var(--text-muted)">Loại dự án</label><textarea id="cfg-list-projectTypes" rows="3" style="width:100%">${esc(arrToText(lst.projectTypes))}</textarea></div>
         <div><label style="font-size:0.78rem;color:var(--text-muted)">Nguồn vốn</label><textarea id="cfg-list-fundSources" rows="3" style="width:100%">${esc(arrToText(lst.fundSources))}</textarea></div>
+        <div><label style="font-size:0.78rem;color:var(--text-muted)">Loại hình mua sắm</label><textarea id="cfg-list-purchaseTypes" rows="3" style="width:100%">${esc(arrToText(lst.purchaseTypes))}</textarea></div>
         <div><label style="font-size:0.78rem;color:var(--text-muted)">Cấp công trình</label><textarea id="cfg-list-buildingGrades" rows="3" style="width:100%">${esc(arrToText(lst.buildingGrades))}</textarea></div>
         <div><label style="font-size:0.78rem;color:var(--text-muted)">Loại hợp đồng</label><textarea id="cfg-list-contractTypes" rows="3" style="width:100%">${esc(arrToText(lst.contractTypes))}</textarea></div>
         <div><label style="font-size:0.78rem;color:var(--text-muted)">BCNCKT</label><textarea id="cfg-list-feasibility" rows="2" style="width:100%">${esc(arrToText(lst.feasibilityStatuses))}</textarea></div>
@@ -4470,6 +4374,7 @@ async function saveSysConfig() {
     lists: {
       projectTypes: textToArr('cfg-list-projectTypes'),
       fundSources: textToArr('cfg-list-fundSources'),
+      purchaseTypes: textToArr('cfg-list-purchaseTypes'),
       buildingGrades: textToArr('cfg-list-buildingGrades'),
       contractTypes: textToArr('cfg-list-contractTypes'),
       feasibilityStatuses: textToArr('cfg-list-feasibility'),
@@ -4686,7 +4591,6 @@ window.addEventListener('resize', () => {
     if (state.currentView === 'dashboard') {
       renderDonutChart();
       renderBarChart();
-      renderGanttChart();
     }
   }, 250);
 });

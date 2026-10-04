@@ -28,6 +28,17 @@
         </div>
       </div>
 
+      <div class="scope-switch" id="scope-switch">
+        <button class="scope-btn active" data-scope="project">
+          <span class="material-symbols-rounded">domain</span>
+          <span>Dự án</span>
+        </button>
+        <button class="scope-btn" data-scope="nonProject">
+          <span class="material-symbols-rounded">shopping_cart</span>
+          <span>Mua sắm</span>
+        </button>
+      </div>
+
       <div class="nav-tabs">
         <button class="nav-tab active" data-view="dashboard">
           <span class="material-symbols-rounded">dashboard</span>
@@ -40,10 +51,6 @@
         <button class="nav-tab" data-view="packages">
           <span class="material-symbols-rounded">inventory_2</span>
           <span>Gói thầu</span>
-        </button>
-        <button class="nav-tab" data-view="settlement">
-          <span class="material-symbols-rounded">fact_check</span>
-          <span>Quyết toán</span>
         </button>
         <button class="nav-tab" data-view="reports">
           <span class="material-symbols-rounded">bar_chart</span>
@@ -105,10 +112,6 @@
           </div>
         </div>
       </div>
-      <div class="chart-card glass-card" style="margin-bottom:24px">
-        <h3><span class="material-symbols-rounded">track_changes</span> Tiến độ thực hiện các gói thầu</h3>
-        <div id="gantt-chart"></div>
-      </div>
       <div id="alerts-panel"></div>
     </section>
 
@@ -127,21 +130,6 @@
         </div>
       </div>
       <div id="categories-container"></div>
-    </section>
-
-    <!-- Settlement View (Module 4: Quyết toán vốn đầu tư) -->
-    <section id="view-settlement" class="view">
-      <div class="section-header">
-        <h2><span class="material-symbols-rounded">fact_check</span> Quyết toán vốn đầu tư</h2>
-        <div class="header-actions">
-          <button id="btn-add-annual" class="btn btn-primary edit-only">
-            <span class="material-symbols-rounded">add</span> Cập nhật quyết toán niên độ
-          </button>
-        </div>
-      </div>
-      <div id="settlement-kpis" class="kpi-grid"></div>
-      <div id="settlement-annual"></div>
-      <div id="settlement-closeout"></div>
     </section>
 
     <!-- Initiation View (Module 1: Chủ trương - Quyết định & Công văn) -->

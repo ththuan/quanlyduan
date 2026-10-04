@@ -215,6 +215,44 @@ body.read-only .edit-only { display: none !important; }
   font-weight: 600;
 }
 
+.scope-switch {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: #0b1220;
+  padding: 4px;
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+}
+
+.scope-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition);
+  white-space: nowrap;
+}
+
+.scope-btn:hover {
+  color: var(--text-primary);
+}
+
+.scope-btn.active {
+  background: var(--gradient-primary);
+  color: #fff;
+  box-shadow: var(--shadow-sm);
+}
+
 .nav-actions {
   display: flex;
   align-items: center;

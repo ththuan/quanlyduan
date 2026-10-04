@@ -296,6 +296,7 @@ const DEFAULT_CONFIG = {
   lists: {
     projectTypes: ['Đầu tư công', 'PPP', 'Vốn đầu tư chi thường xuyên', 'Đầu tư kinh doanh'],
     fundSources: ['Kinh phí quỹ phát triển sự nghiệp', 'Ngân sách thành phố', 'Đầu tư công'],
+    purchaseTypes: ['Mua sắm tài sản', 'Sửa chữa, bảo trì thường xuyên', 'Mua sắm vật tư, hàng hóa tiêu hao', 'Dịch vụ khác'],
     buildingGrades: ['Đặc biệt', 'I', 'II', 'III', 'IV'],
     contractTypes: ['Tư vấn (khảo sát, thiết kế, giám sát)', 'Thi công xây dựng', 'Hỗn hợp EPC', 'Hỗn hợp EC', 'Hỗn hợp PC', 'Hợp đồng trọn gói'],
     feasibilityStatuses: ['Chưa lập', 'Đã lập, chờ thẩm định', 'Đã thẩm định'],
