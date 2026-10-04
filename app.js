@@ -1237,9 +1237,9 @@ function renderReports() {
         <div class="big-sub">Kế hoạch vốn năm ${project.planYear || '—'}: ${formatCurrency(project.annualPlan, true)}</div>
       </div>
       <div class="report-summary-card glass-card">
-        <h4>Tỷ lệ giải ngân</h4>
-        <div class="big-number" style="color:var(--accent-green)">${formatPercent(disbursedRate)}</div>
-        <div class="big-sub">${formatCurrency(totalDisbursed, true)} / ${formatCurrency(totalInvest, true)}</div>
+        <h4>Đã thanh toán</h4>
+        <div class="big-number" style="color:var(--accent-green)">${formatCurrency(totalDisbursed, true)}</div>
+        <div class="big-sub">Tỷ lệ: ${formatPercent(disbursedRate)}</div>
       </div>
       <div class="report-summary-card glass-card">
         <h4>Gói thầu hoàn thành</h4>
@@ -1265,9 +1265,9 @@ function renderReports() {
               <th class="text-right">Tổng mức đầu tư</th>
               <th class="text-right">Dự toán</th>
               <th class="text-right">Trúng thầu</th>
-              <th class="text-right">Lũy kế giải ngân</th>
-              <th class="text-right">Chênh lệch (Tổng mức đầu tư - GN)</th>
-              <th class="text-right">Tỷ lệ GN/Tổng mức đầu tư</th>
+              <th class="text-right">Đã thanh toán</th>
+              <th class="text-right">Còn lại</th>
+              <th class="text-right">Tỷ lệ đã thanh toán</th>
             </tr>
           </thead>
           <tbody>
@@ -1333,7 +1333,7 @@ function renderReports() {
       <div class="report-table-wrapper">
         <table class="report-table rpt-done">
           <thead>
-            <tr><th>TT</th><th>Tên gói thầu</th><th>Nhà thầu</th><th class="text-right">Giá trị trúng thầu</th><th class="text-right">Giải ngân LK</th><th class="text-right">Nghiệm thu</th></tr>
+            <tr><th>TT</th><th>Tên gói thầu</th><th>Nhà thầu</th><th class="text-right">Giá trị trúng thầu</th><th class="text-right">Đã thanh toán</th><th class="text-right">Nghiệm thu</th></tr>
           </thead>
           <tbody>
             ${completedPkgs.map((p, i) => `
@@ -1351,10 +1351,10 @@ function renderReports() {
     </div>
     <!-- Warranty Tracking -->
     <div class="report-section">
-      <h3><span class="material-symbols-rounded">verified</span> Theo dõi bảo hành công trình</h3>
+      <h3><span class="material-symbols-rounded">verified</span> Bảo hành (xây dựng & mua sắm)</h3>
       ${(() => {
-      const withHandover = allPkgs.filter(p => p.handoverDate && p.pkgType !== 'consulting' && p.pkgType !== 'nonConsulting');
-      if (withHandover.length === 0) return '<p style="color:var(--text-secondary);padding:12px">Chưa có gói thầu nào được bàn giao.</p>';
+      const withHandover = allPkgs.filter(p => p.handoverDate && (p.pkgType === 'construction' || p.pkgType === 'goods' || p.pkgType === 'mixed'));
+      if (withHandover.length === 0) return '<p style="color:var(--text-secondary);padding:12px">Chưa có gói xây dựng / mua sắm nào được bàn giao.</p>';
       return `
         <div class="report-table-wrapper">
           <table class="report-table rpt-warranty">
@@ -1381,45 +1381,6 @@ function renderReports() {
           </table>
         </div>`;
     })()}
-    </div>
-
-    <!-- Settlement Report -->
-    <div class="report-section">
-      <h3><span class="material-symbols-rounded">receipt_long</span> Quyết toán hợp đồng A-B</h3>
-      <div class="report-table-wrapper">
-        <table class="report-table rpt-settlement">
-          <thead>
-            <tr><th>TT</th><th>Tên gói thầu</th><th class="text-right">Giá trị quyết toán</th><th class="text-right">KL phát sinh</th><th>Ngày quyết toán</th><th>Trạng thái</th></tr>
-          </thead>
-          <tbody>
-            ${allPkgs.map((p, i) => {
-      const status = p.settlementStatus || 'Chưa quyết toán';
-      const cls = status === 'Đã quyết toán' ? 'badge-success' : (status === 'Đang thẩm tra' ? 'badge-warning' : 'badge-neutral');
-      return `
-              <tr>
-                <td>${i + 1}</td>
-                <td>${esc(p.name)}</td>
-                <td class="text-right">${p.settlementValue ? formatCurrency(p.settlementValue, true) : '—'}</td>
-                <td class="text-right">${p.arisingValue ? formatCurrency(p.arisingValue, true) : '—'}</td>
-                <td>${formatDateVN(p.settlementDate)}</td>
-                <td><span class="badge ${cls}">${status}</span></td>
-              </tr>`;
-    }).join('')}
-            <tr class="total-row">
-              <td colspan="2"><strong>TỔNG GIÁ TRỊ QUYẾT TOÁN</strong></td>
-              <td class="text-right">${formatCurrency(allPkgs.reduce((s, p) => s + (p.settlementValue || 0), 0), true)}</td>
-              <td class="text-right">${formatCurrency(allPkgs.reduce((s, p) => s + (p.arisingValue || 0), 0), true)}</td>
-              <td colspan="2"></td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="report-section-note">
-        <strong>Quyết toán vốn đầu tư dự án:</strong>
-        Trạng thái: <span class="badge ${project.settlement?.status === 'Đã quyết toán' ? 'badge-success' : 'badge-neutral'}">${project.settlement?.status || 'Chưa quyết toán'}</span>
-        &nbsp;|&nbsp; Giá trị: ${project.settlement?.totalValue ? formatCurrency(project.settlement.totalValue, true) : '—'}
-        &nbsp;|&nbsp; Ngày phê duyệt: ${formatDateVN(project.settlement?.approvedDate)}
-      </div>
     </div>
 
     <!-- Module 2: Hợp đồng & Pháp lý -->
@@ -1471,7 +1432,7 @@ function renderReports() {
           <span class="material-symbols-rounded">inventory_2</span> Báo cáo chi tiết gói thầu
         </button>
         <button class="btn btn-secondary" onclick="exportSettlementWarrantyReport()">
-          <span class="material-symbols-rounded">receipt_long</span> Báo cáo Quyết toán & Bảo hành
+          <span class="material-symbols-rounded">verified</span> Báo cáo Bảo hành
         </button>
         <button class="btn btn-accent" onclick="exportExcel('current')">
           <span class="material-symbols-rounded">table</span> Xuất Excel (dự án hiện tại)
@@ -1708,39 +1669,14 @@ function exportSettlementWarrantyReport() {
   const today = new Date();
   const allPkgs = project.categories.flatMap(c => c.packages);
 
-  openPrintWindow(`Báo cáo Quyết toán & Bảo hành - ${esc(project.name)}`, `
+  openPrintWindow(`Báo cáo Bảo hành - ${esc(project.name)}`, `
     <div class="print-header">
       <h2>${esc(project.owner || 'CHỦ ĐẦU TƯ')}</h2>
-      <h3>DỰ ÁN: ${esc(project.fullName || project.name)}</h3>
+      <h3>${project.projectScope === 'nonProject' ? 'MUA SẮM' : 'DỰ ÁN'}: ${esc(project.fullName || project.name)}</h3>
     </div>
-    <div class="print-title">BÁO CÁO THỐNG KÊ QUYẾT TOÁN HỢP ĐỒNG (A-B) VÀ BẢO HÀNH CÔNG TRÌNH</div>
+    <div class="print-title">BÁO CÁO THEO DÕI THỜI HẠN BẢO HÀNH (XÂY DỰNG & MUA SẮM)</div>
 
-    <div class="section-heading">I. QUYẾT TOÁN HỢP ĐỒNG A-B</div>
-    <table>
-      <thead>
-        <tr>
-          <th style="width:30px">TT</th>
-          <th>Tên gói thầu</th>
-          <th>Đơn vị thi công</th>
-          <th class="text-right">Giá trị quyết toán</th>
-          <th class="text-right">Khối lượng phát sinh</th>
-          <th>Trạng thái</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${allPkgs.map((p, i) => `
-        <tr>
-          <td class="text-center">${i + 1}</td>
-          <td>${esc(p.name)}</td>
-          <td>${esc(p.contractor || '—')}</td>
-          <td class="text-right">${formatCurrency(p.settlementValue)}</td>
-          <td class="text-right">${formatCurrency(p.arisingValue)}</td>
-          <td class="text-center">${p.settlementStatus || 'Chưa quyết toán'}</td>
-        </tr>`).join('')}
-      </tbody>
-    </table>
-
-    <div class="section-heading">II. THEO DÕI THỜI HẠN BẢO HÀNH</div>
+    <div class="section-heading">THEO DÕI THỜI HẠN BẢO HÀNH</div>
     <table>
       <thead>
         <tr>
@@ -1753,7 +1689,7 @@ function exportSettlementWarrantyReport() {
         </tr>
       </thead>
       <tbody>
-        ${allPkgs.filter(p => p.handoverDate && p.pkgType !== 'consulting' && p.pkgType !== 'nonConsulting').map((p, i) => {
+        ${allPkgs.filter(p => p.handoverDate && (p.pkgType === 'construction' || p.pkgType === 'goods' || p.pkgType === 'mixed')).map((p, i) => {
     const months = p.warrantyMonths || computeWarrantyMonths(project.buildingGrade);
     const end = addMonths(p.handoverDate, months);
     const d = daysUntil(end);
@@ -2672,6 +2608,18 @@ function getPackageFormHTML(pkg = null, catId = '') {
         </label>
       </div>
 
+      <div data-show="construction mixed goods" class="pkg-show">
+        <div class="form-section-title"><span class="material-symbols-rounded">verified</span> Bàn giao & Bảo hành</div>
+        <div class="form-group">
+          <label>Ngày bàn giao</label>
+          <input type="date" id="f-handoverDate" value="${pkg?.handoverDate || ''}">
+        </div>
+        <div class="form-group">
+          <label>Thời hạn bảo hành (tháng)</label>
+          <input type="number" id="f-warrantyMonths" min="1" value="${pkg?.warrantyMonths ?? ''}" placeholder="Tự động theo cấp công trình">
+        </div>
+      </div>
+
       <div class="form-group full-width">
         <label>Ghi chú</label>
         <textarea id="f-notes">${pkg?.notes || ''}</textarea>
@@ -2753,6 +2701,8 @@ function getPackageFormData() {
     invoiceDate: document.getElementById('f-invoiceDate').value,
     invoiceValue: Number(document.getElementById('f-invoiceValue').value) || 0,
     invoiceXml: document.getElementById('f-invoiceXml').checked,
+    handoverDate: document.getElementById('f-handoverDate').value,
+    warrantyMonths: document.getElementById('f-warrantyMonths').value ? Number(document.getElementById('f-warrantyMonths').value) : null,
     notes: document.getElementById('f-notes').value.trim()
   };
 }
@@ -3138,6 +3088,18 @@ function viewPackageDetail(catId, pkgId) {
         <span class="detail-value">${pkg.invoiceXml ? '<span class="badge badge-success">Đồng bộ KB điện tử</span>' : '<span class="badge badge-neutral">Chưa</span>'}</span>
       </div>
       ${(() => { const ca = computeContractAlerts(pkg); return ca.length ? `<div class="detail-item full-width"><span class="detail-label">Cảnh báo hợp đồng</span><span class="detail-value">${ca.map(a => `<div class="log-item" style="margin-top:2px"><span class="material-symbols-rounded" style="font-size:16px;color:var(--accent-${a.level === 'danger' ? 'red' : 'amber'})">${a.icon}</span> ${esc(a.message)}</div>`).join('')}</span></div>` : ''; })()}
+
+      ${pkg.pkgType !== 'consulting' && pkg.pkgType !== 'nonConsulting' ? `
+      <div class="detail-section-title">Bàn giao & Bảo hành</div>
+      <div class="detail-item">
+        <span class="detail-label">Ngày bàn giao</span>
+        <span class="detail-value">${formatDateVN(pkg.handoverDate)}</span>
+      </div>
+      <div class="detail-item">
+        <span class="detail-label">Thời hạn bảo hành</span>
+        <span class="detail-value">${pkg.warrantyMonths || computeWarrantyMonths(project.buildingGrade)} tháng</span>
+      </div>
+      ` : ''}
 
       ${pkg.notes ? `<div class="detail-item full-width"><span class="detail-label">Ghi chú</span><span class="detail-value">${esc(pkg.notes)}</span></div>` : ''}
 
