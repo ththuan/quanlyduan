@@ -528,10 +528,20 @@ app.post('/api/ai/chat', requireAuth, async (req, res) => {
       const totalDisbursed = pkgs.reduce((s, p) => s + (p.cumulativeDisbursed || 0), 0);
       const totalBid = pkgs.reduce((s, p) => s + (p.bidValue || 0), 0);
       const rate = (proj.totalInvestment || 0) > 0 ? (totalDisbursed / proj.totalInvestment * 100).toFixed(1) : '0';
-      const pkgDetail = pkgs.map((p, i) =>
-        `${i + 1}. [${p.pkgType || 'N/A'}] ${p.name} — Giá trị: ${(p.bidValue || 0).toLocaleString('vi-VN')}đ, Tiến độ: ${p.progress || 0}%, Nhà thầu: ${p.contractor || 'N/A'}, HĐ: ${p.contract || 'N/A'}, Ngày HĐ: ${p.contractSignDate || 'N/A'} → ${p.contractEndDate || 'N/A'}, Nghiệm thu: ${p.acceptanceStatus || 'Chưa'}, Quyết toán: ${p.settlementStatus || 'Chưa'}${p.notes ? ', Ghi chú: ' + p.notes : ''}`
-      ).join('\n');
-      context = `DỰ ÁN: ${proj.name} (${proj.projectGroup || 'N/A'}). Nguồn vốn: ${proj.investmentSource || 'N/A'}. Chủ đầu tư: ${proj.owner || 'N/A'}. Tổng mức đầu tư: ${(proj.totalInvestment || 0).toLocaleString('vi-VN')}đ. Trúng thầu: ${totalBid.toLocaleString('vi-VN')}đ. Giải ngân: ${totalDisbursed.toLocaleString('vi-VN')}đ (${rate}%). Trạng thái quyết toán: ${proj.settlement?.status || 'Chưa quyết toán'}. Ngày nộp hồ sơ QT: ${proj.settlementSubmissionDate || 'N/A'}.\n\nDANH SÁCH GÓI THẦU (${pkgs.length} gói):\n${pkgDetail}`;
+      const pkgDetail = pkgs.map((p, i) => {
+        const scope = p.pkgScope === 'nonProject' ? 'Mua sắm (không hình thành dự án)' : 'Thuộc dự án';
+        const extra = [
+          p.purchaseType ? `Loại hình: ${p.purchaseType}` : '',
+          p.fundSource ? `Nguồn vốn: ${p.fundSource}` : '',
+          p.quoteNumber ? `Báo giá: ${p.quoteNumber}` : '',
+          p.khlcntNumber ? `KHLCNT: ${p.khlcntNumber}` : '',
+          p.selectionMethod ? `Hình thức LCNT: ${p.selectionMethod}` : '',
+          p.liquidationDate ? `Thanh lý HĐ: ${p.liquidationDate}` : ''
+        ].filter(Boolean).join(', ');
+        return `${i + 1}. [${scope}][${p.pkgType || 'N/A'}] ${p.name} — Giá trị trúng thầu: ${(p.bidValue || 0).toLocaleString('vi-VN')}đ, Lũy kế giải ngân: ${(p.cumulativeDisbursed || 0).toLocaleString('vi-VN')}đ, Nhà thầu: ${p.contractor || 'N/A'}, HĐ: ${p.contract || 'N/A'} (${p.contractSignDate || 'N/A'} → ${p.contractEndDate || 'N/A'}), Nghiệm thu: ${p.acceptanceStatus || 'Chưa'}${extra ? ', ' + extra : ''}${p.notes ? ', Ghi chú: ' + p.notes : ''}`;
+      }).join('\n');
+      const scopeLabel = proj.projectScope === 'nonProject' ? 'MUA SẮM (không hình thành dự án)' : 'DỰ ÁN (hình thành dự án)';
+      context = `${scopeLabel}: ${proj.name} (${proj.projectGroup || 'N/A'}). Nguồn vốn: ${proj.investmentSource || 'N/A'}. Chủ đầu tư: ${proj.owner || 'N/A'}. Tổng mức đầu tư: ${(proj.totalInvestment || 0).toLocaleString('vi-VN')}đ. Trúng thầu: ${totalBid.toLocaleString('vi-VN')}đ. Giải ngân: ${totalDisbursed.toLocaleString('vi-VN')}đ (${rate}%). Trạng thái quyết toán: ${proj.settlement?.status || 'Chưa quyết toán'}. Ngày nộp hồ sơ QT: ${proj.settlementSubmissionDate || 'N/A'}.\n\nDANH SÁCH GÓI THẦU (${pkgs.length} gói):\n${pkgDetail}`;
     }
 
     // Legal documents reference
@@ -541,10 +551,10 @@ app.post('/api/ai/chat', requireAuth, async (req, res) => {
       `${d.type} ${d.number} — ${d.title} (hiệu lực ${d.effectiveDate}; trạng thái tại ${referenceDate}: ${!d.effectiveDate || d.effectiveDate <= referenceDate ? 'đang áp dụng' : 'chưa có hiệu lực'}${d.domains ? '; lĩnh vực: ' + d.domains.join(', ') : ''}${d.workflowStages ? '; bước quy trình: ' + d.workflowStages.join(', ') : ''}${d.replaces ? '; thay thế/bãi bỏ: ' + d.replaces.join(', ') : ''}${d.note ? '. Nội dung: ' + d.note : ''})`
     ).join('\n');
 
-    const systemPrompt = `Bạn là trợ lý AI chuyên về quản lý dự án đầu tư xây dựng, tích hợp trong phần mềm QLDA của Trường Cao đẳng Kinh tế - Kỹ thuật Cần Thơ.
+    const systemPrompt = `Bạn là trợ lý AI chuyên về quản lý dự án đầu tư, mua sắm tài sản và sửa chữa thường xuyên, tích hợp trong phần mềm QLDA của Trường Cao đẳng Kinh tế - Kỹ thuật Cần Thơ (đơn vị sự nghiệp công lập).
 
 VAI TRÒ CỦA BẠN:
-- Tư vấn, đánh giá, hướng dẫn về quản lý dự án, gói thầu, thanh toán, quyết toán vốn đầu tư công.
+- Tư vấn, đánh giá, hướng dẫn về quản lý dự án đầu tư, mua sắm tài sản, sửa chữa thường xuyên, gói thầu, hợp đồng, thanh toán, quyết toán.
 - Phân tích dữ liệu dự án để phát hiện rủi ro, chậm tiến độ, vượt dự toán.
 - Gợi ý các bước tiếp theo trong quy trình quản lý dự án theo đúng pháp luật Việt Nam.
 - Trả lời bằng tiếng Việt, ngắn gọn, thực tế, có dẫn chứng cụ thể từ dữ liệu.
@@ -570,6 +580,8 @@ Khi trả lời hoặc đánh giá quy trình: xác định ngày phát sinh ngh
 
 LƯU Ý QUAN TRỌNG:
 - Hạn mức chỉ định thầu theo NĐ 349/2026 (sửa NĐ 214/2025): tư vấn 3 tỷ, phi tư vấn/hàng hóa/xây lắp/hỗn hợp 5 tỷ, mua sắm không dự án 1 tỷ; mua sắm trực tiếp ≤100 triệu.
+- Mua sắm, sửa chữa tài sản công tại đơn vị sự nghiệp công lập thực hiện theo Luật Quản lý, sử dụng tài sản công (97/VBHN-VPQH), NĐ 186/2025/NĐ-CP; tiêu chuẩn, định mức máy móc thiết bị theo QĐ 10/2026/QĐ-TTg.
+- Đối với mua sắm không hình thành dự án: nguồn kinh phí thường là quỹ phát triển sự nghiệp / chi thường xuyên; hạn mức chỉ định thầu 1 tỷ, trên 1 tỷ phải đấu thầu rộng rãi.
 - Quyết toán dự án hoàn thành phải nộp trong 4 tháng kể từ ngày bàn giao đưa vào sử dụng (NĐ 193/2026).
 - Mẫu biểu quyết toán hiện hành: TT 73/2026/TT-BTC (gồm Mẫu 01-12/QTDA).
 - Hóa đơn GTGT phải cùng ngày với biên bản nghiệm thu (NĐ 123/2020).

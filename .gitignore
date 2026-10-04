@@ -10,3 +10,5 @@ cloudflared/*.json
 cloudflared/config.yml
 .env
 *.pdf
+*.doc
+*.docx

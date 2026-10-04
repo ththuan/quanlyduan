@@ -325,6 +325,7 @@ const DEFAULT_CONFIG = {
     { id: 'L135-2025', type: 'Luật', number: '135/2025/QH15', title: 'Luật Xây dựng', date: '2025-12-10', effectiveDate: '2026-07-01', provisions: [{ provision: 'K2,3 Điều 43, Điều 71, K3-5 Điều 95', effectiveDate: '2026-01-01' }], replaces: ['Luật Xây dựng 50/2014/QH13'], note: 'Phân nhóm dự án A/B/C; quy định BCNCKT; cấp công trình' },
     { id: 'L61-2023', type: 'Luật', number: '61/2023/QH15', title: 'Luật Đấu thầu', date: '2023-06-23', effectiveDate: '2024-01-01', replaces: ['Luật Đấu thầu 43/2013/QH14'], note: 'Quy trình lựa chọn nhà thầu; các hình thức đấu thầu' },
     { id: 'VBHN96-2025', type: 'VBHN', number: '96/VBHN-VPQH', title: 'Luật Đầu tư công (hợp nhất)', date: '2025-07-01', effectiveDate: '2025-07-01', replaces: ['Luật Đầu tư công 39/2019/QH14'], note: 'Văn bản hợp nhất do Văn phòng Quốc hội ban hành; phân loại nguồn vốn; kế hoạch đầu tư công trung hạn' },
+    { id: 'VBHN97-2025', type: 'VBHN', number: '97/VBHN-VPQH', title: 'Luật Quản lý, sử dụng tài sản công (hợp nhất)', date: '2025-08-22', effectiveDate: '2025-08-22', replaces: ['Hợp nhất Luật 15/2017/QH14 (sửa đổi bởi Luật 90/2025/QH15)'], note: 'Quản lý, sử dụng tài sản công; mua sắm, thuê, sửa chữa, xử lý tài sản công tại đơn vị sự nghiệp công lập' },
     { id: 'L69-2020', type: 'Luật', number: '69/2020/QH14', title: 'Luật Đầu tư theo phương thức PPP', date: '2020-06-18', effectiveDate: '2021-01-01', note: 'Đối với dự án PPP' },
 
     // ---- Nghị định ----
@@ -343,6 +344,10 @@ const DEFAULT_CONFIG = {
     { id: 'ND123-2020', type: 'Nghị định', number: '123/2020/NĐ-CP', title: 'Quy định về hóa đơn, chứng từ', date: '2020-10-19', effectiveDate: '2022-07-01', note: 'Hóa đơn điện tử; thời điểm xuất HĐ khi nghiệm thu; HĐ GTGT' },
     { id: 'ND70-2025', type: 'Nghị định', number: '70/2025/NĐ-CP', title: 'Sửa đổi, bổ sung NĐ 123/2020/NĐ-CP về hóa đơn', date: '2025-06-15', effectiveDate: '2025-06-15', replaces: ['Sửa đổi NĐ 123/2020/NĐ-CP'], note: 'Cập nhật quy định về hóa đơn điện tử; thời điểm lập HĐ; đồng bộ dữ liệu HĐ với cơ quan thuế' },
     { id: 'ND11-2021', type: 'Nghị định', number: '11/2021/NĐ-CP', title: 'Giao đất, cho thuê đất để thực hiện dự án', date: '2021-01-07', effectiveDate: '2021-03-01', note: 'Liên quan đến địa điểm xây dựng, giải phóng mặt bằng' },
+    { id: 'ND186-2025', type: 'Nghị định', number: '186/2025/NĐ-CP', title: 'Quy định chi tiết một số điều của Luật Quản lý, sử dụng tài sản công', date: '2025-07-01', effectiveDate: '2025-07-01', replaces: ['NĐ 151/2017/NĐ-CP'], note: 'Mua sắm, thuê, khai thác, quản lý vận hành, xử lý tài sản công tại cơ quan, tổ chức, đơn vị; sử dụng tài sản công vào mục đích kinh doanh, cho thuê, liên doanh, liên kết' },
+
+    // ---- Quyết định ----
+    { id: 'QD10-2026', type: 'Quyết định', number: '10/2026/QĐ-TTg', title: 'Sửa đổi, bổ sung Quyết định 15/2025/QĐ-TTg quy định tiêu chuẩn, định mức sử dụng máy móc, thiết bị', date: '2026-03-09', effectiveDate: '2026-03-09', replaces: ['Sửa đổi QĐ 15/2025/QĐ-TTg'], note: 'Tiêu chuẩn, định mức máy móc thiết bị; số lượng và mức giá tối đa do Thủ trưởng đơn vị quyết định theo chức năng, nhiệm vụ và nguồn kinh phí' },
 
     // ---- Thông tư ----
     { id: 'TT73-2026', type: 'Thông tư', number: '73/2026/TT-BTC', title: 'Hướng dẫn quyết toán dự án hoàn thành', date: '2026-06-25', effectiveDate: '2026-07-01', replaces: ['TT 91/2025/TT-BTC (phần mẫu biểu QTDA hoàn thành)'], note: 'Mẫu 01-12/QTDA; hồ sơ trình thẩm tra; bãi bỏ K2 Điều 1, Điều 4, K2 Điều 5 TT91' },
