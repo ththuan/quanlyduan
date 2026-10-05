@@ -528,12 +528,11 @@ function daysUntil(dateStr) {
 
 function formatDateVN(dateStr) {
   if (!dateStr) return '—';
-  const d = new Date(dateStr);
-  if (isNaN(d)) return '—';
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const year = d.getFullYear();
-  return `Ngày ${day} tháng ${month} năm ${year}`;
+  const parts = String(dateStr).slice(0, 10).split('-');
+  if (parts.length !== 3) return '—';
+  const [year, month, day] = parts;
+  if (!day || !month || !year) return '—';
+  return `${day}/${month}/${year}`;
 }
 
 // Cảnh báo nội bộ: hạn khởi công, thẩm định quá hạn, bảo hành sắp/đã hết hạn, chưa quyết toán
@@ -2374,10 +2373,13 @@ function toggleQuoteFields() {
 function togglePkgScopeFields() {
   const scope = document.getElementById('f-pkgScope');
   const fund = document.getElementById('f-fundSource');
-  if (!scope || !fund) return;
-  if (scope.value === 'nonProject' && !fund.value) {
+  const purchaseTypeField = document.getElementById('purchase-type-field');
+  if (!scope) return;
+  const isNonProject = scope.value === 'nonProject';
+  if (fund && isNonProject && !fund.value) {
     fund.value = FUND_SOURCES[0] || 'Kinh phí quỹ phát triển sự nghiệp';
   }
+  if (purchaseTypeField) purchaseTypeField.style.display = isNonProject ? '' : 'none';
 }
 
 let tempUploadedPDFs = [];
@@ -2386,6 +2388,7 @@ let tempPayments = [];
 // ---- Package CRUD ----
 function getPackageFormHTML(pkg = null, catId = '') {
   const methods = SELECTION_METHODS;
+  const effectiveScope = pkg ? (pkg.pkgScope || 'project') : (getCurrentProject()?.projectScope || 'project');
   const fundOptions = FUND_SOURCES.map(f => `<option value="${f}" ${(pkg?.fundSource || '') === f ? 'selected' : ''}>${f}</option>`).join('');
   const legacyFund = pkg?.fundSource && !FUND_SOURCES.includes(pkg.fundSource) ? `<option value="${esc(pkg.fundSource)}" selected>${esc(pkg.fundSource)}</option>` : '';
   const pdfs = pkg ? (pkg.pdfs || []) : tempUploadedPDFs;
@@ -2419,16 +2422,18 @@ function getPackageFormHTML(pkg = null, catId = '') {
       <div class="form-group">
         <label>Phạm vi gói thầu</label>
         <select id="f-pkgScope" onchange="togglePkgScopeFields()">
-          <option value="project" ${(pkg?.pkgScope || 'project') === 'project' ? 'selected' : ''}>Thuộc dự án</option>
-          <option value="nonProject" ${pkg?.pkgScope === 'nonProject' ? 'selected' : ''}>Không hình thành dự án (dự toán mua sắm)</option>
+          <option value="project" ${effectiveScope === 'project' ? 'selected' : ''}>Thuộc dự án</option>
+          <option value="nonProject" ${effectiveScope === 'nonProject' ? 'selected' : ''}>Không hình thành dự án (dự toán mua sắm)</option>
         </select>
       </div>
+      <div id="purchase-type-field" style="${effectiveScope === 'nonProject' ? '' : 'display:none'}">
       <div class="form-group">
         <label>Loại hình mua sắm</label>
         <select id="f-purchaseType">
           <option value="">— Chọn —</option>
           ${PURCHASE_TYPES.map(t => `<option value="${t}" ${pkg?.purchaseType === t ? 'selected' : ''}>${t}</option>`).join('')}
         </select>
+      </div>
       </div>
       <div class="form-group full-width" style="grid-column:1/-1">
         <div id="pkg-type-banner" style="padding:8px 14px;border-radius:8px;background:rgba(6,182,212,.07);border:1px solid rgba(6,182,212,.25);font-size:0.82rem;color:var(--text-secondary)">
@@ -2504,6 +2509,7 @@ function getPackageFormHTML(pkg = null, catId = '') {
         <input type="text" id="f-contractor" value="${esc(pkg?.contractor || '')}">
       </div>
       <div class="form-section-title"><span class="material-symbols-rounded">fact_check</span> Quy trình lựa chọn nhà thầu (NĐ 349/2026)</div>
+      <div data-show="goods nonConsulting mixed" class="pkg-show">
       <div class="form-group full-width" style="grid-column:1/-1;display:flex;align-items:center;gap:8px;padding:10px 14px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px">
         <input type="checkbox" id="f-hasQuote" ${pkg?.quoteNumber || pkg?.quoteDate || pkg?.quoteCount ? 'checked' : ''} style="width:auto;height:16px;width:16px" onchange="toggleQuoteFields()">
         <label for="f-hasQuote" style="text-transform:none;font-size:0.9rem;font-weight:600;color:var(--accent-amber);cursor:pointer;margin:0">
@@ -2523,6 +2529,7 @@ function getPackageFormHTML(pkg = null, catId = '') {
       <div class="form-group">
         <label>Số báo giá nhận được</label>
         <input type="number" id="f-quoteCount" min="0" value="${pkg?.quoteCount ?? ''}" placeholder="Tối thiểu 01 báo giá">
+      </div>
       </div>
       </div>
       <div class="form-group">
@@ -2696,11 +2703,15 @@ function getPackageFormHTML(pkg = null, catId = '') {
 }
 
 function getPackageFormData() {
+  const pkgType = document.getElementById('f-pkgType').value || 'construction';
+  const pkgScope = document.getElementById('f-pkgScope').value || 'project';
+  const quoteApplies = ['goods', 'nonConsulting', 'mixed'].includes(pkgType);
+  const hasQuote = quoteApplies && document.getElementById('f-hasQuote')?.checked;
   return {
     name: document.getElementById('f-name').value.trim(),
-    pkgType: document.getElementById('f-pkgType').value || 'construction',
-    pkgScope: document.getElementById('f-pkgScope').value || 'project',
-    purchaseType: document.getElementById('f-purchaseType').value,
+    pkgType,
+    pkgScope,
+    purchaseType: pkgScope === 'nonProject' ? document.getElementById('f-purchaseType').value : '',
     estimateValue: Number(document.getElementById('f-estimateValue').value) || 0,
     bidValue: Number(document.getElementById('f-bidValue').value) || 0,
     fundSource: document.getElementById('f-fundSource').value.trim(),
@@ -2708,9 +2719,9 @@ function getPackageFormData() {
     contract: document.getElementById('f-contract').value.trim(),
     selectionMethod: document.getElementById('f-selectionMethod').value,
     contractor: document.getElementById('f-contractor').value.trim(),
-    quoteNumber: document.getElementById('f-hasQuote')?.checked ? document.getElementById('f-quoteNumber').value.trim() : '',
-    quoteDate: document.getElementById('f-hasQuote')?.checked ? document.getElementById('f-quoteDate').value : '',
-    quoteCount: document.getElementById('f-hasQuote')?.checked ? (Number(document.getElementById('f-quoteCount').value) || 0) : 0,
+    quoteNumber: hasQuote ? document.getElementById('f-quoteNumber').value.trim() : '',
+    quoteDate: hasQuote ? document.getElementById('f-quoteDate').value : '',
+    quoteCount: hasQuote ? (Number(document.getElementById('f-quoteCount').value) || 0) : 0,
     khlcntNumber: document.getElementById('f-khlcntNumber').value.trim(),
     khlcntDate: document.getElementById('f-khlcntDate').value,
     hsmtNumber: document.getElementById('f-hsmtNumber').value.trim(),
