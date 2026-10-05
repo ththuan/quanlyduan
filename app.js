@@ -2332,6 +2332,14 @@ function closeModal() {
   document.getElementById('modal').classList.add('hidden');
 }
 
+const PKG_TYPE_INFO = {
+  construction: { label: 'Gói XÂY LẮP', hint: 'Thời gian thi công, tiến độ %, nghiệm thu khối lượng, bàn giao & bảo hành công trình.' },
+  consulting: { label: 'Gói TƯ VẤN', hint: 'Thời gian thực hiện, nghiệm thu hồ sơ tư vấn.' },
+  goods: { label: 'Gói HÀNG HÓA (MUA SẮM)', hint: 'Nghiệm thu, bàn giao & bảo hành thiết bị / hàng hóa.' },
+  mixed: { label: 'Gói HỖN HỢP', hint: 'Nghiệm thu khối lượng, bàn giao & bảo hành.' },
+  nonConsulting: { label: 'Gói PHI TƯ VẤN', hint: 'Thời gian thực hiện, nghiệm thu hồ sơ.' }
+};
+
 function togglePkgTypeFields() {
   const sel = document.getElementById('f-pkgType');
   if (!sel) return;
@@ -2340,6 +2348,11 @@ function togglePkgTypeFields() {
     const show = (el.dataset.show || '').split(' ').includes(type);
     el.style.display = show ? '' : 'none';
   });
+  const info = PKG_TYPE_INFO[type];
+  const banner = document.getElementById('pkg-type-banner');
+  if (banner && info) {
+    banner.innerHTML = `<strong style="color:var(--accent-cyan)">${info.label}</strong> — ${info.hint}`;
+  }
 }
 
 function togglePkgScopeFields() {
@@ -2400,6 +2413,11 @@ function getPackageFormHTML(pkg = null, catId = '') {
           <option value="">— Chọn —</option>
           ${PURCHASE_TYPES.map(t => `<option value="${t}" ${pkg?.purchaseType === t ? 'selected' : ''}>${t}</option>`).join('')}
         </select>
+      </div>
+      <div class="form-group full-width" style="grid-column:1/-1">
+        <div id="pkg-type-banner" style="padding:8px 14px;border-radius:8px;background:rgba(6,182,212,.07);border:1px solid rgba(6,182,212,.25);font-size:0.82rem;color:var(--text-secondary)">
+          <strong style="color:var(--accent-cyan)">${PKG_TYPE_INFO[pkg?.pkgType || 'construction'].label}</strong> — ${PKG_TYPE_INFO[pkg?.pkgType || 'construction'].hint}
+        </div>
       </div>
       <div class="form-section-title"><span class="material-symbols-rounded">payments</span> Thông tin tài chính</div>
       <div class="form-group">
@@ -2573,6 +2591,7 @@ function getPackageFormHTML(pkg = null, catId = '') {
         </div>
       </div>
 
+      <div data-show="construction goods mixed" class="pkg-show">
       <div class="form-section-title"><span class="material-symbols-rounded">tenancy</span> Nghiệm thu khối lượng</div>
       <div class="form-group">
         <label>Giá trị KL công việc hoàn thành</label>
@@ -2587,6 +2606,7 @@ function getPackageFormHTML(pkg = null, catId = '') {
       <div class="form-group">
         <label>Ngày nghiệm thu hoàn thành</label>
         <input type="date" id="f-acceptanceDate" value="${pkg?.acceptanceDate || ''}">
+      </div>
       </div>
 
       <div class="form-section-title"><span class="material-symbols-rounded">receipt</span> Hóa đơn GTGT (NĐ 123/2020)</div>
