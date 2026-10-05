@@ -370,6 +370,16 @@ function formatCurrency(n, short = false) {
   return n.toLocaleString('vi-VN') + ' ₫';
 }
 
+// Rút gọn số tiền cho biểu đồ (tránh tràn chữ trên màn hình hẹp như iPad)
+function formatCompactCurrency(n) {
+  if (n == null || isNaN(n)) return '—';
+  const abs = Math.abs(n);
+  if (abs >= 1e12) return (n / 1e12).toLocaleString('vi-VN', { maximumFractionDigits: 1 }) + ' nghìn tỷ ₫';
+  if (abs >= 1e9) return (n / 1e9).toLocaleString('vi-VN', { maximumFractionDigits: 1 }) + ' tỷ ₫';
+  if (abs >= 1e6) return (n / 1e6).toLocaleString('vi-VN', { maximumFractionDigits: 1 }) + ' triệu ₫';
+  return n.toLocaleString('vi-VN') + ' ₫';
+}
+
 function formatPercent(n) {
   if (n == null || isNaN(n)) return '—';
   return n.toFixed(1) + '%';
@@ -744,7 +754,7 @@ function renderDonutChart() {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(centerLabel, cx, cy - 14);
-  const totalLabel = formatCurrency(total);
+  const totalLabel = formatCompactCurrency(total);
   const totalSize = fitFontSize(ctx, totalLabel, centerMaxWidth, 600, 15);
   ctx.font = `600 ${totalSize}px Inter, sans-serif`;
   ctx.fillStyle = '#2563eb';
@@ -756,7 +766,7 @@ function renderDonutChart() {
       <div class="legend-item">
         <span class="legend-dot" style="background:${d.color}"></span>
         <span>${esc(d.label)}</span>
-        <span class="legend-value">${formatCurrency(d.value)}</span>
+        <span class="legend-value" title="${esc(formatCurrency(d.value))}">${formatCompactCurrency(d.value)}</span>
       </div>
     `).join('');
   }
@@ -798,7 +808,7 @@ function renderBarChart() {
           <div class="cmp-track" title="${esc(formatCurrency(v))}">
             <span class="cmp-fill" style="width:${pct}%;background:${colors[j]}"></span>
           </div>
-          <span class="cmp-val">${formatCurrency(v)}</span>
+          <span class="cmp-val" title="${esc(formatCurrency(v))}">${formatCompactCurrency(v)}</span>
         </div>`;
     }).join('');
 

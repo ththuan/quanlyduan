@@ -894,7 +894,9 @@ body.read-only .edit-only { display: none !important; }
   display: flex;
   flex-direction: column;
   gap: 8px;
-  flex-shrink: 0;
+  flex-shrink: 1;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .chart-empty {
@@ -904,11 +906,12 @@ body.read-only .edit-only { display: none !important; }
 
 .legend-item {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   flex-wrap: wrap;
   gap: 4px 8px;
   font-size: 0.78rem;
   color: var(--text-secondary);
+  min-width: 0;
 }
 
 .legend-dot {
@@ -916,6 +919,7 @@ body.read-only .edit-only { display: none !important; }
   height: 10px;
   border-radius: 50%;
   flex-shrink: 0;
+  align-self: center;
 }
 
 .legend-value {
@@ -2286,8 +2290,8 @@ canvas {
     flex-direction: column;
   }
   .chart-legend {
-    flex-direction: row;
-    flex-wrap: wrap;
+    flex-direction: column;
+    width: 100%;
   }
 }
 
