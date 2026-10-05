@@ -2365,6 +2365,12 @@ function togglePkgTypeFields() {
   }
 }
 
+function toggleQuoteFields() {
+  const cb = document.getElementById('f-hasQuote');
+  const fields = document.getElementById('quote-fields');
+  if (fields && cb) fields.style.display = cb.checked ? '' : 'none';
+}
+
 function togglePkgScopeFields() {
   const scope = document.getElementById('f-pkgScope');
   const fund = document.getElementById('f-fundSource');
@@ -2498,7 +2504,14 @@ function getPackageFormHTML(pkg = null, catId = '') {
         <input type="text" id="f-contractor" value="${esc(pkg?.contractor || '')}">
       </div>
       <div class="form-section-title"><span class="material-symbols-rounded">fact_check</span> Quy trình lựa chọn nhà thầu (NĐ 349/2026)</div>
-      <div class="form-section-title" style="font-size:0.8rem;color:var(--accent-amber)"><span class="material-symbols-rounded">price_check</span> Báo giá (Điều 1 NĐ 349/2026)</div>
+      <div class="form-group full-width" style="grid-column:1/-1;display:flex;align-items:center;gap:8px;padding:10px 14px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px">
+        <input type="checkbox" id="f-hasQuote" ${pkg?.quoteNumber || pkg?.quoteDate || pkg?.quoteCount ? 'checked' : ''} style="width:auto;height:16px;width:16px" onchange="toggleQuoteFields()">
+        <label for="f-hasQuote" style="text-transform:none;font-size:0.9rem;font-weight:600;color:var(--accent-amber);cursor:pointer;margin:0">
+          Gói thầu có lấy báo giá (khi không có định mức / đơn giá)
+        </label>
+        <span class="material-symbols-rounded" style="color:var(--accent-amber)">price_check</span>
+      </div>
+      <div id="quote-fields" style="${pkg?.quoteNumber || pkg?.quoteDate || pkg?.quoteCount ? '' : 'display:none'}">
       <div class="form-group">
         <label>Số yêu cầu báo giá</label>
         <input type="text" id="f-quoteNumber" value="${esc(pkg?.quoteNumber || '')}" placeholder="Số YCBG / báo giá">
@@ -2510,6 +2523,7 @@ function getPackageFormHTML(pkg = null, catId = '') {
       <div class="form-group">
         <label>Số báo giá nhận được</label>
         <input type="number" id="f-quoteCount" min="0" value="${pkg?.quoteCount ?? ''}" placeholder="Tối thiểu 01 báo giá">
+      </div>
       </div>
       <div class="form-group">
         <label>Số QĐ phê duyệt KHLCNT</label>
@@ -2694,9 +2708,9 @@ function getPackageFormData() {
     contract: document.getElementById('f-contract').value.trim(),
     selectionMethod: document.getElementById('f-selectionMethod').value,
     contractor: document.getElementById('f-contractor').value.trim(),
-    quoteNumber: document.getElementById('f-quoteNumber').value.trim(),
-    quoteDate: document.getElementById('f-quoteDate').value,
-    quoteCount: Number(document.getElementById('f-quoteCount').value) || 0,
+    quoteNumber: document.getElementById('f-hasQuote')?.checked ? document.getElementById('f-quoteNumber').value.trim() : '',
+    quoteDate: document.getElementById('f-hasQuote')?.checked ? document.getElementById('f-quoteDate').value : '',
+    quoteCount: document.getElementById('f-hasQuote')?.checked ? (Number(document.getElementById('f-quoteCount').value) || 0) : 0,
     khlcntNumber: document.getElementById('f-khlcntNumber').value.trim(),
     khlcntDate: document.getElementById('f-khlcntDate').value,
     hsmtNumber: document.getElementById('f-hsmtNumber').value.trim(),
