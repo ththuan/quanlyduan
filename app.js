@@ -535,6 +535,24 @@ function formatDateVN(dateStr) {
   return `${day}/${month}/${year}`;
 }
 
+// ISO (yyyy-mm-dd) -> dd/mm/yyyy để hiển thị trong ô nhập ngày
+function toDmy(iso) {
+  if (!iso) return '';
+  const parts = String(iso).slice(0, 10).split('-');
+  if (parts.length !== 3) return '';
+  return `${parts[2]}/${parts[1]}/${parts[0]}`;
+}
+
+// dd/mm/yyyy -> ISO (yyyy-mm-dd) để lưu dữ liệu
+function toIso(dmy) {
+  if (!dmy) return '';
+  const m = String(dmy).trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!m) return dmy;
+  const d = String(m[1]).padStart(2, '0');
+  const mo = String(m[2]).padStart(2, '0');
+  return `${m[3]}-${mo}-${d}`;
+}
+
 // Cảnh báo nội bộ: hạn khởi công, thẩm định quá hạn, bảo hành sắp/đã hết hạn, chưa quyết toán
 function computeAlerts(project) {
   const alerts = [];
@@ -1921,7 +1939,7 @@ function openChuTruongForm(doc = null) {
     </button>
   `);
   renderChuTruongPDFList();
-  document.getElementById('ct-date').value = doc?.date || '';
+  document.getElementById('ct-date').value = toDmy(doc?.date);
 }
 
 function handleChuTruongPDFUpload() {
@@ -1976,7 +1994,7 @@ function saveChuTruong() {
       ini.title = title;
       ini.agency = agency;
       ini.number = document.getElementById('ct-number').value.trim();
-      ini.date = document.getElementById('ct-date').value;
+      ini.date = toIso(document.getElementById('ct-date').value);
       ini.note = document.getElementById('ct-note').value.trim();
       ini.files = [...chuTruongFiles];
     }
@@ -1985,7 +2003,7 @@ function saveChuTruong() {
       id: generateId(),
       title, agency,
       number: document.getElementById('ct-number').value.trim(),
-      date: document.getElementById('ct-date').value,
+      date: toIso(document.getElementById('ct-date').value),
       note: document.getElementById('ct-note').value.trim(),
       files: [...chuTruongFiles]
     });
@@ -2334,6 +2352,21 @@ function openModal(title, bodyHTML, footerHTML = '') {
   document.getElementById('modal-footer').innerHTML = footerHTML;
   document.getElementById('modal-backdrop').classList.remove('hidden');
   document.getElementById('modal').classList.remove('hidden');
+  convertDateInputs();
+}
+
+// Đổi ô nhập ngày sang định dạng dd/mm/yyyy (độc lập với ngôn ngữ trình duyệt)
+function convertDateInputs() {
+  document.querySelectorAll('#modal input[type="date"]').forEach(inp => {
+    const text = document.createElement('input');
+    text.type = 'text';
+    text.inputMode = 'numeric';
+    text.placeholder = 'dd/mm/yyyy';
+    text.id = inp.id;
+    text.value = toDmy(inp.value);
+    text.setAttribute('autocomplete', 'off');
+    inp.replaceWith(text);
+  });
 }
 
 function closeModal() {
@@ -2720,17 +2753,17 @@ function getPackageFormData() {
     selectionMethod: document.getElementById('f-selectionMethod').value,
     contractor: document.getElementById('f-contractor').value.trim(),
     quoteNumber: hasQuote ? document.getElementById('f-quoteNumber').value.trim() : '',
-    quoteDate: hasQuote ? document.getElementById('f-quoteDate').value : '',
+    quoteDate: hasQuote ? toIso(document.getElementById('f-quoteDate').value) : '',
     quoteCount: hasQuote ? (Number(document.getElementById('f-quoteCount').value) || 0) : 0,
     khlcntNumber: document.getElementById('f-khlcntNumber').value.trim(),
-    khlcntDate: document.getElementById('f-khlcntDate').value,
+    khlcntDate: toIso(document.getElementById('f-khlcntDate').value),
     hsmtNumber: document.getElementById('f-hsmtNumber').value.trim(),
-    hsmtDate: document.getElementById('f-hsmtDate').value,
-    bidCloseDate: document.getElementById('f-bidCloseDate').value,
-    bidOpenDate: document.getElementById('f-bidOpenDate').value,
-    evaluationDate: document.getElementById('f-evaluationDate').value,
-    resultApprovalDate: document.getElementById('f-resultApprovalDate').value,
-    resultPublishDate: document.getElementById('f-resultPublishDate').value,
+    hsmtDate: toIso(document.getElementById('f-hsmtDate').value),
+    bidCloseDate: toIso(document.getElementById('f-bidCloseDate').value),
+    bidOpenDate: toIso(document.getElementById('f-bidOpenDate').value),
+    evaluationDate: toIso(document.getElementById('f-evaluationDate').value),
+    resultApprovalDate: toIso(document.getElementById('f-resultApprovalDate').value),
+    resultPublishDate: toIso(document.getElementById('f-resultPublishDate').value),
     directBasis: document.getElementById('f-directBasis').value.trim(),
     duration: document.getElementById('f-duration').value.trim(),
     progress: Number(document.getElementById('f-progress').value) || 0,
@@ -2739,24 +2772,24 @@ function getPackageFormData() {
     cumulativeValue: Number(document.getElementById('f-cumulativeValue').value) || 0,
     cumulativeDisbursed: Number(document.getElementById('f-cumulativeDisbursed').value) || 0,
 
-    docAcceptDate: document.getElementById('f-docAcceptDate').value,
+    docAcceptDate: toIso(document.getElementById('f-docAcceptDate').value),
     docAcceptStatus: document.getElementById('f-docAcceptStatus').value,
 
     acceptanceValue: Number(document.getElementById('f-acceptanceValue').value) || 0,
     acceptanceStatus: document.getElementById('f-acceptanceStatus').value,
-    acceptanceDate: document.getElementById('f-acceptanceDate').value,
+    acceptanceDate: toIso(document.getElementById('f-acceptanceDate').value),
     contractType: document.getElementById('f-contractType').value,
-    contractSignDate: document.getElementById('f-contractSignDate').value,
-    contractStartDate: document.getElementById('f-contractStartDate').value,
-    contractEndDate: document.getElementById('f-contractEndDate').value,
+    contractSignDate: toIso(document.getElementById('f-contractSignDate').value),
+    contractStartDate: toIso(document.getElementById('f-contractStartDate').value),
+    contractEndDate: toIso(document.getElementById('f-contractEndDate').value),
     contractExtension: document.getElementById('f-contractExtension').value.trim(),
-    liquidationDate: document.getElementById('f-liquidationDate').value,
+    liquidationDate: toIso(document.getElementById('f-liquidationDate').value),
     liquidationValue: Number(document.getElementById('f-liquidationValue').value) || 0,
     invoiceNumber: document.getElementById('f-invoiceNumber').value.trim(),
-    invoiceDate: document.getElementById('f-invoiceDate').value,
+    invoiceDate: toIso(document.getElementById('f-invoiceDate').value),
     invoiceValue: Number(document.getElementById('f-invoiceValue').value) || 0,
     invoiceXml: document.getElementById('f-invoiceXml').checked,
-    handoverDate: document.getElementById('f-handoverDate').value,
+    handoverDate: toIso(document.getElementById('f-handoverDate').value),
     warrantyMonths: document.getElementById('f-warrantyMonths').value ? Number(document.getElementById('f-warrantyMonths').value) : null,
     notes: document.getElementById('f-notes').value.trim()
   };
