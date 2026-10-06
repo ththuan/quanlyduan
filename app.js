@@ -1896,9 +1896,71 @@ function formatNumberVN(n, zero = '') {
   return n ? Number(n).toLocaleString('vi-VN') : zero;
 }
 
-// Nhóm chi phí của gói thầu trong Mẫu 04: chọn tay, nếu không thì suy ra từ tên và loại gói
-function getQtda04Group(pkg) {
+// Nhóm Mẫu 04 của danh mục: đã gắn sẵn, hoặc suy ra từ tên danh mục cũ
+function inferQtdaGroup(name) {
+  const n = String(name || '').toLowerCase();
+  if (/bồi thường|tái định cư|giải phóng mặt bằng/.test(n)) return 'I';
+  if (/quản lý dự án/.test(n)) return 'IV';
+  if (/dự phòng/.test(n)) return 'VII';
+  if (/tư vấn/.test(n)) return 'V';
+  if (/thiết bị/.test(n)) return 'III';
+  if (/xây dựng|xây lắp/.test(n)) return 'II';
+  if (/chi phí khác/.test(n)) return 'VI';
+  return '';
+}
+
+function getCatQtdaGroup(cat) {
+  return QTDA04_GROUPS.some(g => g.no === cat.qtdaGroup) ? cat.qtdaGroup : inferQtdaGroup(cat.name);
+}
+
+// Danh mục mặc định của dự án mới: 7 nhóm chi phí theo Mẫu 04/QTDA
+function qtdaGroupSelectHTML(selected) {
+  return `<select id="f-cat-qtdaGroup"><option value="">— Không thuộc nhóm nào —</option>${QTDA04_GROUPS.map(g => `<option value="${g.no}" ${selected === g.no ? 'selected' : ''}>${g.no}. ${g.name}</option>`).join('')}</select>`;
+}
+
+function createDefaultCategories() {
+  return QTDA04_GROUPS.map((g, i) => ({
+    id: generateId(), code: g.no, name: g.name, qtdaGroup: g.no,
+    color: CAT_COLORS[i % CAT_COLORS.length], investTotal: 0, packages: []
+  }));
+}
+
+// Dự án cũ: gắn nhóm, đánh lại mã theo Mẫu 04 và bổ sung các nhóm còn thiếu
+function normalizeCategoriesToQtda04() {
+  if (!requireEditPermission()) return;
+  const project = getCurrentProject();
+  if (!project) return;
+  const unknown = [];
+  project.categories.forEach(cat => {
+    const g = getCatQtdaGroup(cat);
+    if (g) { cat.qtdaGroup = g; cat.code = g; }
+    else unknown.push(cat.name);
+  });
+  const present = new Set(project.categories.map(c => c.qtdaGroup).filter(Boolean));
+  const missing = createDefaultCategories().filter(c => !present.has(c.qtdaGroup));
+  project.categories.push(...missing);
+  addAudit(project, 'update', 'category', 'Chuẩn hóa theo Mẫu 04/QTDA', `Bổ sung ${missing.length} danh mục`);
+  saveState();
+  closeModal();
+  renderAll();
+  showToast(`Đã chuẩn hóa danh mục theo Mẫu 04 (thêm ${missing.length})${unknown.length ? `; chưa nhận diện: ${unknown.join(', ')}` : ''}`);
+}
+
+function confirmNormalizeCategories() {
+  if (!requireEditPermission()) return;
+  openModal('Chuẩn hóa danh mục theo Mẫu 04/QTDA', `
+    <p style="font-size:0.88rem;line-height:1.6">Các danh mục hiện có sẽ được gắn vào nhóm tương ứng (I. Bồi thường … VII. Dự phòng) và đổi mã danh mục theo số nhóm. Các nhóm còn thiếu được thêm mới. Gói thầu không bị thay đổi.</p>
+  `, `
+    <button class="btn btn-secondary" onclick="closeModal()">Hủy</button>
+    <button class="btn btn-primary" onclick="normalizeCategoriesToQtda04()">Chuẩn hóa</button>
+  `);
+}
+
+// Nhóm chi phí của gói thầu trong Mẫu 04: chọn tay > nhóm của danh mục > suy ra từ tên/loại gói
+function getQtda04Group(pkg, cat = null) {
   if (pkg.costGroup) return pkg.costGroup;
+  const fromCat = cat && getCatQtdaGroup(cat);
+  if (fromCat) return fromCat;
   if (/quản lý dự án/i.test(pkg.name || '')) return 'IV';
   return { construction: 'II', mixed: 'II', goods: 'III', consulting: 'V', nonConsulting: 'VI' }[pkg.pkgType] || 'VI';
 }
@@ -1907,24 +1969,34 @@ function getQtda04Group(pkg) {
 function buildQtda04Data(project) {
   const num = v => Number(v) || 0;
   const items = [];
-  project.categories.forEach(cat => cat.packages.forEach(p => {
-    const manual = num(p.settlementValue) > 0;
-    const item = {
-      kind: 'pkg', id: p.id, catId: cat.id, group: getQtda04Group(p), name: p.name,
-      invest: num(p.investValue), estimate: num(p.estimateValue),
-      propose: manual ? num(p.settlementValue) : num(p.acceptanceValue),
-      auto: !manual, reason: p.settlementReason || ''
-    };
-    if (item.invest || item.estimate || item.propose) items.push(item);
-  }));
+  const catInvest = {}; // tổng mức đầu tư nhập ở cấp danh mục, cộng vào nhóm tương ứng
+  project.categories.forEach(cat => {
+    const catTotal = num(cat.investTotal);
+    cat.packages.forEach(p => {
+      const manual = num(p.settlementValue) > 0;
+      const group = getQtda04Group(p, cat);
+      const item = {
+        kind: 'pkg', id: p.id, catId: cat.id, group, name: p.name,
+        invest: num(p.investValue), estimate: num(p.estimateValue),
+        propose: manual ? num(p.settlementValue) : num(p.acceptanceValue),
+        auto: !manual, reason: p.settlementReason || '', investInGroup: catTotal ? 0 : num(p.investValue)
+      };
+      if (item.invest || item.estimate || item.propose) items.push(item);
+    });
+    if (catTotal) {
+      const g = getCatQtdaGroup(cat) || (cat.packages[0] ? getQtda04Group(cat.packages[0], cat) : 'VI');
+      catInvest[g] = (catInvest[g] || 0) + catTotal;
+    }
+  });
   (project.qtdaLines || []).forEach(l => items.push({
     kind: 'line', id: l.id, group: l.group, name: l.name,
-    invest: num(l.invest), estimate: num(l.estimate), propose: num(l.propose), auto: false, reason: l.reason || ''
+    invest: num(l.invest), estimate: num(l.estimate), propose: num(l.propose), auto: false, reason: l.reason || '',
+    investInGroup: num(l.invest)
   }));
   const sum = (list, k) => list.reduce((s, i) => s + i[k], 0);
   const groups = QTDA04_GROUPS.map(g => {
     const list = items.filter(i => i.group === g.no);
-    return { ...g, items: list, invest: sum(list, 'invest'), estimate: sum(list, 'estimate'), propose: sum(list, 'propose') };
+    return { ...g, items: list, invest: sum(list, 'investInGroup') + (catInvest[g.no] || 0), estimate: sum(list, 'estimate'), propose: sum(list, 'propose') };
   });
   return { groups, total: { invest: sum(groups, 'invest'), estimate: sum(groups, 'estimate'), propose: sum(groups, 'propose') } };
 }
@@ -2010,7 +2082,7 @@ function openQtda04Item(kind, id, catId = '') {
   const line = kind === 'line' && id ? (project.qtdaLines || []).find(l => l.id === id) : null;
   if (kind === 'pkg' && !pkg) return;
   const group = pkg ? (pkg.costGroup || '') : (line?.group || 'VI');
-  const groupOptions = (pkg ? `<option value="">Tự động (${getQtda04Group(pkg)})</option>` : '')
+  const groupOptions = (pkg ? `<option value="">Tự động (${getQtda04Group(pkg, project.categories.find(c => c.id === catId))})</option>` : '')
     + QTDA04_GROUPS.map(g => `<option value="${g.no}" ${group === g.no ? 'selected' : ''}>${g.no}. ${g.name}</option>`).join('');
   const reasonField = `<div class="form-group full-width"><label>Nguyên nhân tăng, giảm (cột 6)</label><textarea id="q4-reason">${esc((pkg ? pkg.settlementReason : line?.reason) || '')}</textarea></div>`;
   const body = pkg ? `
@@ -4100,6 +4172,7 @@ function editCategory(catId) {
       <div class="form-group"><label>Màu sắc</label><input type="color" id="f-cat-color" value="${cat.color || '#3b82f6'}"></div>
       <div class="form-group"><label>Tổng mức đầu tư (VNĐ)</label><input type="number" id="f-cat-investTotal" value="${cat.investTotal || ''}"></div>
       <div class="form-group full-width"><label>Tên danh mục</label><input type="text" id="f-cat-name" value="${esc(cat.name)}"></div>
+      <div class="form-group full-width"><label>Nhóm theo Mẫu 04/QTDA</label>${qtdaGroupSelectHTML(getCatQtdaGroup(cat))}</div>
     </div>
   `, `
     <button class="btn btn-secondary" onclick="closeModal()">Hủy</button>
@@ -4117,6 +4190,7 @@ function saveEditCategory(catId) {
   cat.name = document.getElementById('f-cat-name').value.trim();
   cat.color = document.getElementById('f-cat-color').value;
   cat.investTotal = Number(document.getElementById('f-cat-investTotal').value) || 0;
+  cat.qtdaGroup = document.getElementById('f-cat-qtdaGroup').value;
   addAudit(project, 'update', 'category', cat.name);
   saveState();
   closeModal();
@@ -4165,6 +4239,7 @@ document.getElementById('btn-add-category').addEventListener('click', () => {
       <div class="form-group"><label>Màu sắc</label><input type="color" id="f-cat-color" value="#3b82f6"></div>
       <div class="form-group"><label>Tổng mức đầu tư (VNĐ)</label><input type="number" id="f-cat-investTotal" placeholder="Nhập tổng mức đầu tư của danh mục"></div>
       <div class="form-group full-width"><label>Tên danh mục</label><input type="text" id="f-cat-name" placeholder="Tên danh mục chi phí"></div>
+      <div class="form-group full-width"><label>Nhóm theo Mẫu 04/QTDA</label>${qtdaGroupSelectHTML('')}</div>
     </div>
   `, `
     <button class="btn btn-secondary" onclick="closeModal()">Hủy</button>
@@ -4181,7 +4256,7 @@ function saveNewCategory() {
   const investTotal = Number(document.getElementById('f-cat-investTotal').value) || 0;
   if (!name) { showToast('Vui lòng nhập tên danh mục', 'error'); return; }
   const project = getCurrentProject();
-  project.categories.push({ id: generateId(), code: code || '?', name, color, investTotal, packages: [] });
+  project.categories.push({ id: generateId(), code: code || '?', name, color, investTotal, qtdaGroup: document.getElementById('f-cat-qtdaGroup').value, packages: [] });
   addAudit(project, 'create', 'category', name);
   saveState();
   closeModal();
@@ -4278,7 +4353,7 @@ function saveNewProject() {
   const data = getProjectFormData();
   if (!data.name) { showToast('Vui lòng nhập tên dự án', 'error'); return; }
   if (!validateProjectYears(data)) return;
-  const proj = { id: generateId(), ...data, categories: [] };
+  const proj = { id: generateId(), ...data, categories: data.projectScope === 'nonProject' ? [] : createDefaultCategories() };
   state.projects.push(proj);
   state.currentProjectId = proj.id;
   addAudit(proj, 'create', 'project', data.name);
