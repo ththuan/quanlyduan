@@ -78,6 +78,12 @@ DOCS = [
         'title': 'Thông tư quy định về hệ thống mẫu biểu sử dụng trong công tác quyết toán vốn đầu tư dự án',
         'issueDate': '2026-06-25', 'effectiveDate': '2026-07-01', 'group': 'Thanh toán, quyết toán',
     },
+    {
+        'file': 'NGHỊ ĐỊNH 104.2026_ND-CP_3132026.pdf', 'id': 'ND104', 'short': 'NĐ 104/2026/NĐ-CP',
+        'number': '104/2026/NĐ-CP', 'type': 'Nghị định',
+        'title': 'Nghị định quy định việc lập dự toán, quản lý, sử dụng và quyết toán chi thường xuyên để thực hiện các nhiệm vụ quy định tại Điều 40 Luật Ngân sách nhà nước',
+        'issueDate': '2026-03-31', 'effectiveDate': '2026-03-31', 'group': 'Chi thường xuyên',
+    },
 ]
 
 # Một chữ cái đứng tách khỏi phần còn lại của từ do PDF (vd "c ủa" -> "của")
@@ -102,6 +108,7 @@ SUMMARIES = {
     'ND254': 'Quản lý, thanh toán vốn đầu tư công: hồ sơ pháp lý, tạm ứng, thanh toán khối lượng hoàn thành (Điều 8-10, 18-20), quyết toán theo niên độ (Điều 25-29). Lưu ý: các Điều 30-47 (quyết toán dự án hoàn thành) đã bị bãi bỏ từ 01/07/2026 bởi NĐ 193/2026.',
     'ND193': 'Quyết toán vốn đầu tư dự án: vốn được quyết toán (Điều 4), báo cáo và hồ sơ trình thẩm tra, phê duyệt (Điều 6-7, 19), thẩm quyền, kiểm toán độc lập, thẩm tra hồ sơ pháp lý (Điều 12), thời gian lập hồ sơ, thẩm tra, phê duyệt theo nhóm dự án (Điều 21), trách nhiệm của chủ đầu tư (Điều 28).',
     'TT73-2026': 'Hệ thống 12 mẫu biểu quyết toán vốn đầu tư dự án (Mẫu 01-12/QTDA) và cách sử dụng: dự án hoàn thành dùng Mẫu 01-07/QTDA; Mẫu 02 là danh mục văn bản, Mẫu 04 là chi tiết chi phí đầu tư đề nghị quyết toán.',
+    'ND104': 'Lập dự toán, quản lý, sử dụng và quyết toán chi thường xuyên để mua sắm, sửa chữa, cải tạo, nâng cấp tài sản, trang thiết bị; chi thuê hàng hóa, dịch vụ và các nhiệm vụ cần thiết khác (thay thế NĐ 98/2025/NĐ-CP).',
 }
 
 # Điều còn trong văn bản nhưng đã hết hiệu lực: (doc, số điều từ, đến) -> ghi chú
