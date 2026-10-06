@@ -4165,6 +4165,7 @@ async function submitForcePasswordChange() {
     try { sessionStorage.removeItem('qlda_force_pw'); } catch (e) {}
     closeModal();
     showToast('Đã đổi mật khẩu thành công');
+    window.location.reload();
   } catch (err) {
     showToast(err.message, 'error');
   }
