@@ -1738,6 +1738,400 @@ function exportFullProjectReport() {
   `);
 }
 
+// ---- Mẫu số 02/QTDA (TT 73/2026/TT-BTC): Danh mục văn bản hồ sơ quyết toán ----
+function qtdaNumberDate(number, date) {
+  const d = date ? `ngày ${toDmy(date)}` : '';
+  return [number, d].filter(Boolean).join(' ');
+}
+
+function buildQtda02Rows(project, inspectionText) {
+  const legal = (project.initiations || []).map(d => ({
+    name: d.title || d.name || '', numDate: qtdaNumberDate(d.number, d.date), agency: d.agency || '', note: d.note || ''
+  }));
+
+  const contracts = [];
+  project.categories.flatMap(c => c.packages).forEach(p => {
+    if (!hasValue(p.contract) && !p.contractSignDate) return;
+    const contractText = hasValue(p.contract) ? p.contract : '';
+    const numDate = /ngày/i.test(contractText) || !p.contractSignDate ? contractText : qtdaNumberDate(contractText, p.contractSignDate);
+    contracts.push({ name: `Hợp đồng ${p.name}`, numDate, agency: p.contractor || '', note: p.bidValue > 0 ? `Giá trị HĐ: ${formatCurrency(p.bidValue)}` : '' });
+    if (hasValue(p.contractExtension)) {
+      contracts.push({ name: `Phụ lục gia hạn hợp đồng ${p.name}`, numDate: p.contractExtension, agency: p.contractor || '', note: '' });
+    }
+    (p.variations || []).filter(v => v.status === 'approved').forEach(v => {
+      contracts.push({
+        name: `Phụ lục / hợp đồng bổ sung (phát sinh khối lượng) ${p.name}`,
+        numDate: qtdaNumberDate('', v.date), agency: p.contractor || '',
+        note: [formatCurrency(v.amount), v.reason].filter(Boolean).join(' — ')
+      });
+    });
+  });
+
+  const inspections = String(inspectionText || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean).map(l => {
+    const [name, numDate, agency, note] = l.split('|').map(s => s.trim());
+    return { name: name || '', numDate: numDate || '', agency: agency || '', note: note || '' };
+  });
+  return { legal, contracts, inspections };
+}
+
+// Thân bảng Mẫu 02/QTDA (dùng cho xem trước và xuất)
+function qtda02BodyRows({ legal, contracts, inspections }) {
+  const rows = (list, emptyText) => list.length
+    ? list.map((r, i) => `<tr><td class="text-center">${i + 1}</td><td>${esc(r.name)}</td><td>${esc(r.numDate)}</td><td>${esc(r.agency)}</td><td>${esc(r.note)}</td></tr>`).join('')
+    : `<tr><td class="text-center">1</td><td colspan="4">${emptyText}</td></tr>`;
+  const section = (no, title, body) => `<tr><td class="text-center"><strong>${no}</strong></td><td colspan="4"><strong>${title}</strong></td></tr>${body}`;
+  return section('I', 'Các văn bản pháp lý', rows(legal, ''))
+    + section('II', 'Hợp đồng, phụ lục hợp đồng (nếu có), hợp đồng bổ sung (nếu có)', rows(contracts, ''))
+    + section('III', 'Kết luận của các cơ quan Thanh tra, Kiểm toán nhà nước, kiểm tra, kết quả điều tra của các cơ quan pháp luật<br><em>(Trường hợp không có thì phải ghi cụ thể là “không có”)</em>', rows(inspections, 'Không có'));
+}
+
+// Tải tài liệu dạng Word (HTML .doc) để chỉnh sửa tiếp
+function downloadWordDoc(project, code, title, bodyHTML) {
+  const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+    <head><meta charset="UTF-8"><title>${title}</title>
+    <style>
+      body { font-family: 'Times New Roman', serif; font-size: 13pt; }
+      table { width: 100%; border-collapse: collapse; }
+      th, td { border: 1px solid #000; padding: 4px 6px; vertical-align: top; }
+      th { background: #f2f2f2; }
+      .text-center { text-align: center; }
+      .text-right { text-align: right; }
+      .print-title { text-align: center; font-weight: bold; font-size: 15pt; margin: 14px 0 4px 0; }
+      .print-subtitle { text-align: center; font-style: italic; margin-bottom: 12px; }
+    </style></head><body>${bodyHTML}</body></html>`;
+  const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${code}-${(project.name || 'du-an').replace(/[\\/:*?"<>|\s]+/g, '-')}.doc`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function buildQtda02HTML(project, inspectionText) {
+  const data = buildQtda02Rows(project, inspectionText);
+  const noBorder = 'border:none;';
+
+  return `
+    <table style="${noBorder}margin:0 0 14px 0">
+      <tr>
+        <td style="${noBorder}"></td>
+        <td style="${noBorder}text-align:right;font-style:italic;width:55%"><strong>Mẫu số 02/QTDA</strong><br>(kèm theo Thông tư số 73/2026/TT-BTC ngày 25 tháng 6 năm 2026 của Bộ trưởng Bộ Tài chính)</td>
+      </tr>
+      <tr>
+        <td style="${noBorder}text-align:center"><strong>${esc((project.owner || 'CHỦ ĐẦU TƯ').toUpperCase())}</strong><br>-------</td>
+        <td style="${noBorder}text-align:center"><strong>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</strong><br><strong>Độc lập - Tự do - Hạnh phúc</strong><br>---------------</td>
+      </tr>
+    </table>
+    <div class="print-title">DANH MỤC VĂN BẢN</div>
+    <div class="print-subtitle">Dự án: ${esc(project.fullName || project.name)}</div>
+    <table>
+      <thead>
+        <tr><th style="width:40px">Số TT</th><th>Tên văn bản</th><th>Số, ngày, tháng, năm ban hành</th><th>Cơ quan ban hành</th><th>Ghi chú</th></tr>
+      </thead>
+      <tbody>
+        ${qtda02BodyRows(data)}
+      </tbody>
+    </table>
+    <table style="${noBorder}margin-top:30px">
+      <tr>
+        <td style="${noBorder}text-align:center;width:50%"><strong>NGƯỜI LẬP BIỂU</strong><br><em>(Ký, ghi rõ họ tên)</em><br><br><br><br></td>
+        <td style="${noBorder}text-align:center"><em>…, ngày... tháng ... năm ...</em><br><strong>CHỦ ĐẦU TƯ</strong><br><em>(Ký, đóng dấu, ghi rõ họ tên)</em><br><br><br><br></td>
+      </tr>
+    </table>
+    <p style="font-size:11px"><em>Ghi chú: Trường hợp dự án được cơ quan nhà nước có thẩm quyền cho thực hiện theo cơ chế đặc thù (như: Chương trình mục tiêu quốc gia, dự án khẩn cấp, dự án đặc biệt....) thì văn bản pháp lý và hồ sơ tài liệu liên quan được ghi theo các quy định cơ chế đặc thù được cấp có thẩm quyền ban hành.</em></p>
+  `;
+}
+
+// ---- Mục III của Mẫu 02: kết luận thanh tra, kiểm toán ----
+function openQtdaInspectionsModal() {
+  if (!requireEditPermission()) return;
+  const project = getCurrentProject();
+  if (!project) return;
+  openModal('Mẫu 02/QTDA — Mục III: Kết luận thanh tra, kiểm toán, kiểm tra', `
+    <div class="form-group full-width">
+      <label>Mỗi dòng một văn bản</label>
+      <textarea id="qtda-inspections" rows="6" placeholder="Tên văn bản | Số, ngày | Cơ quan ban hành | Ghi chú&#10;Để trống nếu không có (sẽ in &quot;Không có&quot;)">${esc(project.qtdaInspections || '')}</textarea>
+    </div>
+  `, `
+    <button class="btn btn-secondary" onclick="closeModal()">Hủy</button>
+    <button class="btn btn-primary" onclick="saveQtdaInspections()"><span class="material-symbols-rounded">save</span> Lưu</button>
+  `);
+}
+
+function saveQtdaInspections() {
+  const project = getCurrentProject();
+  if (!project) return;
+  project.qtdaInspections = document.getElementById('qtda-inspections').value;
+  saveState();
+  closeModal();
+  renderQtdaView();
+  showToast('Đã lưu mục III');
+}
+
+function exportQtda02(mode) {
+  const project = getCurrentProject();
+  if (!project) return;
+  const body = buildQtda02HTML(project, project.qtdaInspections);
+  if (mode === 'print') openPrintWindow(`Mẫu số 02/QTDA - ${esc(project.name)}`, body);
+  else downloadWordDoc(project, 'Mau-so-02-QTDA', 'Mẫu số 02/QTDA', body);
+}
+
+// ============================================================
+// HỒ SƠ QUYẾT TOÁN DỰ ÁN HOÀN THÀNH: Mẫu 02 & 04/QTDA (TT 73/2026/TT-BTC)
+// ============================================================
+const QTDA04_GROUPS = [
+  { no: 'I', name: 'Bồi thường, hỗ trợ, tái định cư' },
+  { no: 'II', name: 'Xây dựng' },
+  { no: 'III', name: 'Thiết bị' },
+  { no: 'IV', name: 'Quản lý dự án' },
+  { no: 'V', name: 'Tư vấn' },
+  { no: 'VI', name: 'Chi phí khác' },
+  { no: 'VII', name: 'Dự phòng' }
+];
+
+function formatNumberVN(n, zero = '') {
+  return n ? Number(n).toLocaleString('vi-VN') : zero;
+}
+
+// Nhóm chi phí của gói thầu trong Mẫu 04: chọn tay, nếu không thì suy ra từ tên và loại gói
+function getQtda04Group(pkg) {
+  if (pkg.costGroup) return pkg.costGroup;
+  if (/quản lý dự án/i.test(pkg.name || '')) return 'IV';
+  return { construction: 'II', mixed: 'II', goods: 'III', consulting: 'V', nonConsulting: 'VI' }[pkg.pkgType] || 'VI';
+}
+
+// Giá trị đề nghị quyết toán: số nhập tay nếu có, nếu không lấy giá trị nghiệm thu
+function buildQtda04Data(project) {
+  const num = v => Number(v) || 0;
+  const items = [];
+  project.categories.forEach(cat => cat.packages.forEach(p => {
+    const manual = num(p.settlementValue) > 0;
+    const item = {
+      kind: 'pkg', id: p.id, catId: cat.id, group: getQtda04Group(p), name: p.name,
+      invest: num(p.investValue), estimate: num(p.estimateValue),
+      propose: manual ? num(p.settlementValue) : num(p.acceptanceValue),
+      auto: !manual, reason: p.settlementReason || ''
+    };
+    if (item.invest || item.estimate || item.propose) items.push(item);
+  }));
+  (project.qtdaLines || []).forEach(l => items.push({
+    kind: 'line', id: l.id, group: l.group, name: l.name,
+    invest: num(l.invest), estimate: num(l.estimate), propose: num(l.propose), auto: false, reason: l.reason || ''
+  }));
+  const sum = (list, k) => list.reduce((s, i) => s + i[k], 0);
+  const groups = QTDA04_GROUPS.map(g => {
+    const list = items.filter(i => i.group === g.no);
+    return { ...g, items: list, invest: sum(list, 'invest'), estimate: sum(list, 'estimate'), propose: sum(list, 'propose') };
+  });
+  return { groups, total: { invest: sum(groups, 'invest'), estimate: sum(groups, 'estimate'), propose: sum(groups, 'propose') } };
+}
+
+// Thân bảng Mẫu 04 (dùng cho xem trước và xuất); actions=true thêm cột thao tác
+function qtda04BodyRows(data, actions = false) {
+  const cols = actions ? 7 : 6;
+  const totalRow = `<tr class="total-row"><td></td><td><strong>Tổng số (I+II+III+IV+V+VI+VII)</strong></td>
+    <td class="text-right"><strong>${formatNumberVN(data.total.invest, '0')}</strong></td>
+    <td class="text-right"><strong>${formatNumberVN(data.total.estimate, '0')}</strong></td>
+    <td class="text-right"><strong>${formatNumberVN(data.total.propose, '0')}</strong></td><td></td>${actions ? '<td></td>' : ''}</tr>`;
+  const body = data.groups.map(g => {
+    const head = `<tr><td class="text-center"><strong>${g.no}</strong></td><td><strong>${g.name}</strong></td>
+      <td class="text-right"><strong>${formatNumberVN(g.invest)}</strong></td>
+      <td class="text-right"><strong>${formatNumberVN(g.estimate)}</strong></td>
+      <td class="text-right"><strong>${formatNumberVN(g.propose)}</strong></td><td></td>${actions ? '<td></td>' : ''}</tr>`;
+    const items = g.items.map((it, i) => `<tr>
+      <td class="text-center">${i + 1}</td><td>${esc(it.name)}</td>
+      <td class="text-right">${formatNumberVN(it.invest)}</td>
+      <td class="text-right">${formatNumberVN(it.estimate)}</td>
+      <td class="text-right">${formatNumberVN(it.propose)}${it.auto && it.propose ? (actions ? '<div style="font-size:0.7rem;color:var(--text-muted)">theo nghiệm thu</div>' : '') : ''}</td>
+      <td>${esc(it.reason)}</td>
+      ${actions ? `<td class="edit-only" style="white-space:nowrap">
+        <button class="btn-icon btn-sm" title="Sửa" onclick="openQtda04Item('${it.kind}','${it.id}','${it.catId || ''}')"><span class="material-symbols-rounded">edit</span></button>
+        ${it.kind === 'line' ? `<button class="btn-icon btn-sm" title="Xóa" onclick="deleteQtda04Line('${it.id}')"><span class="material-symbols-rounded">delete</span></button>` : ''}
+      </td>` : ''}</tr>`).join('');
+    return head + items;
+  }).join('');
+  return totalRow + body;
+}
+
+function buildQtda04HTML(project) {
+  const data = buildQtda04Data(project);
+  const noBorder = 'border:none;';
+  return `
+    <table style="${noBorder}margin:0 0 14px 0">
+      <tr>
+        <td style="${noBorder}"></td>
+        <td style="${noBorder}text-align:right;font-style:italic;width:55%"><strong>Mẫu số 04/QTDA</strong><br>(kèm theo Thông tư số 73/2026/TT-BTC ngày 25 tháng 6 năm 2026 của Bộ trưởng Bộ Tài chính)</td>
+      </tr>
+      <tr>
+        <td style="${noBorder}text-align:center"><strong>${esc((project.owner || 'CHỦ ĐẦU TƯ').toUpperCase())}</strong><br>-------</td>
+        <td style="${noBorder}text-align:center"><strong>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</strong><br><strong>Độc lập - Tự do - Hạnh phúc</strong><br>---------------</td>
+      </tr>
+    </table>
+    <div class="print-title">CHI TIẾT CHI PHÍ ĐẦU TƯ ĐỀ NGHỊ QUYẾT TOÁN</div>
+    <div class="print-subtitle">Dự án: ${esc(project.fullName || project.name)}<br>Đơn vị: đồng</div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:40px">Số TT</th><th>Nội dung chi phí</th>
+          <th>Tổng mức đầu tư (của dự án, dự án thành phần, tiểu dự án độc lập) được phê duyệt hoặc điều chỉnh lần cuối</th>
+          <th>Tổng dự toán (dự toán công trình, hạng mục công trình độc lập) được phê duyệt hoặc điều chỉnh lần cuối</th>
+          <th>Giá trị đề nghị quyết toán</th><th>Nguyên nhân tăng, giảm</th>
+        </tr>
+        <tr><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th></tr>
+      </thead>
+      <tbody>${qtda04BodyRows(data)}</tbody>
+    </table>
+    <table style="${noBorder}margin-top:30px">
+      <tr>
+        <td style="${noBorder}text-align:center;width:50%"><strong>NGƯỜI LẬP BIỂU</strong><br><em>(Ký, ghi rõ họ tên)</em><br><br><br><br></td>
+        <td style="${noBorder}text-align:center"><em>..., ngày... tháng... năm ...</em><br><strong>CHỦ ĐẦU TƯ</strong><br><em>(Ký, đóng dấu, ghi rõ họ tên)</em><br><br><br><br></td>
+      </tr>
+    </table>
+    <p style="font-size:11px"><em>Ghi chú: Tại cột 6 chủ đầu tư căn cứ các quy định của pháp luật về ngân sách nhà nước, đầu tư công, xây dựng, đấu thầu, thanh tra, kiểm toán và các quy định khác của pháp luật liên quan đến thực hiện dự án để ghi rõ nguyên nhân tăng, giảm của cột 5 so với cột 3, 4 (chủ đầu tư ghi trực tiếp vào mẫu biểu hoặc lặp thành Phụ lục riêng để ghi nội dung này).</em></p>
+  `;
+}
+
+function exportQtda04(mode) {
+  const project = getCurrentProject();
+  if (!project) return;
+  const body = buildQtda04HTML(project);
+  if (mode === 'print') openPrintWindow(`Mẫu số 04/QTDA - ${esc(project.name)}`, body);
+  else downloadWordDoc(project, 'Mau-so-04-QTDA', 'Mẫu số 04/QTDA', body);
+}
+
+// Sửa một dòng Mẫu 04: gói thầu (nhóm, giá trị đề nghị, nguyên nhân) hoặc dòng nhập tay
+function openQtda04Item(kind, id, catId = '') {
+  if (!requireEditPermission()) return;
+  const project = getCurrentProject();
+  const pkg = kind === 'pkg' ? findPackage(catId, id).pkg : null;
+  const line = kind === 'line' && id ? (project.qtdaLines || []).find(l => l.id === id) : null;
+  if (kind === 'pkg' && !pkg) return;
+  const group = pkg ? (pkg.costGroup || '') : (line?.group || 'VI');
+  const groupOptions = (pkg ? `<option value="">Tự động (${getQtda04Group(pkg)})</option>` : '')
+    + QTDA04_GROUPS.map(g => `<option value="${g.no}" ${group === g.no ? 'selected' : ''}>${g.no}. ${g.name}</option>`).join('');
+  const reasonField = `<div class="form-group full-width"><label>Nguyên nhân tăng, giảm (cột 6)</label><textarea id="q4-reason">${esc((pkg ? pkg.settlementReason : line?.reason) || '')}</textarea></div>`;
+  const body = pkg ? `
+    <div class="form-grid">
+      <div class="form-group full-width"><label>Gói thầu</label><input type="text" value="${esc(pkg.name)}" readonly></div>
+      <div class="form-group"><label>Nhóm chi phí</label><select id="q4-group">${groupOptions}</select></div>
+      <div class="form-group"><label>Giá trị đề nghị quyết toán (VNĐ)</label><input type="number" id="q4-propose" value="${pkg.settlementValue || ''}" placeholder="Để trống = lấy theo nghiệm thu (${formatNumberVN(pkg.acceptanceValue, '0')})"></div>
+      ${reasonField}
+    </div>` : `
+    <div class="form-grid">
+      <div class="form-group full-width"><label>Nội dung chi phí *</label><input type="text" id="q4-name" value="${esc(line?.name || '')}"></div>
+      <div class="form-group"><label>Nhóm chi phí</label><select id="q4-group">${groupOptions}</select></div>
+      <div class="form-group"><label>Tổng mức đầu tư (VNĐ)</label><input type="number" id="q4-invest" value="${line?.invest || ''}"></div>
+      <div class="form-group"><label>Tổng dự toán (VNĐ)</label><input type="number" id="q4-estimate" value="${line?.estimate || ''}"></div>
+      <div class="form-group"><label>Giá trị đề nghị quyết toán (VNĐ)</label><input type="number" id="q4-propose" value="${line?.propose || ''}"></div>
+      ${reasonField}
+    </div>`;
+  openModal(pkg ? 'Sửa dòng Mẫu 04 — gói thầu' : (line ? 'Sửa dòng chi phí' : 'Thêm dòng chi phí'), body, `
+    <button class="btn btn-secondary" onclick="closeModal()">Hủy</button>
+    <button class="btn btn-primary" onclick="saveQtda04Item('${kind}','${id || ''}','${catId}')"><span class="material-symbols-rounded">save</span> Lưu</button>
+  `);
+}
+
+function saveQtda04Item(kind, id, catId) {
+  const project = getCurrentProject();
+  const val = (fid) => document.getElementById(fid)?.value;
+  if (kind === 'pkg') {
+    const { pkg } = findPackage(catId, id);
+    if (!pkg) return;
+    pkg.costGroup = val('q4-group');
+    pkg.settlementValue = Number(val('q4-propose')) || 0;
+    pkg.settlementReason = val('q4-reason').trim();
+    addAudit(project, 'update', 'quyết toán', pkg.name, 'Mẫu 04/QTDA');
+  } else {
+    const name = val('q4-name').trim();
+    if (!name) { showToast('Vui lòng nhập nội dung chi phí', 'error'); return; }
+    project.qtdaLines = project.qtdaLines || [];
+    let line = id ? project.qtdaLines.find(l => l.id === id) : null;
+    if (!line) { line = { id: generateId() }; project.qtdaLines.push(line); }
+    Object.assign(line, {
+      name, group: val('q4-group'),
+      invest: Number(val('q4-invest')) || 0, estimate: Number(val('q4-estimate')) || 0, propose: Number(val('q4-propose')) || 0,
+      reason: val('q4-reason').trim()
+    });
+    addAudit(project, 'update', 'quyết toán', name, 'Mẫu 04/QTDA');
+  }
+  saveState();
+  closeModal();
+  renderQtdaView();
+  showToast('Đã lưu');
+}
+
+function deleteQtda04Line(id) {
+  if (!requireEditPermission()) return;
+  const project = getCurrentProject();
+  project.qtdaLines = (project.qtdaLines || []).filter(l => l.id !== id);
+  saveState();
+  renderQtdaView();
+  showToast('Đã xóa dòng chi phí', 'info');
+}
+
+function renderQtdaView() {
+  const el = document.getElementById('qtda-container');
+  if (!el) return;
+  const project = getCurrentProject();
+  if (!project) { el.innerHTML = ''; return; }
+
+  const pkgs = project.categories.flatMap(c => c.packages);
+  const pending = pkgs.filter(p => !isPackageComplete(p));
+  const ready = pkgs.length > 0 && pending.length === 0;
+  const d2 = buildQtda02Rows(project, project.qtdaInspections);
+  const d4 = buildQtda04Data(project);
+  const invest = Number(project.totalInvestment) || 0;
+
+  el.innerHTML = `
+    <div class="report-section">
+      <div style="padding:12px 16px;border-radius:8px;border:1px solid ${ready ? '#bbf7d0' : '#fde68a'};background:${ready ? '#f0fdf4' : '#fffbeb'};font-size:0.88rem;line-height:1.6">
+        <span class="material-symbols-rounded" style="vertical-align:middle;color:var(${ready ? '--accent-green' : '--accent-amber'})">${ready ? 'check_circle' : 'hourglass_top'}</span>
+        ${ready
+      ? `<strong>Tất cả ${pkgs.length} gói thầu đã nghiệm thu hoàn thành</strong> — có thể lập hồ sơ quyết toán.`
+      : `<strong>Đã nghiệm thu ${pkgs.length - pending.length}/${pkgs.length} gói thầu.</strong> Số liệu bên dưới tự cập nhật theo dữ liệu hiện tại; chốt khi dự án hoàn thành.
+           ${pending.length ? `<div style="font-size:0.8rem;color:var(--text-secondary)">Chưa hoàn thành: ${pending.slice(0, 6).map(p => esc(p.name)).join('; ')}${pending.length > 6 ? ` … (+${pending.length - 6})` : ''}</div>` : ''}`}
+      </div>
+    </div>
+
+    <div class="report-section">
+      <h3><span class="material-symbols-rounded">gavel</span> Mẫu số 02/QTDA — Danh mục văn bản</h3>
+      <p style="font-size:0.82rem;color:var(--text-muted);margin:4px 0 10px">Tự tổng hợp: mục I từ phần Pháp lý (${d2.legal.length} văn bản), mục II từ hợp đồng, phụ lục của các gói thầu (${d2.contracts.length} dòng), mục III nhập tay.</p>
+      <div class="header-actions" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:10px">
+        <button class="btn btn-secondary edit-only" onclick="openQtdaInspectionsModal()"><span class="material-symbols-rounded">edit</span> Nhập mục III (thanh tra, kiểm toán)</button>
+        <button class="btn btn-secondary" onclick="exportQtda02('word')"><span class="material-symbols-rounded">description</span> Tải Word (.doc)</button>
+        <button class="btn btn-primary" onclick="exportQtda02('print')"><span class="material-symbols-rounded">print</span> In / Xuất PDF</button>
+      </div>
+      <div class="report-table-wrapper">
+        <table class="report-table">
+          <thead><tr><th style="width:48px">Số TT</th><th>Tên văn bản</th><th>Số, ngày, tháng, năm ban hành</th><th>Cơ quan ban hành</th><th>Ghi chú</th></tr></thead>
+          <tbody>${qtda02BodyRows(d2)}</tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="report-section">
+      <h3><span class="material-symbols-rounded">table_chart</span> Mẫu số 04/QTDA — Chi tiết chi phí đầu tư đề nghị quyết toán</h3>
+      <p style="font-size:0.82rem;color:var(--text-muted);margin:4px 0 10px">Tự tổng hợp theo gói thầu: tổng mức đầu tư, dự toán và giá trị đề nghị quyết toán (mặc định lấy theo nghiệm thu, sửa được từng dòng). Chi phí không thuộc gói thầu (bồi thường, quản lý dự án, dự phòng...) thêm bằng "Thêm dòng chi phí".
+        ${invest ? `<br>Tổng mức đầu tư của dự án: <strong>${formatNumberVN(invest)}</strong> đồng.` : ''}</p>
+      <div class="header-actions" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:10px">
+        <button class="btn btn-secondary edit-only" onclick="openQtda04Item('line','')"><span class="material-symbols-rounded">add</span> Thêm dòng chi phí</button>
+        <button class="btn btn-secondary" onclick="exportQtda04('word')"><span class="material-symbols-rounded">description</span> Tải Word (.doc)</button>
+        <button class="btn btn-primary" onclick="exportQtda04('print')"><span class="material-symbols-rounded">print</span> In / Xuất PDF</button>
+      </div>
+      <div class="report-table-wrapper">
+        <table class="report-table">
+          <thead>
+            <tr><th style="width:48px">Số TT</th><th>Nội dung chi phí</th><th class="text-right">Tổng mức đầu tư được phê duyệt / điều chỉnh lần cuối</th><th class="text-right">Tổng dự toán được phê duyệt / điều chỉnh lần cuối</th><th class="text-right">Giá trị đề nghị quyết toán</th><th>Nguyên nhân tăng, giảm</th><th class="edit-only"></th></tr>
+          </thead>
+          <tbody>${qtda04BodyRows(d4, true)}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
 function exportPackageAcceptanceReport() {
   const project = getCurrentProject();
   if (!project) return;
@@ -4102,6 +4496,7 @@ function switchView(viewName) {
   if (viewName === 'dashboard') renderDashboard();
   else if (viewName === 'packages') renderPackages();
   else if (viewName === 'initiation') renderInitiationView();
+  else if (viewName === 'qtda') renderQtdaView();
   else if (viewName === 'reports') renderReports();
 }
 
@@ -4110,6 +4505,7 @@ function renderAll() {
   if (state.currentView === 'dashboard') renderDashboard();
   else if (state.currentView === 'packages') renderPackages();
   else if (state.currentView === 'initiation') renderInitiationView();
+  else if (state.currentView === 'qtda') renderQtdaView();
   else if (state.currentView === 'reports') renderReports();
 }
 
