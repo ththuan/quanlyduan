@@ -1961,42 +1961,6 @@ let CHU_TRUONG_AGENCIES = ['Ủy ban nhân dân thành phố', 'Sở Tài chính
 let chuTruongEditId = null;
 let chuTruongFiles = []; // PDF đang chờ lưu của hồ sơ đang mở
 
-// ---- Render KPI ----
-function renderInitiationKPIs() {
-  const project = getCurrentProject();
-  const ini = project?.initiations || [];
-  const totalFiles = ini.reduce((s, i) => s + (i.files?.length || 0), 0);
-  const countAgency = (a) => ini.filter(i => i.agency === a).length;
-  const el = document.getElementById('initiation-kpis');
-  if (!el) return;
-  el.innerHTML = `
-    <div class="kpi-card glass-card" data-color="cyan">
-      <div class="kpi-header"><span class="kpi-label">Tổng văn bản pháp lý</span>
-        <div class="kpi-icon"><span class="material-symbols-rounded">description</span></div></div>
-      <div class="kpi-value">${ini.length}</div>
-      <div class="kpi-sub">Quyết định & công văn</div>
-    </div>
-    <div class="kpi-card glass-card" data-color="green">
-      <div class="kpi-header"><span class="kpi-label">Sở Tài chính</span>
-        <div class="kpi-icon"><span class="material-symbols-rounded">account_balance</span></div></div>
-      <div class="kpi-value">${countAgency('Sở Tài chính')}</div>
-      <div class="kpi-sub">Văn bản của cơ quan</div>
-    </div>
-    <div class="kpi-card glass-card" data-color="purple">
-      <div class="kpi-header"><span class="kpi-label">Sở Xây dựng</span>
-        <div class="kpi-icon"><span class="material-symbols-rounded">location_city</span></div></div>
-      <div class="kpi-value">${countAgency('Sở Xây dựng')}</div>
-      <div class="kpi-sub">Văn bản của cơ quan</div>
-    </div>
-    <div class="kpi-card glass-card" data-color="amber">
-      <div class="kpi-header"><span class="kpi-label">UBND thành phố</span>
-        <div class="kpi-icon"><span class="material-symbols-rounded">account_balance_wallet</span></div></div>
-      <div class="kpi-value">${countAgency('Ủy ban nhân dân thành phố')}</div>
-      <div class="kpi-sub">Văn bản của cơ quan</div>
-    </div>
-  `;
-}
-
 // ---- Render danh sách ----
 function renderInitiationChuTruongList() {
   const project = getCurrentProject();
@@ -2060,7 +2024,6 @@ function renderInitiationChuTruongList() {
 }
 
 function renderInitiationView() {
-  renderInitiationKPIs();
   renderInitiationChuTruongList();
 }
 
