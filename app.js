@@ -201,7 +201,8 @@ let state = {
   currentProjectId: null,
   currentView: 'dashboard',
   projectScope: 'project',
-  config: null
+  config: null,
+  loaded: false
 };
 let currentUser = null;
 let isReadOnly = false;
@@ -269,6 +270,7 @@ async function loadState() {
   const data = await apiGetState();
   state.projects = data.projects || [];
   state.currentProjectId = data.currentProjectId || (state.projects[0]?.id || null);
+  state.loaded = true;
   // Migrate old packages: ensure pkgType matches contractType
   (state.projects || []).forEach(proj => {
     (proj.categories || []).forEach(cat => {
@@ -324,6 +326,7 @@ function applyConfig() {
 }
 
 function saveState() {
+  if (!state.loaded) return;
   apiSaveState({
     projects: state.projects,
     currentProjectId: state.currentProjectId

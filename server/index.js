@@ -230,6 +230,11 @@ app.put('/api/state', requireAuth, requireAdmin, (req, res) => {
   if (!Array.isArray(projects)) {
     return res.status(400).json({ error: 'projects phải là một mảng' });
   }
+  // Bảo vệ chống mất dữ liệu: không ghi đè dữ liệu đang có bằng mảng rỗng
+  const existing = db.getState();
+  if (projects.length === 0 && (existing.projects || []).length > 0) {
+    return res.status(409).json({ error: 'Từ chối ghi đè dữ liệu hiện có bằng danh sách rỗng' });
+  }
   db.saveStateToDb({ projects, currentProjectId: currentProjectId || null });
   res.json({ ok: true });
 });
