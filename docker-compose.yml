@@ -15,6 +15,7 @@ services:
       - PORT=3000
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       - GEMINI_MODEL=${GEMINI_MODEL:-gemini-3.6-flash}
+      - BACKUP_INTERVAL_HOURS=${BACKUP_INTERVAL_HOURS:-6}
     volumes:
       - qlda_data:/app/server/data
       - qlda_uploads:/app/server/uploads

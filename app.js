@@ -3835,10 +3835,65 @@ function openBackupRestoreModal() {
           </button>
         </div>
       </div>
+
+      <div class="restore-section glass-card" style="padding:16px;border-radius:8px">
+        <h4 style="margin-bottom:8px;color:var(--accent-green);display:flex;align-items:center;gap:6px">
+          <span class="material-symbols-rounded">history</span> 3. Sao lưu tự động
+        </h4>
+        <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:12px">
+          Hệ thống tự động sao lưu định kỳ. Bấm "Phục hồi" để khôi phục dữ liệu từ một bản sao lưu.
+        </p>
+        <div id="auto-backups-list" style="display:flex;flex-direction:column;gap:6px">
+          <p style="color:var(--text-muted);font-size:0.8rem">Đang tải danh sách sao lưu...</p>
+        </div>
+      </div>
     </div>
   `, `
     <button class="btn btn-secondary" onclick="closeModal()">Đóng</button>
   `);
+  loadAutoBackups();
+}
+
+async function loadAutoBackups() {
+  const el = document.getElementById('auto-backups-list');
+  if (!el) return;
+  try {
+    const res = await fetch('/api/backups');
+    const data = await res.json();
+    const backups = data.backups || [];
+    if (!backups.length) {
+      el.innerHTML = '<p style="color:var(--text-muted);font-size:0.8rem">Chưa có bản sao lưu tự động nào.</p>';
+      return;
+    }
+    el.innerHTML = backups.map(b => `
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:0.8rem">
+        <span class="material-symbols-rounded" style="color:var(--accent-green);font-size:18px">save</span>
+        <span style="flex:1;min-width:0">
+          <strong style="color:var(--text-primary)">${new Date(b.mtime).toLocaleString('vi-VN')}</strong>
+          <span style="color:var(--text-muted)"> · ${b.projectCount} dự án · ${formatFileSize(b.size)}</span>
+        </span>
+        <button class="btn btn-secondary btn-sm" onclick="restoreAutoBackup('${esc(b.filename)}')">Phục hồi</button>
+      </div>
+    `).join('');
+  } catch (err) {
+    el.innerHTML = '<p style="color:var(--text-muted);font-size:0.8rem">Không tải được danh sách sao lưu.</p>';
+  }
+}
+
+async function restoreAutoBackup(filename) {
+  if (!confirm('Phục hồi dữ liệu từ bản sao lưu này? Dữ liệu hiện tại sẽ bị ghi đè.')) return;
+  try {
+    const res = await fetch(`/api/backups/${encodeURIComponent(filename)}/restore`, { method: 'POST' });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.error || 'Lỗi phục hồi');
+    showToast('Phục hồi thành công!');
+    closeModal();
+    await loadState();
+    renderAll();
+    renderProjectSelector();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
 }
 
 function downloadBackupFile() {

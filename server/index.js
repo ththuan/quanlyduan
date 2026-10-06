@@ -382,6 +382,101 @@ app.post('/api/restore', requireAuth, requireAdmin, (req, res) => {
   }
 });
 
+// ---- Tự động sao lưu định kỳ (bảo vệ chống mất dữ liệu) ----
+const BACKUP_DIR = path.join(__dirname, 'data', 'backups');
+const MAX_AUTO_BACKUPS = 20;
+const AUTO_BACKUP_INTERVAL_MS = Number(process.env.BACKUP_INTERVAL_HOURS || 6) * 3600 * 1000;
+
+function buildBackup() {
+  const state = db.getState();
+  const pdfsMeta = db.listAllPdfs();
+  const pdfFiles = {};
+  pdfsMeta.forEach(pdf => {
+    const filePath = path.join(db.UPLOADS_DIR, pdf.id + fileExt(pdf.name));
+    if (fs.existsSync(filePath)) pdfFiles[pdf.id] = fs.readFileSync(filePath).toString('base64');
+  });
+  return { version: 1, timestamp: new Date().toISOString(), state, pdfMetadata: pdfsMeta, pdfFiles };
+}
+
+function restoreBackupData(backup) {
+  db.saveStateToDb(backup.state);
+  const pdfs = Array.isArray(backup.pdfMetadata) ? backup.pdfMetadata : [];
+  if (backup.pdfFiles && typeof backup.pdfFiles === 'object') {
+    for (const meta of pdfs) {
+      if (!db.getPdfRecord(meta.id)) {
+        const size = Number(meta.size);
+        db.addPdfRecord(meta.id, typeof meta.name === 'string' ? meta.name : '', Number.isFinite(size) && size > 0 ? size : 0);
+      }
+      const b64 = backup.pdfFiles[meta.id];
+      if (typeof b64 === 'string' && b64.length > 0) {
+        const buf = Buffer.from(b64, 'base64');
+        if (buf.length && buf.length <= 50 * 1024 * 1024) {
+          fs.writeFileSync(path.join(db.UPLOADS_DIR, meta.id + fileExt(meta.name)), buf);
+        }
+      }
+    }
+  }
+}
+
+function createAutomaticBackup() {
+  try {
+    if (!(db.getState().projects || []).length) return; // không sao lưu khi chưa có dữ liệu
+    fs.mkdirSync(BACKUP_DIR, { recursive: true });
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const filePath = path.join(BACKUP_DIR, `backup-${stamp}.json`);
+    fs.writeFileSync(filePath, JSON.stringify(buildBackup(), null, 2));
+    const files = fs.readdirSync(BACKUP_DIR).filter(f => f.endsWith('.json')).sort();
+    while (files.length > MAX_AUTO_BACKUPS) {
+      fs.unlinkSync(path.join(BACKUP_DIR, files.shift()));
+    }
+    console.log(`[QLDA] Đã sao lưu tự động: ${path.basename(filePath)}`);
+  } catch (err) {
+    console.error('[QLDA] Lỗi sao lưu tự động:', err.message);
+  }
+}
+
+setTimeout(createAutomaticBackup, 10000);
+setInterval(createAutomaticBackup, AUTO_BACKUP_INTERVAL_MS);
+
+app.get('/api/backups', requireAuth, requireAdmin, (req, res) => {
+  try {
+    if (!fs.existsSync(BACKUP_DIR)) return res.json({ backups: [] });
+    const backups = fs.readdirSync(BACKUP_DIR)
+      .filter(f => f.endsWith('.json'))
+      .sort()
+      .reverse()
+      .map(f => {
+        const filePath = path.join(BACKUP_DIR, f);
+        const stat = fs.statSync(filePath);
+        let projectCount = 0;
+        try {
+          const b = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+          projectCount = (b.state?.projects || []).length;
+        } catch (_) { /* bỏ qua file lỗi */ }
+        return { filename: f, size: stat.size, mtime: stat.mtimeMs, projectCount };
+      });
+    res.json({ backups });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/backups/:filename/restore', requireAuth, requireAdmin, (req, res) => {
+  const filename = path.basename(req.params.filename);
+  const filePath = path.join(BACKUP_DIR, filename);
+  if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Không tìm thấy bản sao lưu' });
+  try {
+    const backup = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    if (!backup.state || !Array.isArray(backup.state.projects)) {
+      return res.status(400).json({ error: 'Bản sao lưu không hợp lệ' });
+    }
+    restoreBackupData(backup);
+    res.json({ ok: true, message: 'Đã phục hồi từ bản sao lưu tự động' });
+  } catch (err) {
+    res.status(500).json({ error: 'Lỗi phục hồi: ' + err.message });
+  }
+});
+
 // ---- Cấu hình nghiệp vụ (admin) ----
 app.get('/api/config', requireAuth, (req, res) => {
   res.json(db.getConfig());
