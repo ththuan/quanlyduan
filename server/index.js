@@ -637,7 +637,7 @@ app.get('/api/legal/search', requireAuth, (req, res) => {
 // ---- AI Assistant (Gemini) ----
 const GEMINI_KEY = process.env.GEMINI_API_KEY || '';
 // Model đổi được qua env GEMINI_MODEL (không cần sửa code khi Google deprecate model)
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 app.post('/api/ai/chat', requireAuth, async (req, res) => {
