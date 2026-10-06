@@ -1925,37 +1925,6 @@ function createDefaultCategories() {
   }));
 }
 
-// Dự án cũ: gắn nhóm, đánh lại mã theo Mẫu 04 và bổ sung các nhóm còn thiếu
-function normalizeCategoriesToQtda04() {
-  if (!requireEditPermission()) return;
-  const project = getCurrentProject();
-  if (!project) return;
-  const unknown = [];
-  project.categories.forEach(cat => {
-    const g = getCatQtdaGroup(cat);
-    if (g) { cat.qtdaGroup = g; cat.code = g; }
-    else unknown.push(cat.name);
-  });
-  const present = new Set(project.categories.map(c => c.qtdaGroup).filter(Boolean));
-  const missing = createDefaultCategories().filter(c => !present.has(c.qtdaGroup));
-  project.categories.push(...missing);
-  addAudit(project, 'update', 'category', 'Chuẩn hóa theo Mẫu 04/QTDA', `Bổ sung ${missing.length} danh mục`);
-  saveState();
-  closeModal();
-  renderAll();
-  showToast(`Đã chuẩn hóa danh mục theo Mẫu 04 (thêm ${missing.length})${unknown.length ? `; chưa nhận diện: ${unknown.join(', ')}` : ''}`);
-}
-
-function confirmNormalizeCategories() {
-  if (!requireEditPermission()) return;
-  openModal('Chuẩn hóa danh mục theo Mẫu 04/QTDA', `
-    <p style="font-size:0.88rem;line-height:1.6">Các danh mục hiện có sẽ được gắn vào nhóm tương ứng (I. Bồi thường … VII. Dự phòng) và đổi mã danh mục theo số nhóm. Các nhóm còn thiếu được thêm mới. Gói thầu không bị thay đổi.</p>
-  `, `
-    <button class="btn btn-secondary" onclick="closeModal()">Hủy</button>
-    <button class="btn btn-primary" onclick="normalizeCategoriesToQtda04()">Chuẩn hóa</button>
-  `);
-}
-
 // Nhóm chi phí của gói thầu trong Mẫu 04: chọn tay > nhóm của danh mục > suy ra từ tên/loại gói
 function getQtda04Group(pkg, cat = null) {
   if (pkg.costGroup) return pkg.costGroup;
