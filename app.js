@@ -1742,11 +1742,11 @@ async function exportExcel(scope) {
 // ============================================================
 // SECTION 6.5: MODULE 1 - CHỦ TRƯƠNG (Quyết định & Công văn)
 // ============================================================
-// Chủ trương là nơi lưu trữ các quyết định / công văn của Sở Tài chính,
-// Sở Xây dựng, UBND... liên quan đến dự án. Không có quy trình phê duyệt
-// bên trong phần mềm — chỉ upload + xem + quản lý hồ sơ.
-// Dữ liệu lưu trong project.initiations: [{ id, title, agency, number, date, note, files:[{id,name,size}] }]
+// Pháp lý là nơi lưu trữ các quyết định / công văn của Sở Tài chính,
+// Sở Xây dựng, UBND... liên quan đến dự án (phê duyệt dự án, dự toán, KHLCNT, chỉ định thầu...).
+// Dữ liệu lưu trong project.initiations: [{ id, type, title, agency, number, date, note, files:[{id,name,size}] }]
 let CHU_TRUONG_AGENCIES = ['Ủy ban nhân dân thành phố', 'Sở Tài chính', 'Sở Xây dựng', 'Cơ quan khác'];
+let LEGAL_DOC_TYPES = ['Phê duyệt dự án', 'Phê duyệt dự toán', 'Phê duyệt KHLCNT', 'Quyết định chỉ định thầu', 'Quyết định trúng thầu', 'Văn bản khác'];
 
 let chuTruongEditId = null;
 let chuTruongFiles = []; // PDF đang chờ lưu của hồ sơ đang mở
@@ -1761,7 +1761,7 @@ function renderInitiationKPIs() {
   if (!el) return;
   el.innerHTML = `
     <div class="kpi-card glass-card" data-color="cyan">
-      <div class="kpi-header"><span class="kpi-label">Tổng văn bản chủ trương</span>
+      <div class="kpi-header"><span class="kpi-label">Tổng văn bản pháp lý</span>
         <div class="kpi-icon"><span class="material-symbols-rounded">description</span></div></div>
       <div class="kpi-value">${ini.length}</div>
       <div class="kpi-sub">Quyết định & công văn</div>
@@ -1796,7 +1796,7 @@ function renderInitiationChuTruongList() {
   if (list.length === 0) {
     container.innerHTML = `<div class="ini-empty glass-card">
       <span class="material-symbols-rounded">folder_open</span>
-      <p>Chưa có văn bản chủ trương nào. Bấm "Thêm văn bản chủ trương" để upload quyết định / công văn.</p>
+      <p>Chưa có văn bản pháp lý nào. Bấm "Thêm văn bản pháp lý" để upload quyết định / công văn.</p>
     </div>`;
     return;
   }
@@ -1811,6 +1811,7 @@ function renderInitiationChuTruongList() {
             <span>${esc(ini.title || ini.name || 'Chưa có tên')}</span>
           </div>
           <div class="ini-card-sub">
+            ${ini.type ? `<span class="tpl-chip" style="background:rgba(6,182,212,.1);color:var(--accent-cyan)">${esc(ini.type)}</span>` : ''}
             <span class="tpl-chip">${esc(ini.agency || '—')}</span>
             ${ini.number ? `<span>Số: <strong>${esc(ini.number)}</strong></span>` : ''}
           </div>
@@ -1818,6 +1819,7 @@ function renderInitiationChuTruongList() {
       </div>
 
       <div class="ini-meta">
+        <div class="ini-meta-item"><span class="label">Loại văn bản</span><span class="value">${esc(ini.type || '—')}</span></div>
         <div class="ini-meta-item"><span class="label">Cơ quan ban hành</span><span class="value">${esc(ini.agency || '—')}</span></div>
         <div class="ini-meta-item"><span class="label">Số văn bản</span><span class="value">${esc(ini.number || '—')}</span></div>
         <div class="ini-meta-item"><span class="label">Ngày ban hành</span><span class="value">${formatDateVN(ini.date)}</span></div>
@@ -1878,11 +1880,20 @@ function openChuTruongForm(doc = null) {
   if (!requireEditPermission()) return;
   chuTruongEditId = doc ? doc.id : null;
   chuTruongFiles = doc ? [...(doc.files || [])] : [];
-  openModal(doc ? 'Sửa văn bản chủ trương' : 'Thêm văn bản chủ trương', `
+  openModal(doc ? 'Sửa văn bản pháp lý' : 'Thêm văn bản pháp lý', `
     <div class="form-grid">
       <div class="form-group full-width"><label>Tiêu đề văn bản *</label><input type="text" id="ct-title" value="${esc(doc?.title || '')}"></div>
-      <div class="form-group"><label>Cơ quan ban hành *</label>
-        <select id="ct-agency">${CHU_TRUONG_AGENCIES.map(a => `<option value="${a}" ${doc?.agency === a ? 'selected' : ''}>${a}</option>`).join('')}</select>
+      <div class="form-group">
+        <label>Loại văn bản</label>
+        <select id="ct-type">
+          <option value="">— Chọn —</option>
+          ${LEGAL_DOC_TYPES.map(t => `<option value="${t}" ${doc?.type === t ? 'selected' : ''}>${t}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Cơ quan ban hành *</label>
+        <input type="text" id="ct-agency" list="ct-agency-list" value="${esc(doc?.agency || '')}" placeholder="Chọn hoặc gõ cơ quan mới">
+        <datalist id="ct-agency-list">${CHU_TRUONG_AGENCIES.map(a => `<option value="${a}"></option>`).join('')}</datalist>
       </div>
       <div class="form-group"><label>Số văn bản</label><input type="text" id="ct-number" value="${esc(doc?.number || '')}" placeholder="VD: 152/SXD-GXD"></div>
       <div class="form-group"><label>Ngày ban hành</label><input type="date" id="ct-date" value="${doc?.date || ''}"></div>
@@ -1948,14 +1959,20 @@ async function removeChuTruPDF(pdfId) {
 
 function saveChuTruong() {
   const title = document.getElementById('ct-title').value.trim();
-  const agency = document.getElementById('ct-agency').value;
+  const agency = document.getElementById('ct-agency').value.trim();
+  const type = document.getElementById('ct-type').value;
   if (!title || !agency) { showToast('Vui lòng nhập tiêu đề và cơ quan ban hành', 'error'); return; }
+  // Cập nhật danh sách cơ quan (nếu gõ cơ quan mới)
+  if (agency && !CHU_TRUONG_AGENCIES.includes(agency)) {
+    CHU_TRUONG_AGENCIES.push(agency);
+  }
   const project = getCurrentProject();
   if (!project.initiations) project.initiations = [];
   if (chuTruongEditId) {
     const ini = project.initiations.find(i => i.id === chuTruongEditId);
     if (ini) {
       ini.title = title;
+      ini.type = type;
       ini.agency = agency;
       ini.number = document.getElementById('ct-number').value.trim();
       ini.date = toIso(document.getElementById('ct-date').value);
@@ -1965,16 +1982,16 @@ function saveChuTruong() {
   } else {
     project.initiations.push({
       id: generateId(),
-      title, agency,
+      title, type, agency,
       number: document.getElementById('ct-number').value.trim(),
       date: toIso(document.getElementById('ct-date').value),
       note: document.getElementById('ct-note').value.trim(),
       files: [...chuTruongFiles]
     });
   }
-  addAudit(project, chuTruongEditId ? 'update' : 'create', 'chủ trương', title, `Cơ quan: ${agency}`);
+  addAudit(project, chuTruongEditId ? 'update' : 'create', 'pháp lý', title, `Cơ quan: ${agency}`);
   saveState(); closeModal(); renderInitiationView();
-  showToast('Đã lưu văn bản chủ trương');
+  showToast('Đã lưu văn bản pháp lý');
 }
 
 function editChuTruong(iniId) {
@@ -1992,7 +2009,7 @@ function deleteChuTruong(iniId) {
   openModal('Xác nhận xóa', `
     <div class="confirm-content">
       <span class="material-symbols-rounded">warning</span>
-      <p>Xóa văn bản chủ trương:</p><p class="confirm-name">"${esc(ini.title || ini.name || '')}"?</p>
+      <p>Xóa văn bản pháp lý:</p><p class="confirm-name">"${esc(ini.title || ini.name || '')}"?</p>
     </div>`, `
     <button class="btn btn-secondary" onclick="closeModal()">Hủy</button>
     <button class="btn btn-danger" onclick="confirmDeleteChuTruong('${iniId}')"><span class="material-symbols-rounded">delete</span> Xóa</button>
@@ -2003,7 +2020,7 @@ function confirmDeleteChuTruong(iniId) {
   const ini = project.initiations?.find(i => i.id === iniId);
   (ini?.files || []).forEach(f => apiDeletePDF(f.id).catch(() => { }));
   project.initiations = (project.initiations || []).filter(i => i.id !== iniId);
-  addAudit(project, 'delete', 'chủ trương', ini.title);
+  addAudit(project, 'delete', 'pháp lý', ini.title);
   saveState(); closeModal(); renderInitiationView(); showToast('Đã xóa văn bản', 'info');
 }
 
@@ -2013,9 +2030,10 @@ function openChuTruongDetail(iniId) {
   const ini = project.initiations?.find(i => i.id === iniId);
   if (!ini) return;
   const files = ini.files || [];
-  openModal('Chi tiết văn bản chủ trương', `
+  openModal('Chi tiết văn bản pháp lý', `
     <div class="detail-grid">
       <div class="detail-item full-width"><span class="detail-label">Tiêu đề</span><span class="detail-value">${esc(ini.title || ini.name || '')}</span></div>
+      <div class="detail-item"><span class="detail-label">Loại văn bản</span><span class="detail-value">${esc(ini.type || '—')}</span></div>
       <div class="detail-item"><span class="detail-label">Cơ quan</span><span class="detail-value">${esc(ini.agency || '—')}</span></div>
       <div class="detail-item"><span class="detail-label">Số văn bản</span><span class="detail-value">${esc(ini.number || '—')}</span></div>
       <div class="detail-item"><span class="detail-label">Ngày ban hành</span><span class="detail-value">${formatDateVN(ini.date)}</span></div>
@@ -2382,10 +2400,47 @@ function togglePkgScopeFields() {
 let tempUploadedPDFs = [];
 let tempPayments = [];
 
+// Loại văn bản pháp lý tương ứng với từng ô chọn trong form gói thầu
+const LEGAL_KIND_TYPES = {
+  project: 'Phê duyệt dự án',
+  estimate: 'Phê duyệt dự toán',
+  khlcnt: 'Phê duyệt KHLCNT',
+  direct: 'Quyết định chỉ định thầu'
+};
+
+function getLegalDocsByKind(kind) {
+  return (getCurrentProject()?.initiations || []).filter(d => d.type === LEGAL_KIND_TYPES[kind]);
+}
+
+function getLegalDocLabel(d) {
+  const base = d.number || d.title || d.name || '—';
+  return d.date ? `${base} (${formatDateVN(d.date)})` : base;
+}
+
+// Chọn văn bản pháp lý -> tự điền các trường liên quan trong form gói thầu
+function applyLegalDocToPackage(kind) {
+  const id = document.getElementById('f-legal-' + kind)?.value;
+  const d = (getCurrentProject()?.initiations || []).find(i => i.id === id);
+  if (!d) return;
+  const set = (fid, val) => { const el = document.getElementById(fid); if (el && val) el.value = val; };
+  if (kind === 'khlcnt') {
+    set('f-khlcntNumber', d.number);
+    set('f-khlcntDate', toDmy(d.date));
+  } else if (kind === 'direct') {
+    set('f-directBasis', `QĐ chỉ định thầu số ${d.number || d.title || ''}${d.date ? ' ngày ' + toDmy(d.date) : ''}`.trim());
+  }
+}
+
 // ---- Package CRUD ----
 function getPackageFormHTML(pkg = null, catId = '') {
   const methods = SELECTION_METHODS;
   const effectiveScope = pkg ? (pkg.pkgScope || 'project') : (getCurrentProject()?.projectScope || 'project');
+  const legalSelectHTML = (kind, label) => {
+    const sel = pkg?.legalRefs?.[kind] || '';
+    const opts = getLegalDocsByKind(kind).map(d => `<option value="${esc(d.id)}" ${sel === d.id ? 'selected' : ''}>${esc(getLegalDocLabel(d))}</option>`).join('');
+    return `<div class="form-group"><label>${label}</label>
+        <select id="f-legal-${kind}" onchange="applyLegalDocToPackage('${kind}')"><option value="">— Chọn từ Pháp lý —</option>${opts}</select></div>`;
+  };
   const fundOptions = FUND_SOURCES.map(f => `<option value="${f}" ${(pkg?.fundSource || '') === f ? 'selected' : ''}>${f}</option>`).join('');
   const legacyFund = pkg?.fundSource && !FUND_SOURCES.includes(pkg.fundSource) ? `<option value="${esc(pkg.fundSource)}" selected>${esc(pkg.fundSource)}</option>` : '';
   const pdfs = pkg ? (pkg.pdfs || []) : tempUploadedPDFs;
@@ -2437,6 +2492,11 @@ function getPackageFormHTML(pkg = null, catId = '') {
           <strong style="color:var(--accent-cyan)">${PKG_TYPE_INFO[pkg?.pkgType || 'construction'].label}</strong> — ${PKG_TYPE_INFO[pkg?.pkgType || 'construction'].hint}
         </div>
       </div>
+      <div class="form-section-title"><span class="material-symbols-rounded">gavel</span> Căn cứ pháp lý (chọn từ mục Pháp lý)</div>
+      ${legalSelectHTML('project', 'QĐ phê duyệt dự án')}
+      ${legalSelectHTML('estimate', 'QĐ phê duyệt dự toán')}
+      ${legalSelectHTML('khlcnt', 'QĐ phê duyệt KHLCNT')}
+      ${legalSelectHTML('direct', 'QĐ chỉ định thầu')}
       <div class="form-section-title"><span class="material-symbols-rounded">payments</span> Thông tin tài chính</div>
       <div class="form-group">
         <label>Giá trị dự toán (VNĐ)</label>
@@ -2711,6 +2771,12 @@ function getPackageFormData() {
     bidValue: Number(document.getElementById('f-bidValue').value) || 0,
     fundSource: document.getElementById('f-fundSource').value.trim(),
     bidDecision: document.getElementById('f-bidDecision').value.trim(),
+    legalRefs: {
+      project: document.getElementById('f-legal-project').value,
+      estimate: document.getElementById('f-legal-estimate').value,
+      khlcnt: document.getElementById('f-legal-khlcnt').value,
+      direct: document.getElementById('f-legal-direct').value
+    },
     contract: document.getElementById('f-contract').value.trim(),
     selectionMethod: document.getElementById('f-selectionMethod').value,
     contractor: document.getElementById('f-contractor').value.trim(),
@@ -2967,6 +3033,12 @@ function viewPackageDetail(catId, pkgId) {
         <span class="detail-label">Loại hình mua sắm</span>
         <span class="detail-value">${esc(pkg.purchaseType)}</span>
       </div>` : ''}
+      ${Object.keys(LEGAL_KIND_TYPES).some(k => pkg.legalRefs?.[k]) ? `
+      <div class="detail-section-title">Căn cứ pháp lý</div>
+      ${Object.entries(LEGAL_KIND_TYPES).filter(([k]) => pkg.legalRefs?.[k]).map(([k, t]) => {
+        const d = (project?.initiations || []).find(i => i.id === pkg.legalRefs[k]);
+        return `<div class="detail-item"><span class="detail-label">${esc(t)}</span><span class="detail-value">${d ? esc(getLegalDocLabel(d)) : '—'}</span></div>`;
+      }).join('')}` : ''}
       <div class="detail-section-title">Thông tin hợp đồng</div>
       <div class="detail-item">
         <span class="detail-label">QĐ trúng thầu</span>
@@ -4008,7 +4080,7 @@ function openSysConfigModal() {
     </div>
 
     <div id="cfg-panel-lists" class="cfg-panel">
-      <div class="cfg-section-title">CƠ QUAN PHÊ DUYỆT CHỦ TRƯƠNG</div>
+      <div class="cfg-section-title">CƠ QUAN BAN HÀNH VĂN BẢN PHÁP LÝ</div>
       <textarea id="cfg-agencies" rows="3" style="width:100%">${esc(ag)}</textarea>
       <div class="cfg-section-title" style="margin-top:12px">DANH MỤC PHÂN LOẠI</div>
       <div class="cfg-grid">

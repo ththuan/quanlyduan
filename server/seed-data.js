@@ -15,33 +15,23 @@ module.exports = [
     initiations: [
       {
         id: 'ini-01',
-        name: 'Mua sắm trang thiết bị dạy học cho phòng thực hành',
-        type: 'Mua sắm tài sản',
-        fundSource: 'Kinh phí giao tự chủ',
-        unit: 'Phòng Quản trị - Trường CD KT-KT Cần Thơ',
-        requestDate: '2026-06-10',
-        estimatedCost: 1850000000,
-        status: 'Đã phê duyệt',
-        approvals: [
-          { step: 1, approver: 'Thủ trưởng đơn vị', date: '2026-06-15', decision: 'Đồng ý', comment: 'Đủ điều kiện phê duyệt chủ trương theo nguồn vốn tự chủ.' }
-        ],
-        decision: { number: '05/QĐ-KTKT', date: '2026-06-15' },
-        details: { assetName: 'Máy tính và máy chiếu phòng thực hành', quantity: '15 bộ', place: 'Phòng thực hành A201', purpose: 'Phục vụ giảng dạy thực hành' }
+        title: 'Phê duyệt dự toán mua sắm trang thiết bị dạy học cho phòng thực hành',
+        type: 'Phê duyệt dự toán',
+        agency: 'Trường Cao đẳng Kinh tế - Kỹ thuật Cần Thơ',
+        number: '05/QĐ-KTKT',
+        date: '2026-06-15',
+        note: 'Kinh phí giao tự chủ. Dự toán: 1.850.000.000 đ.',
+        files: []
       },
       {
         id: 'ini-02',
-        name: 'Cải tạo, nâng cấp nhà vệ sinh khu giảng đường',
-        type: 'Cải tạo, nâng cấp',
-        fundSource: 'Kinh phí không tự chủ',
-        unit: 'Ban quản lý dự án',
-        requestDate: '2026-07-01',
-        estimatedCost: 2600000000,
-        status: 'Đang thẩm định',
-        approvals: [
-          { step: 1, approver: 'Sở Tài chính', date: '2026-07-10', decision: 'Đồng ý', comment: 'Hồ sơ đủ điều kiện, chờ cấp có thẩm quyền phê duyệt.' }
-        ],
-        decision: null,
-        details: { scope: 'Sửa chữa toàn bộ hệ thống vệ sinh, thay mái lợp và điện nước khu vệ sinh giảng đường', location: 'Khu giảng đường dãy D,E', scale: 'Khối lượng: 02 khối vệ sinh mỗi tầng × 01 khu', kind: 'Cải tạo' }
+        title: 'Phê duyệt dự án cải tạo, nâng cấp nhà vệ sinh khu giảng đường',
+        type: 'Phê duyệt dự án',
+        agency: 'Sở Tài chính',
+        number: '',
+        date: '2026-07-10',
+        note: 'Kinh phí không tự chủ. Dự kiến 2.600.000.000 đ.',
+        files: []
       }
     ],
     categories: [
