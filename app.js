@@ -387,8 +387,7 @@ function formatPercent(n) {
 
 function isPackageComplete(pkg) {
   if (!pkg) return false;
-  return (pkg.acceptanceStatus === 'Đã nghiệm thu' || pkg.settlementStatus === 'Đã quyết toán')
-      && pkg.invoiceValue >= (pkg.bidValue || 0);
+  return pkg.acceptanceStatus === 'Đã nghiệm thu' && (pkg.acceptanceValue || 0) > 0;
 }
 
 function formatFileSize(bytes) {
@@ -459,6 +458,7 @@ function getContractRoute(pkg) {
 function computeContractAlerts(pkg) {
   const alerts = [];
   if (!pkg) return alerts;
+  if (isPackageComplete(pkg)) return alerts;
 
   // 1) Cảnh báo trễ hạn hợp đồng (tránh nhà thầu kéo dài thời gian không được ký phụ lục gia hạn hợp pháp)
   if (pkg.contractEndDate && pkg.progress < 100) {
@@ -481,23 +481,6 @@ function computeContractAlerts(pkg) {
   }
   if (!pkg.invoiceDate && pkg.acceptanceDate) {
     alerts.push({ level: 'warning', icon: 'receipt_long', message: `Gói "${pkg.name}": đã nghiệm thu (${formatDateVN(pkg.acceptanceDate)}) nhưng chưa xuất HĐ GTGT đồng bộ.` });
-  }
-
-  // 4) Cảnh báo hạn nộp hồ sơ quyết toán (4 tháng kể từ bàn giao) — chỉ áp dụng cho construction/mixed/goods
-  if (pkg.pkgType !== 'consulting' && pkg.pkgType !== 'nonConsulting') {
-  if (pkg.handoverDate && pkg.settlementStatus !== 'Đã quyết toán') {
-    const deadline = addMonths(pkg.handoverDate, 4);
-    if (deadline) {
-      const d = daysUntil(deadline);
-      if (d != null && d <= 60) {
-        const level = d < 0 ? 'danger' : (d <= 30 ? 'danger' : 'warning');
-        const msg = d < 0
-          ? `Gói "${pkg.name}": QUÁ HẠN nộp hồ sơ quyết toán ${-d} ngày (bàn giao ${formatDateVN(pkg.handoverDate)}, hạn ${formatDateVN(deadline)}). Cần lập văn bản đôn đốc nhà thầu theo Mẫu 02/QTDA.`
-          : `Gói "${pkg.name}": còn ${d} ngày đến hạn nộp hồ sơ quyết toán (bàn giao ${formatDateVN(pkg.handoverDate)}). Cần đôn đốc nhà thầu nếu chưa nộp.`;
-        alerts.push({ level, icon: 'warning', message: msg });
-      }
-    }
-  }
   }
 
   return alerts;
@@ -604,18 +587,6 @@ function computeAlerts(project) {
         }
       }
 
-      // Nâng cấp: chậm quyết toán gói đã hoàn thành lâu
-      if (pkg.acceptanceDate && (!pkg.settlementStatus || pkg.settlementStatus === 'Chưa quyết toán')) {
-        const daysSince = -daysUntil(pkg.acceptanceDate);
-        if (daysSince != null) {
-          if (daysSince > 180) alerts.push({ level: 'danger', icon: 'receipt_long', message: `Gói thầu "${pkg.name}" đã nghiệm thu ${daysSince} ngày nhưng chưa quyết toán (quá 90-180 ngày theo quy định).` });
-          else if (daysSince > 90) alerts.push({ level: 'warning', icon: 'receipt_long', message: `Gói thầu "${pkg.name}" nghiệm thu ${daysSince} ngày, cần sớm hoàn thiện hồ sơ quyết toán (hạn 90 ngày sau quyết toán niên độ).` });
-        }
-      }
-
-      if (pkg.progress >= 100 && (!pkg.settlementStatus || pkg.settlementStatus === 'Chưa quyết toán')) {
-        alerts.push({ level: 'info', icon: 'receipt_long', message: `Gói thầu "${pkg.name}" đã hoàn thành nhưng chưa quyết toán` });
-      }
       // Module 2: Hợp đồng & Pháp lý — red flag tiến độ + ràng buộc hóa đơn
       computeContractAlerts(pkg).forEach(a => alerts.push(a));
     });
@@ -1005,16 +976,6 @@ function renderDashboard() {
       const d = daysUntil(pkg.handoverDate);
       if (d != null && d >= 0 && d <= 30) {
         timelineItems.push({ date: pkg.handoverDate, name: pkg.name, event: 'Bàn giao', days: d, urgent: d <= 7 });
-      }
-    }
-    // Settlement deadline (4 months from handover)
-    if (pkg.handoverDate && pkg.settlementStatus !== 'Đã quyết toán') {
-      const deadline = addMonths(pkg.handoverDate, 4);
-      if (deadline) {
-        const d = daysUntil(deadline);
-        if (d != null && d <= 60 && d >= -30) {
-          timelineItems.push({ date: deadline, name: pkg.name, event: 'Hạn nộp hồ sơ quyết toán (4 tháng từ bàn giao)', days: d, urgent: d <= 14 });
-        }
       }
     }
   });
