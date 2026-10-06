@@ -11,6 +11,7 @@ const express = require('express');
 const multer = require('multer');
 const XLSX = require('xlsx');
 const db = require('./db');
+const legal = require('./legal');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -92,6 +93,7 @@ app.get('/', (req, res) => res.sendFile(path.join(ROOT_DIR, 'index.html'), { hea
 app.get('/index.html', (req, res) => res.sendFile(path.join(ROOT_DIR, 'index.html'), { headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' } }));
 app.get('/login.html', (req, res) => res.sendFile(path.join(ROOT_DIR, 'login.html'), { headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' } }));
 app.get('/app.js', (req, res) => res.sendFile(path.join(ROOT_DIR, 'app.js'), { headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' } }));
+app.get('/legal-ui.js', (req, res) => res.sendFile(path.join(ROOT_DIR, 'legal-ui.js'), { headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' } }));
 app.get('/login.js', (req, res) => res.sendFile(path.join(ROOT_DIR, 'login.js'), { headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' } }));
 app.get('/style.css', (req, res) => res.sendFile(path.join(ROOT_DIR, 'style.css'), { headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' } }));
 app.get('/logoCTEC.png', (req, res) => res.sendFile(path.join(ROOT_DIR, 'logoCTEC.png'), { headers: { 'Cache-Control': 'public, max-age=31536000' } }));
@@ -607,6 +609,31 @@ app.get('/api/export/excel', requireAuth, (req, res) => {
   }
 });
 
+// ---- Kho văn bản pháp luật (tra cứu + nguồn cho chatbot) ----
+app.get('/api/legal/docs', requireAuth, (req, res) => {
+  res.json(legal.getDocuments());
+});
+
+app.get('/api/legal/doc/:id', requireAuth, (req, res) => {
+  const outline = legal.getOutline(req.params.id);
+  if (!outline.length) return res.status(404).json({ error: 'Không tìm thấy văn bản' });
+  res.json(outline);
+});
+
+app.get('/api/legal/article', requireAuth, (req, res) => {
+  const art = legal.getArticle(String(req.query.doc || ''), String(req.query.article || ''));
+  if (!art) return res.status(404).json({ error: 'Không tìm thấy điều khoản' });
+  res.json(art);
+});
+
+app.get('/api/legal/search', requireAuth, (req, res) => {
+  const q = String(req.query.q || '').trim().slice(0, 300);
+  if (!q) return res.json([]);
+  const docs = req.query.doc ? String(req.query.doc).split(',') : null;
+  const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 15, 1), 40);
+  res.json(legal.search(q, { limit, docs }));
+});
+
 // ---- AI Assistant (Gemini) ----
 const GEMINI_KEY = process.env.GEMINI_API_KEY || '';
 // Model đổi được qua env GEMINI_MODEL (không cần sửa code khi Google deprecate model)
@@ -616,8 +643,14 @@ const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GE
 app.post('/api/ai/chat', requireAuth, async (req, res) => {
   if (!GEMINI_KEY) return res.status(503).json({ error: 'Chưa cấu hình GEMINI_API_KEY' });
   try {
-    const { message } = req.body || {};
+    const { message, history } = req.body || {};
     if (!message) return res.status(400).json({ error: 'Thiếu nội dung tin nhắn' });
+    // Lịch sử hội thoại gần nhất (câu hỏi nối tiếp như "còn khoản 2?" cần ngữ cảnh)
+    const prior = (Array.isArray(history) ? history : []).slice(-6)
+      .filter(h => h && (h.role === 'user' || h.role === 'model') && typeof h.text === 'string')
+      .map(h => ({ role: h.role, parts: [{ text: h.text.slice(0, 2000) }] }));
+    const lastUser = [...prior].reverse().find(h => h.role === 'user')?.parts[0].text || '';
+    const legalCtx = legal.buildContext(`${message} ${lastUser.slice(0, 300)}`);
 
     // Build context from current project data
     const state = db.getState();
@@ -679,12 +712,23 @@ QUY TRÌNH CHÍNH:
 Khi trả lời hoặc đánh giá quy trình: xác định ngày phát sinh nghiệp vụ trước; chỉ viện dẫn văn bản đã có hiệu lực tại ngày đó. Nêu rõ nghị định áp dụng cho từng bước, hồ sơ còn thiếu, rủi ro và hành động tiếp theo. Không tự suy diễn số điều/khoản nếu dữ liệu hệ thống không cung cấp.
 
 LƯU Ý QUAN TRỌNG:
-- Hạn mức chỉ định thầu theo NĐ 349/2026 (sửa NĐ 214/2025): tư vấn 3 tỷ, phi tư vấn/hàng hóa/xây lắp/hỗn hợp 5 tỷ, mua sắm không dự án 1 tỷ; mua sắm trực tiếp ≤100 triệu.
+- Hạn mức chỉ định thầu (Khoản 4 Điều 78 NĐ 214/2025, đã sửa bởi NĐ 349/2026): gói thuộc dự toán mua sắm không hình thành dự án không quá 1 tỷ; gói tư vấn thuộc dự án không quá 3 tỷ; gói phi tư vấn, hàng hóa, xây lắp, hỗn hợp thuộc dự án không quá 5 tỷ.
+- Gói thầu hoặc nội dung mua sắm có giá không quá 100 triệu đồng: Thủ trưởng cơ quan, đơn vị mua sắm quyết định và tự chịu trách nhiệm, phải bảo đảm hóa đơn, chứng từ đầy đủ (Khoản 4 Điều 80 NĐ 214/2025, đã sửa bởi NĐ 349/2026).
 - Mua sắm, sửa chữa tài sản công tại đơn vị sự nghiệp công lập thực hiện theo Luật Quản lý, sử dụng tài sản công (97/VBHN-VPQH), NĐ 186/2025/NĐ-CP; tiêu chuẩn, định mức máy móc thiết bị theo QĐ 10/2026/QĐ-TTg.
-- Đối với mua sắm không hình thành dự án: nguồn kinh phí thường là quỹ phát triển sự nghiệp / chi thường xuyên; hạn mức chỉ định thầu 1 tỷ, trên 1 tỷ phải đấu thầu rộng rãi.
-- Quyết toán dự án hoàn thành phải nộp trong 4 tháng kể từ ngày bàn giao đưa vào sử dụng (NĐ 193/2026).
-- Mẫu biểu quyết toán hiện hành: TT 73/2026/TT-BTC (gồm Mẫu 01-12/QTDA).
+- Đối với mua sắm không hình thành dự án: nguồn kinh phí thường là quỹ phát triển sự nghiệp / chi thường xuyên; trên 1 tỷ phải đấu thầu rộng rãi.
+- Thời gian chủ đầu tư lập hồ sơ quyết toán tối đa (tính từ ngày bàn giao đưa vào sử dụng): dự án quan trọng quốc gia và nhóm A 09 tháng, nhóm B 06 tháng, nhóm C 04 tháng; thẩm tra tối đa 04 / 04 / 2,5 / 02 tháng; phê duyệt tối đa 15 / 15 / 10 / 07 ngày (Điều 21 NĐ 193/2026).
+- NĐ 193/2026 (hiệu lực 01/7/2026) bãi bỏ Điều 30-47 NĐ 254/2025 về quyết toán dự án; quyết toán dự án thực hiện theo NĐ 193/2026.
+- Mẫu biểu quyết toán hiện hành: TT 73/2026/TT-BTC (Mẫu 01-12/QTDA); dự án hoàn thành dùng Mẫu 01-07/QTDA.
 - Hóa đơn GTGT phải cùng ngày với biên bản nghiệm thu (NĐ 123/2020).
+
+QUY TẮC TRẢ LỜI PHÁP LUẬT:
+- Ưu tiên nội dung trong phần "CĂN CỨ PHÁP LUẬT TRÍCH TỪ KHO VĂN BẢN" bên dưới, đây là văn bản gốc do người dùng cung cấp. Khi nêu quy định pháp luật, ghi rõ nguồn dạng (Điều X, tên văn bản).
+- Chỉ nêu số điều, khoản, con số, thời hạn khi có trong các nguồn đã cung cấp. Nếu nguồn không đủ để trả lời, nói rõ "kho văn bản hiện chưa có nội dung này" và đề nghị kiểm tra văn bản gốc; không tự bịa.
+- Nguồn đánh dấu ĐÃ HẾT HIỆU LỰC không được áp dụng; nêu văn bản thay thế nếu có.
+- Kho văn bản hiện gồm: Luật Đấu thầu, NĐ 214/2025 (hợp nhất 36/2026), TT 79/2025, TT 134/2026 (+ Phụ lục), Luật Xây dựng (hợp nhất 146/2026), TT 36/2026/TT-BXD (hợp nhất 89/2026), NĐ 254/2025, NĐ 193/2026, TT 73/2026. Các NĐ 217, 206, 207, 209, 210, 212/2026 chưa có toàn văn trong kho: chỉ nói ở mức tổng quát và khuyến nghị kiểm tra văn bản gốc.
+
+CĂN CỨ PHÁP LUẬT TRÍCH TỪ KHO VĂN BẢN (theo câu hỏi hiện tại):
+${legalCtx.text || '(Không tìm thấy đoạn văn bản liên quan trong kho)'}
 
 DỮ LIỆU DỰ ÁN HIỆN TẠI:\n${context}`;
 
@@ -693,10 +737,8 @@ DỮ LIỆU DỰ ÁN HIỆN TẠI:\n${context}`;
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_KEY },
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: systemPrompt }] },
-        contents: [
-          { role: 'user', parts: [{ text: message }] }
-        ],
-        generationConfig: { temperature: 0.4, maxOutputTokens: 4000, topP: 0.9 }
+        contents: [...prior, { role: 'user', parts: [{ text: message }] }],
+        generationConfig: { temperature: 0.3, maxOutputTokens: 4000, topP: 0.9 }
       })
     });
     const data = await geminiRes.json();
@@ -705,7 +747,7 @@ DỮ LIỆU DỰ ÁN HIỆN TẠI:\n${context}`;
     const cand = data.candidates?.[0];
     const reply = (cand?.content?.parts || []).map(p => p.text || '').join('');
     if (!reply) throw new Error('Không có phản hồi từ AI');
-    res.json({ reply });
+    res.json({ reply, sources: legalCtx.sources });
   } catch (err) {
     res.status(500).json({ error: 'Lỗi AI: ' + err.message });
   }

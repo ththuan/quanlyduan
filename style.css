@@ -2546,3 +2546,62 @@ canvas {
   .pkg-table th, .report-table th { background: #f5f5f5; color: #333; }
   .pkg-table td, .report-table td { color: #333; }
 }
+
+/* ===== Thư viện pháp luật ===== */
+.legal-search { display: flex; gap: 10px; padding: 12px; margin-bottom: 14px; align-items: center; }
+.legal-search input { flex: 1; padding: 9px 12px; border: 1px solid var(--border-glass); border-radius: var(--radius-sm); font-family: inherit; font-size: 0.9rem; }
+.legal-search select { padding: 9px 10px; border: 1px solid var(--border-glass); border-radius: var(--radius-sm); font-family: inherit; max-width: 220px; }
+.legal-grid { display: grid; grid-template-columns: minmax(280px, 380px) 1fr; gap: 14px; align-items: start; }
+.legal-left { display: flex; flex-direction: column; gap: 8px; max-height: 72vh; overflow-y: auto; padding-right: 4px; }
+.legal-right { padding: 16px 20px; max-height: 72vh; overflow-y: auto; min-height: 240px; }
+.legal-group-title { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--accent-cyan); margin-top: 6px; }
+.legal-doc-card { padding: 10px 14px; cursor: pointer; }
+.legal-doc-card:hover, .legal-item:hover { border-color: var(--accent-cyan); background: rgba(6,182,212,.05); }
+.legal-doc-title { font-weight: 700; font-size: 0.9rem; }
+.legal-doc-sub { font-size: 0.78rem; color: var(--text-secondary); margin: 2px 0; }
+.legal-doc-meta { font-size: 0.72rem; color: var(--text-muted); }
+.legal-doc-summary { font-size: 0.75rem; color: var(--text-secondary); margin-top: 6px; line-height: 1.45; }
+.legal-docinfo { font-size: 0.8rem; line-height: 1.5; padding: 8px 10px; background: #f8fafc; border-radius: 8px; border: 1px solid var(--border-glass); }
+.legal-docinfo p { margin: 6px 0 0; color: var(--text-secondary); }
+.legal-outline-filter { padding: 7px 10px; border: 1px solid var(--border-glass); border-radius: var(--radius-sm); font-family: inherit; }
+.legal-item { padding: 8px 12px; border: 1px solid var(--border-glass); border-radius: 8px; background: #fff; cursor: pointer; }
+.legal-item.compact { font-size: 0.8rem; padding: 6px 10px; margin-bottom: 4px; }
+.legal-item-head { font-weight: 600; font-size: 0.85rem; }
+.legal-item-doc { font-size: 0.72rem; color: var(--accent-cyan); margin: 2px 0; }
+.legal-item-snippet { font-size: 0.78rem; color: var(--text-secondary); line-height: 1.45; }
+.legal-count, .legal-empty { font-size: 0.8rem; color: var(--text-muted); }
+.legal-viewer-doc { font-size: 0.78rem; color: var(--accent-cyan); font-weight: 600; }
+.legal-viewer-head h3 { margin: 4px 0; font-size: 1.05rem; }
+.legal-viewer-chapter { font-size: 0.75rem; color: var(--text-muted); }
+.legal-viewer-actions { display: flex; gap: 8px; margin: 10px 0 6px; flex-wrap: wrap; }
+.legal-warn { display: flex; gap: 8px; align-items: center; background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; padding: 8px 12px; border-radius: 8px; font-size: 0.82rem; margin: 8px 0; }
+.legal-text { margin-top: 10px; }
+.legal-p { margin: 0 0 8px; line-height: 1.6; font-size: 0.88rem; }
+.legal-p-head { font-weight: 700; }
+.legal-p-clause { padding-left: 0; }
+.legal-p-point { padding-left: 18px; }
+.legal-p-note { font-size: 0.75rem; color: var(--text-muted); border-left: 2px solid var(--border-glass); padding-left: 8px; }
+@media (max-width: 900px) { .legal-grid { grid-template-columns: 1fr; } .legal-left, .legal-right { max-height: none; } .legal-search { flex-wrap: wrap; } }
+
+/* ===== Lộ trình hình thành dự án ===== */
+.roadmap { padding: 12px 16px; margin-bottom: 14px; }
+.roadmap summary { cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.92rem; flex-wrap: wrap; }
+.roadmap summary .material-symbols-rounded { color: var(--accent-cyan); }
+.roadmap-progress { margin-left: auto; font-size: 0.78rem; color: var(--text-secondary); background: #f1f5f9; padding: 3px 10px; border-radius: 12px; }
+.roadmap-note { font-size: 0.78rem; color: var(--text-muted); margin: 8px 0; }
+.roadmap-stage { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--accent-cyan); margin: 12px 0 4px; border-bottom: 1px solid var(--border-glass); padding-bottom: 3px; }
+.roadmap-step { display: flex; gap: 10px; padding: 6px 0; }
+.roadmap-body { flex: 1; min-width: 0; }
+.roadmap-title { font-weight: 600; font-size: 0.86rem; }
+.roadmap-state { font-size: 0.68rem; font-weight: 600; padding: 1px 8px; border-radius: 10px; margin-left: 6px; background: #f1f5f9; color: var(--text-muted); }
+.roadmap-state.done { background: #dcfce7; color: #15803d; }
+.roadmap-state.missing { background: #fee2e2; color: #b91c1c; }
+.roadmap-detail { font-size: 0.78rem; color: #15803d; }
+.roadmap-hint { font-size: 0.78rem; color: var(--text-secondary); line-height: 1.45; margin: 2px 0; }
+.roadmap-basis { font-size: 0.74rem; color: var(--text-muted); display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+
+/* ===== Nguồn trích dẫn của chatbot ===== */
+.ai-sources { margin-top: 8px; padding-top: 6px; border-top: 1px dashed #cbd5e1; font-size: 0.72rem; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.ai-source { display: inline-block; padding: 1px 8px; border-radius: 10px; background: #e0f2fe; color: #0369a1; text-decoration: none; font-size: 0.72rem; }
+.ai-source:hover { background: #bae6fd; }
+.ai-source.repealed { background: #fee2e2; color: #b91c1c; text-decoration: line-through; }

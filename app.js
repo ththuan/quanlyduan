@@ -505,7 +505,7 @@ let SELECTION_METHODS = [
 // ---- Module 2: Hợp đồng & Pháp lý (NĐ 210/2026, NĐ 254/2025, NĐ 123/2020) ----
 // Hạn mức chỉ định thầu theo loại gói (khoản 4 Điều 78 NĐ 214/2025/NĐ-CP, sửa đổi bởi NĐ 349/2026/NĐ-CP)
 let CONTRACT_ROUTE_DIRECT_LIMITS = { consulting: 3000000000, construction: 5000000000, goods: 5000000000, mixed: 5000000000, nonConsulting: 5000000000, nonProject: 1000000000 };
-let CONTRACT_ROUTE_DIRECT_PURCHASE_LIMIT = 100000000; // ngưỡng mua sắm trực tiếp (khoản 4 Điều 80 NĐ 214/2025/NĐ-CP, sửa đổi bởi NĐ 349/2026/NĐ-CP)
+let CONTRACT_ROUTE_DIRECT_PURCHASE_LIMIT = 100000000; // gói thầu/nội dung mua sắm không quá 100 triệu: Thủ trưởng quyết định (khoản 4 Điều 80 NĐ 214/2025/NĐ-CP, sửa đổi bởi NĐ 349/2026/NĐ-CP)
 
 let CONTRACT_ROUTE_KTKT_LIMIT = 20000000000;      // ngưỡng bắt buộc lập BCNCKT
 // Độ dài ngày báo sớm cho cảnh báo đỏ tiến độ hợp đồng
@@ -520,7 +520,7 @@ function getDirectLimit(pkgType, scope) {
 // Đường phân nhánh hồ sơ hợp đồng theo giá trị gói + phạm vi (thuộc dự án / không hình thành dự án)
 function getContractRoute(pkg) {
   const v = Number(pkg?.bidValue) || 0;
-  if (v > 0 && v <= CONTRACT_ROUTE_DIRECT_PURCHASE_LIMIT) return { code: 'directPurchase', name: 'Mua sắm trực tiếp', hint: `Không quá ${Math.round(CONTRACT_ROUTE_DIRECT_PURCHASE_LIMIT/1e6)} triệu: thủ trưởng đơn vị quyết định, không cần quy trình LCNT` };
+  if (v > 0 && v <= CONTRACT_ROUTE_DIRECT_PURCHASE_LIMIT) return { code: 'directPurchase', name: 'Thủ trưởng quyết định (≤100 triệu)', hint: `Không quá ${Math.round(CONTRACT_ROUTE_DIRECT_PURCHASE_LIMIT/1e6)} triệu: Thủ trưởng đơn vị quyết định và tự chịu trách nhiệm, không cần quy trình chỉ định thầu nhưng phải đủ hóa đơn, chứng từ (khoản 4 Điều 80 NĐ 214/2025)` };
   // Mua sắm không hình thành dự án: hạn mức chỉ định thầu 1 tỷ, trên 1 tỷ phải đấu thầu rộng rãi
   if (pkg?.pkgScope === 'nonProject') {
     const d = CONTRACT_ROUTE_DIRECT_LIMITS.nonProject;
@@ -2460,6 +2460,7 @@ function renderInitiationChuTruongList() {
 
 function renderInitiationView() {
   renderInitiationChuTruongList();
+  if (typeof renderLegalRoadmap === 'function') renderLegalRoadmap();
 }
 
 // ---- Form thêm / sửa ----
@@ -2997,47 +2998,10 @@ function togglePkgScopeFields() {
 let tempUploadedPDFs = [];
 let tempPayments = [];
 
-// Nhãn các ô chọn văn bản pháp lý trong form gói thầu
-const LEGAL_KIND_TYPES = {
-  project: 'Phê duyệt dự án',
-  estimate: 'Phê duyệt dự toán',
-  khlcnt: 'Phê duyệt KHLCNT',
-  direct: 'Quyết định chỉ định thầu'
-};
-
-function getLegalDocsByKind() {
-  return getCurrentProject()?.initiations || [];
-}
-
-function getLegalDocLabel(d) {
-  const base = [d.number, d.title || d.name].filter(Boolean).join(' — ') || '—';
-  return d.date ? `${base} (${formatDateVN(d.date)})` : base;
-}
-
-// Chọn văn bản pháp lý -> tự điền các trường liên quan trong form gói thầu
-function applyLegalDocToPackage(kind) {
-  const id = document.getElementById('f-legal-' + kind)?.value;
-  const d = (getCurrentProject()?.initiations || []).find(i => i.id === id);
-  if (!d) return;
-  const set = (fid, val) => { const el = document.getElementById(fid); if (el && val) el.value = val; };
-  if (kind === 'khlcnt') {
-    set('f-khlcntNumber', d.number);
-    set('f-khlcntDate', toDmy(d.date));
-  } else if (kind === 'direct') {
-    set('f-directBasis', `QĐ chỉ định thầu số ${d.number || d.title || ''}${d.date ? ' ngày ' + toDmy(d.date) : ''}`.trim());
-  }
-}
-
 // ---- Package CRUD ----
 function getPackageFormHTML(pkg = null, catId = '') {
   const methods = SELECTION_METHODS;
   const effectiveScope = pkg ? (pkg.pkgScope || 'project') : (getCurrentProject()?.projectScope || 'project');
-  const legalSelectHTML = (kind, label) => {
-    const sel = pkg?.legalRefs?.[kind] || '';
-    const opts = getLegalDocsByKind().map(d => `<option value="${esc(d.id)}" ${sel === d.id ? 'selected' : ''}>${esc(getLegalDocLabel(d))}</option>`).join('');
-    return `<div class="form-group"><label>${label}</label>
-        <select id="f-legal-${kind}" onchange="applyLegalDocToPackage('${kind}')"><option value="">— Chọn từ Pháp lý —</option>${opts}</select></div>`;
-  };
   const fundOptions = FUND_SOURCES.map(f => `<option value="${f}" ${(pkg?.fundSource || '') === f ? 'selected' : ''}>${f}</option>`).join('');
   const legacyFund = pkg?.fundSource && !FUND_SOURCES.includes(pkg.fundSource) ? `<option value="${esc(pkg.fundSource)}" selected>${esc(pkg.fundSource)}</option>` : '';
   const pdfs = pkg ? (pkg.pdfs || []) : tempUploadedPDFs;
@@ -3089,11 +3053,6 @@ function getPackageFormHTML(pkg = null, catId = '') {
           <strong style="color:var(--accent-cyan)">${PKG_TYPE_INFO[pkg?.pkgType || 'construction'].label}</strong> — ${PKG_TYPE_INFO[pkg?.pkgType || 'construction'].hint}
         </div>
       </div>
-      <div class="form-section-title"><span class="material-symbols-rounded">gavel</span> Căn cứ pháp lý (chọn từ mục Pháp lý)</div>
-      ${legalSelectHTML('project', 'QĐ phê duyệt dự án')}
-      ${legalSelectHTML('estimate', 'QĐ phê duyệt dự toán')}
-      ${legalSelectHTML('khlcnt', 'QĐ phê duyệt KHLCNT')}
-      ${legalSelectHTML('direct', 'QĐ chỉ định thầu')}
       <div class="form-section-title"><span class="material-symbols-rounded">payments</span> Thông tin tài chính</div>
       <div class="form-group">
         <label>Giá trị dự toán (VNĐ)</label>
@@ -3113,8 +3072,8 @@ function getPackageFormHTML(pkg = null, catId = '') {
       </div>
       <div class="form-section-title"><span class="material-symbols-rounded">description</span> Thông tin hợp đồng</div>
       <div class="form-group">
-        <label>QĐ trúng thầu</label>
-        <input type="text" id="f-bidDecision" value="${esc(pkg?.bidDecision || '')}">
+        <label>Quyết định phê duyệt kết quả</label>
+        <input type="text" id="f-bidDecision" value="${esc(pkg?.bidDecision || '')}" placeholder="Số quyết định phê duyệt kết quả lựa chọn nhà thầu">
       </div>
       <div class="form-group">
         <label>Hợp đồng</label>
@@ -3369,12 +3328,6 @@ function getPackageFormData() {
     bidValue: Number(document.getElementById('f-bidValue').value) || 0,
     fundSource: document.getElementById('f-fundSource').value.trim(),
     bidDecision: document.getElementById('f-bidDecision').value.trim(),
-    legalRefs: {
-      project: document.getElementById('f-legal-project').value,
-      estimate: document.getElementById('f-legal-estimate').value,
-      khlcnt: document.getElementById('f-legal-khlcnt').value,
-      direct: document.getElementById('f-legal-direct').value
-    },
     contract: document.getElementById('f-contract').value.trim(),
     selectionMethod: document.getElementById('f-selectionMethod').value,
     contractor: document.getElementById('f-contractor').value.trim(),
@@ -3635,15 +3588,9 @@ function viewPackageDetail(catId, pkgId) {
         <span class="detail-label">Loại hình mua sắm</span>
         <span class="detail-value">${esc(pkg.purchaseType)}</span>
       </div>` : ''}
-      ${Object.keys(LEGAL_KIND_TYPES).some(k => pkg.legalRefs?.[k]) ? `
-      <div class="detail-section-title">Căn cứ pháp lý</div>
-      ${Object.entries(LEGAL_KIND_TYPES).filter(([k]) => pkg.legalRefs?.[k]).map(([k, t]) => {
-        const d = (project?.initiations || []).find(i => i.id === pkg.legalRefs[k]);
-        return `<div class="detail-item"><span class="detail-label">${esc(t)}</span><span class="detail-value">${d ? esc(getLegalDocLabel(d)) : '—'}</span></div>`;
-      }).join('')}` : ''}
       <div class="detail-section-title">Thông tin hợp đồng</div>
       <div class="detail-item">
-        <span class="detail-label">QĐ trúng thầu</span>
+        <span class="detail-label">Quyết định phê duyệt kết quả</span>
         <span class="detail-value">${esc(pkg.bidDecision || '—')}</span>
       </div>
       <div class="detail-item">
@@ -4541,6 +4488,7 @@ function switchView(viewName) {
   else if (viewName === 'packages') renderPackages();
   else if (viewName === 'initiation') renderInitiationView();
   else if (viewName === 'qtda') renderQtdaView();
+  else if (viewName === 'legal') renderLegalLibrary();
   else if (viewName === 'reports') renderReports();
 }
 
@@ -4550,6 +4498,7 @@ function renderAll() {
   else if (state.currentView === 'packages') renderPackages();
   else if (state.currentView === 'initiation') renderInitiationView();
   else if (state.currentView === 'qtda') renderQtdaView();
+  else if (state.currentView === 'legal') renderLegalLibrary();
   else if (state.currentView === 'reports') renderReports();
 }
 
@@ -4791,7 +4740,7 @@ function openSysConfigModal() {
       </div>
       <div class="cfg-section-title" style="margin-top:12px">NGƯỠNG KHÁC</div>
       <div class="cfg-grid">
-        <div class="cfg-row"><label>Mua sắm trực tiếp (≤)</label><input id="cfg-limit-directPurchase" type="number" step="1" value="${lim.directPurchase ?? 100000000}"></div>
+        <div class="cfg-row"><label>Thủ trưởng quyết định (≤)</label><input id="cfg-limit-directPurchase" type="number" step="1" value="${lim.directPurchase ?? 100000000}"></div>
         <div class="cfg-row"><label>Bắt buộc BCNCKT</label><input id="cfg-limit-ktkt" type="number" step="1" value="${lim.ktkt ?? 20000000000}"></div>
         <div class="cfg-row"><label>Cảnh báo trước hạn HĐ (ngày)</label><input id="cfg-deadline-days" type="number" step="1" value="${cfg.contractDeadlineWarnDays ?? 30}"></div>
       </div>
@@ -4831,6 +4780,7 @@ function openSysConfigModal() {
         <div class="cfg-legal-doc">
           <span class="doc-type">${esc(d.type)}</span>
           <span class="doc-title">${esc(d.number)} — ${esc(d.title)}</span>
+          ${d.kbId ? `<a href="#" class="ai-source" onclick="closeModal();openLegalDoc('${esc(d.kbId)}');return false">Có toàn văn — xem</a>` : '<span class="badge badge-neutral" style="font-size:0.65rem">Chưa có toàn văn trong thư viện</span>'}
           <div class="doc-meta">
             Ban hành: ${formatDateVN(d.date)} &bull; Hiệu lực: <strong>${formatDateVN(d.effectiveDate)}</strong>
             ${d.replaces ? `&bull; Thay thế: <em>${esc(d.replaces.join(', '))}</em>` : ''}
@@ -5108,6 +5058,8 @@ document.getElementById('btn-ai-close')?.addEventListener('click', function() {
   document.getElementById('ai-chat-panel').classList.add('hidden');
 });
 
+var aiHistory = [];
+
 async function aiSend(msg) {
   var input = document.getElementById('ai-chat-input');
   var text = msg || input.value.trim();
@@ -5141,7 +5093,7 @@ async function aiSend(msg) {
     var res = await fetch('/api/ai/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: text })
+      body: JSON.stringify({ message: text, history: aiHistory.slice(-6) })
     });
     var data = await res.json();
     loadDiv.remove();
@@ -5149,6 +5101,8 @@ async function aiSend(msg) {
     botDiv.className = 'ai-msg ai-msg-bot';
     if (res.ok) {
       botDiv.innerHTML = renderMarkdown(data.reply);
+      if (typeof aiRenderSources === 'function') aiRenderSources(botDiv, data.sources);
+      aiHistory.push({ role: 'user', text: text }, { role: 'model', text: data.reply });
     } else {
       botDiv.textContent = data.error || 'Lỗi kết nối';
     }

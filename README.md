@@ -34,6 +34,12 @@ Hệ thống quản lý toàn diện các dự án đầu tư xây dựng — th
 - **6 báo cáo** đồng bộ: so sánh chi phí, gói chưa HĐ, gói hoàn thành, bảo hành, quyết toán, hợp đồng & pháp lý
 - **Xuất Excel** toàn bộ dữ liệu (4 sheet)
 
+### Thư viện pháp luật & chatbot
+- Tab **Tra cứu luật**: đọc và tìm kiếm điều khoản trong các văn bản ở thư mục `phaply/` (Luật Đấu thầu, NĐ 214/2025, TT 79/2025, TT 134/2026, Luật Xây dựng, TT 36/2026/TT-BXD, NĐ 254/2025, NĐ 193/2026, TT 73/2026).
+- Chatbot AI tự tra cứu kho văn bản trước khi trả lời và hiển thị nguồn (văn bản, Điều) dưới câu trả lời.
+- Mục **Pháp lý** có lộ trình hình thành dự án / quy trình mua sắm, tự đối chiếu hồ sơ đã nhập, mỗi bước kèm căn cứ pháp lý.
+- Cập nhật kho văn bản: chép PDF mới vào `phaply/`, khai báo trong `scripts/build-legal-kb.py`, chạy `pip install pypdf` rồi `python scripts/build-legal-kb.py` và commit `server/knowledge/legal-kb.json` (file PDF không đưa lên git).
+
 ### Hệ thống
 - **Phân quyền**: Admin / Guest (read-only)
 - **Audit trail**: ghi log mọi thao tác tạo/sửa/xóa

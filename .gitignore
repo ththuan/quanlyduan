@@ -12,3 +12,4 @@ cloudflared/config.yml
 *.pdf
 *.doc
 *.docx
+scratch/

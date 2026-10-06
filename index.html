@@ -56,6 +56,10 @@
           <span class="material-symbols-rounded">account_balance</span>
           <span>Quyết toán</span>
         </button>
+        <button class="nav-tab" data-view="legal">
+          <span class="material-symbols-rounded">menu_book</span>
+          <span>Tra cứu luật</span>
+        </button>
         <button class="nav-tab" data-view="reports">
           <span class="material-symbols-rounded">bar_chart</span>
           <span>Báo cáo</span>
@@ -164,6 +168,7 @@
           </button>
         </div>
       </div>
+      <div id="legal-roadmap"></div>
       <div id="initiations-container"></div>
     </section>
 
@@ -173,6 +178,14 @@
         <h2><span class="material-symbols-rounded">account_balance</span> Hồ sơ quyết toán dự án hoàn thành (TT 73/2026/TT-BTC)</h2>
       </div>
       <div id="qtda-container"></div>
+    </section>
+
+    <!-- Legal library -->
+    <section id="view-legal" class="view">
+      <div class="section-header">
+        <h2><span class="material-symbols-rounded">menu_book</span> Thư viện pháp luật</h2>
+      </div>
+      <div id="legal-container"></div>
     </section>
 
     <!-- Reports View -->
@@ -234,6 +247,7 @@
       <button onclick="aiSend('Đánh giá tổng quan dự án hiện tại')">Đánh giá dự án</button>
       <button onclick="aiSend('Gợi ý cải thiện tiến độ')">Gợi ý tiến độ</button>
       <button onclick="aiSend('Hướng dẫn quy trình quyết toán')">Hướng dẫn quyết toán</button>
+      <button onclick="aiSend('Dự án này còn thiếu hồ sơ pháp lý nào theo quy định?')">Còn thiếu pháp lý gì?</button>
     </div>
     <div class="ai-chat-input">
       <input type="text" id="ai-chat-input" placeholder="Nhập câu hỏi..." onkeydown="if(event.key==='Enter')aiSend()">
@@ -247,5 +261,6 @@
   <div id="toast-container"></div>
 
   <script src="app.js"></script>
+  <script src="legal-ui.js"></script>
 </body>
 </html>
