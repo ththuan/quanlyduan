@@ -2655,10 +2655,9 @@ function getPackageFormHTML(pkg = null, catId = '') {
         </div>
       </div>
 
-      <div data-show="construction goods mixed" class="pkg-show">
-      <div class="form-section-title"><span class="material-symbols-rounded">tenancy</span> Nghiệm thu khối lượng</div>
+      <div class="form-section-title"><span class="material-symbols-rounded">tenancy</span> Nghiệm thu hoàn thành</div>
       <div class="form-group">
-        <label>Giá trị KL công việc hoàn thành</label>
+        <label>Giá trị nghiệm thu hoàn thành (VNĐ)</label>
         <input type="number" id="f-acceptanceValue" value="${pkg?.acceptanceValue || ''}">
       </div>
       <div class="form-group">
@@ -2670,7 +2669,6 @@ function getPackageFormHTML(pkg = null, catId = '') {
       <div class="form-group">
         <label>Ngày nghiệm thu hoàn thành</label>
         <input type="date" id="f-acceptanceDate" value="${pkg?.acceptanceDate || ''}">
-      </div>
       </div>
 
       <div class="form-section-title"><span class="material-symbols-rounded">receipt</span> Hóa đơn GTGT (NĐ 123/2020)</div>
@@ -3144,9 +3142,9 @@ function viewPackageDetail(catId, pkgId) {
         <span class="detail-value"><span class="badge ${pkg.docAcceptStatus === 'Đã nghiệm thu' ? 'badge-success' : 'badge-warning'}">${pkg.docAcceptStatus || 'Chưa nghiệm thu'}</span></span>
       </div>
       ` : ''}
-      <div class="detail-section-title">Nghiệm thu khối lượng</div>
+      <div class="detail-section-title">Nghiệm thu hoàn thành</div>
       <div class="detail-item">
-        <span class="detail-label">Giá trị KL CV hoàn thành</span>
+        <span class="detail-label">Giá trị nghiệm thu hoàn thành</span>
         <span class="detail-value money">${formatCurrency(pkg.acceptanceValue)}</span>
       </div>
       <div class="detail-item">
