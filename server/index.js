@@ -386,7 +386,7 @@ app.post('/api/restore', requireAuth, requireAdmin, (req, res) => {
 
 // ---- Tự động sao lưu định kỳ (bảo vệ chống mất dữ liệu) ----
 const BACKUP_DIR = path.join(__dirname, 'data', 'backups');
-const MAX_AUTO_BACKUPS = 20;
+const MAX_AUTO_BACKUPS = 1; // chỉ giữ bản sao lưu gần nhất, tự xóa bản cũ
 const AUTO_BACKUP_INTERVAL_MS = Number(process.env.BACKUP_INTERVAL_HOURS || 6) * 3600 * 1000;
 
 function buildBackup() {
