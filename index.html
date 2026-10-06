@@ -124,11 +124,29 @@
             <span class="material-symbols-rounded">search</span>
             <input type="text" id="search-packages" placeholder="Tìm kiếm gói thầu...">
           </div>
+          <select id="filter-pkg-status" title="Lọc theo trạng thái">
+            <option value="">Tất cả trạng thái</option>
+            <option value="notStarted">Chưa triển khai</option>
+            <option value="selecting">Đang lựa chọn nhà thầu</option>
+            <option value="signed">Đã ký hợp đồng</option>
+            <option value="executing">Đang thực hiện</option>
+            <option value="accepted">Đã nghiệm thu</option>
+            <option value="handedOver">Đã bàn giao</option>
+          </select>
+          <select id="filter-pkg-type" title="Lọc theo loại gói">
+            <option value="">Tất cả loại gói</option>
+            <option value="construction">Xây lắp</option>
+            <option value="consulting">Tư vấn</option>
+            <option value="goods">Hàng hóa</option>
+            <option value="mixed">Hỗn hợp</option>
+            <option value="nonConsulting">Phi tư vấn</option>
+          </select>
           <button id="btn-add-category" class="btn btn-primary edit-only">
             <span class="material-symbols-rounded">create_new_folder</span> Thêm danh mục
           </button>
         </div>
       </div>
+      <div id="pkg-status-summary" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px"></div>
       <div id="categories-container"></div>
     </section>
 

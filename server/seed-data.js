@@ -16,7 +16,6 @@ module.exports = [
       {
         id: 'ini-01',
         title: 'Phê duyệt dự toán mua sắm trang thiết bị dạy học cho phòng thực hành',
-        type: 'Phê duyệt dự toán',
         agency: 'Trường Cao đẳng Kinh tế - Kỹ thuật Cần Thơ',
         number: '05/QĐ-KTKT',
         date: '2026-06-15',
@@ -26,7 +25,6 @@ module.exports = [
       {
         id: 'ini-02',
         title: 'Phê duyệt dự án cải tạo, nâng cấp nhà vệ sinh khu giảng đường',
-        type: 'Phê duyệt dự án',
         agency: 'Sở Tài chính',
         number: '',
         date: '2026-07-10',

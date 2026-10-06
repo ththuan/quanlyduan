@@ -284,6 +284,15 @@ async function loadState() {
         pkg.deliverables = pkg.deliverables || [];
         pkg.payments = pkg.payments || [];
         pkg.variations = pkg.variations || [];
+        pkg.acceptances = pkg.acceptances || [];
+        // Số nghiệm thu cũ (1 giá trị) -> đợt nghiệm thu đầu tiên
+        if (!pkg.acceptances.length && (pkg.acceptanceValue || 0) > 0) {
+          pkg.acceptances.push({
+            id: generateId(), date: pkg.acceptanceDate || '', value: pkg.acceptanceValue,
+            doc: pkg.acceptanceRecord || '', note: 'Chuyển từ số liệu nghiệm thu cũ',
+            final: pkg.acceptanceStatus === 'Đã nghiệm thu'
+          });
+        }
         pkg.documentChecklist = pkg.documentChecklist || [];
         pkg.pdfs = pkg.pdfs || [];
       });
@@ -393,6 +402,74 @@ function isPackageComplete(pkg) {
   return pkg.acceptanceStatus === 'Đã nghiệm thu' && (pkg.acceptanceValue || 0) > 0;
 }
 
+// ---- Giá trị hợp đồng & nghiệm thu ----
+// Giá trị hợp đồng hiện hành = trúng thầu + phát sinh đã duyệt
+function getApprovedVariationTotal(pkg) {
+  return (pkg?.variations || []).filter(v => v.status === 'approved').reduce((s, v) => s + (Number(v.amount) || 0), 0);
+}
+
+function getCurrentContractValue(pkg) {
+  return (Number(pkg?.bidValue) || 0) + getApprovedVariationTotal(pkg);
+}
+
+// Đồng bộ các trường nghiệm thu tổng (dùng bởi báo cáo cũ) từ danh sách các đợt
+function syncPackageAcceptance(pkg) {
+  const list = pkg.acceptances || [];
+  pkg.acceptanceValue = list.reduce((s, a) => s + (Number(a.value) || 0), 0);
+  const dates = list.map(a => a.date).filter(Boolean).sort();
+  pkg.acceptanceDate = dates.length ? dates[dates.length - 1] : '';
+  if (list.some(a => a.final)) pkg.acceptanceStatus = 'Đã nghiệm thu';
+  else if (pkg.acceptanceStatus === 'Đã nghiệm thu') pkg.acceptanceStatus = ACCEPTANCE_STATUSES[0];
+}
+
+function getAcceptanceStats(pkg) {
+  const contract = getCurrentContractValue(pkg);
+  const accepted = Number(pkg?.acceptanceValue) || 0;
+  return {
+    contract,
+    accepted,
+    percent: contract > 0 ? accepted / contract * 100 : null,
+    remaining: contract > 0 ? contract - accepted : null,
+    saving: (pkg?.estimateValue > 0 && pkg?.bidValue > 0) ? pkg.estimateValue - pkg.bidValue : null
+  };
+}
+
+// ---- Trạng thái vòng đời gói thầu ----
+const PKG_STATUSES = {
+  notStarted: { label: 'Chưa triển khai', badge: 'badge-neutral' },
+  selecting: { label: 'Đang lựa chọn nhà thầu', badge: 'badge-info' },
+  signed: { label: 'Đã ký hợp đồng', badge: 'badge-info' },
+  executing: { label: 'Đang thực hiện', badge: 'badge-warning' },
+  accepted: { label: 'Đã nghiệm thu', badge: 'badge-success' },
+  handedOver: { label: 'Đã bàn giao', badge: 'badge-success' }
+};
+
+function hasValue(v) {
+  const s = String(v ?? '').trim();
+  return s !== '' && s !== '-';
+}
+
+function getPackageStatus(pkg) {
+  if (pkg.handoverDate) return 'handedOver';
+  if (isPackageComplete(pkg)) return 'accepted';
+  if (hasValue(pkg.contract) || pkg.contractSignDate) {
+    return ((pkg.acceptances || []).length || (pkg.progress || 0) > 0 || (pkg.acceptanceValue || 0) > 0) ? 'executing' : 'signed';
+  }
+  if (hasValue(pkg.khlcntNumber) || hasValue(pkg.hsmtNumber) || pkg.hsmtDate || pkg.bidOpenDate || pkg.bidCloseDate || hasValue(pkg.contractor)) return 'selecting';
+  return 'notStarted';
+}
+
+function getPackageStatusBadge(pkg) {
+  const s = PKG_STATUSES[getPackageStatus(pkg)];
+  return `<span class="badge ${s.badge}">${s.label}</span>`;
+}
+
+// Tiến độ hồ sơ theo checklist (chỉ tính mục bắt buộc)
+function getDocChecklistProgress(pkg) {
+  const items = (pkg.documentChecklist || []).flatMap(s => s.items || []).filter(i => i.required);
+  return { done: items.filter(i => i.done).length, total: items.length };
+}
+
 function formatFileSize(bytes) {
   if (bytes < 1024) return bytes + ' B';
   if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
@@ -461,7 +538,16 @@ function getContractRoute(pkg) {
 function computeContractAlerts(pkg) {
   const alerts = [];
   if (!pkg) return alerts;
+
+  const st = getAcceptanceStats(pkg);
+  if (st.contract > 0 && st.accepted > st.contract) {
+    alerts.push({ level: 'danger', icon: 'error', message: `Gói "${pkg.name}": giá trị nghiệm thu (${formatCurrency(st.accepted, true)}) vượt giá trị hợp đồng hiện hành (${formatCurrency(st.contract, true)}).` });
+  }
   if (isPackageComplete(pkg)) return alerts;
+
+  if (st.percent != null && pkg.pkgType === 'construction' && (pkg.progress || 0) > 0 && Math.abs((pkg.progress || 0) - st.percent) > 30) {
+    alerts.push({ level: 'warning', icon: 'compare_arrows', message: `Gói "${pkg.name}": tiến độ ${pkg.progress}% lệch nhiều so với nghiệm thu ${st.percent.toFixed(0)}% giá trị hợp đồng.` });
+  }
 
   // 1) Cảnh báo trễ hạn hợp đồng (tránh nhà thầu kéo dài thời gian không được ký phụ lục gia hạn hợp pháp)
   if (pkg.contractEndDate && pkg.progress < 100) {
@@ -1099,23 +1185,36 @@ function renderCapitalSummary() {
   `;
 }
 
-function renderPackages(searchTerm = '') {
+function renderPackages(searchTerm = document.getElementById('search-packages')?.value || '') {
   const project = getCurrentProject();
   const container = document.getElementById('categories-container');
   if (!project) { container.innerHTML = '<p style="color:var(--text-muted)">Chưa có dự án nào.</p>'; return; }
 
   const term = searchTerm.toLowerCase().trim();
+  const fStatus = document.getElementById('filter-pkg-status')?.value || '';
+  const fType = document.getElementById('filter-pkg-type')?.value || '';
+  const hasFilter = !!(term || fStatus || fType);
+  const matches = p => (!term || p.name.toLowerCase().includes(term) || p.contractor?.toLowerCase().includes(term))
+    && (!fStatus || getPackageStatus(p) === fStatus)
+    && (!fType || p.pkgType === fType);
+
+  const summaryEl = document.getElementById('pkg-status-summary');
+  if (summaryEl) {
+    const all = project.categories.flatMap(c => c.packages);
+    summaryEl.innerHTML = Object.entries(PKG_STATUSES).map(([k, s]) => {
+      const n = all.filter(p => getPackageStatus(p) === k).length;
+      return `<span class="badge ${s.badge}" style="cursor:pointer" onclick="setPkgStatusFilter('${k}')">${s.label}: ${n}</span>`;
+    }).join(' ');
+  }
 
   container.innerHTML = getSortedCategories(project).map((cat, ci) => {
-    const filteredPkgs = term
-      ? cat.packages.filter(p => p.name.toLowerCase().includes(term) || p.contractor?.toLowerCase().includes(term))
-      : cat.packages;
+    const filteredPkgs = hasFilter ? cat.packages.filter(matches) : cat.packages;
 
-    if (term && filteredPkgs.length === 0) return '';
+    if (hasFilter && filteredPkgs.length === 0) return '';
 
     const investTotal = getCatInvestTotal(cat);
     const estimateTotal = getCatEstimateTotal(cat);
-    const disbursedTotal = getCatDisbursedTotal(cat);
+    const acceptTotal = cat.packages.reduce((s, p) => s + (p.acceptanceValue || 0), 0);
 
     return `
     <div class="category-group" data-cat-id="${cat.id}">
@@ -1125,7 +1224,7 @@ function renderPackages(searchTerm = '') {
         <div class="category-stats">
           <span>Tổng mức đầu tư: <span class="stat-value">${formatCurrency(investTotal, true)}</span></span>
           <span>Dự toán: <span class="stat-value">${formatCurrency(estimateTotal, true)}</span></span>
-          <span>Giải ngân: <span class="stat-value">${formatCurrency(disbursedTotal, true)}</span></span>
+          <span>Nghiệm thu: <span class="stat-value">${formatCurrency(acceptTotal, true)}</span></span>
           <span>Gói: <span class="stat-value">${cat.packages.length}</span></span>
         </div>
         <div class="category-actions edit-only">
@@ -1149,21 +1248,27 @@ function renderPackages(searchTerm = '') {
                   <th style="width:48px">TT</th>
                   <th>Tên gói thầu</th>
                   <th>Dự toán</th>
+                  <th>Giá trị HĐ</th>
                   <th>Hình thức</th>
                   <th>Nhà thầu</th>
                   <th>Tiến độ</th>
-                  <th>Giải ngân LK</th>
+                  <th>Nghiệm thu</th>
+                  <th>Trạng thái</th>
+                  <th>Hồ sơ</th>
                   <th style="width:120px">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
                 ${filteredPkgs.map((pkg, pi) => {
       const progressClass = pkg.progress >= 100 ? 'complete' : pkg.progress >= 60 ? 'high' : pkg.progress >= 30 ? 'medium' : 'low';
+      const ast = getAcceptanceStats(pkg);
+      const docp = getDocChecklistProgress(pkg);
       return `
                   <tr>
                     <td>${pi + 1}</td>
                     <td class="pkg-name">${esc(pkg.name)}${pkg.pdfs?.length ? ' <span class="material-symbols-rounded" style="font-size:14px;color:var(--accent-amber)" title="Có file đính kèm">attach_file</span>' : ''}</td>
                     <td class="text-right">${pkg.estimateValue ? formatCurrency(pkg.estimateValue, true) : '—'}</td>
+                    <td class="text-right">${ast.contract ? formatCurrency(ast.contract, true) : '—'}${getApprovedVariationTotal(pkg) ? '<div style="font-size:0.7rem;color:var(--text-muted)">gồm phát sinh</div>' : ''}</td>
                     <td class="pkg-wrap">${esc(pkg.selectionMethod || '—')}</td>
                     <td class="pkg-wrap">${esc(pkg.contractor || '—')}</td>
                     <td>
@@ -1173,7 +1278,9 @@ function renderPackages(searchTerm = '') {
                       <span>${pkg.progress}%</span>
                       ` : '<span style="color:var(--text-muted);font-size:0.85rem">—</span>'}
                     </td>
-                    <td class="text-right">${pkg.cumulativeDisbursed ? formatCurrency(pkg.cumulativeDisbursed, true) : '—'}</td>
+                    <td class="text-right">${ast.accepted ? formatCurrency(ast.accepted, true) : '—'}${ast.percent != null && ast.accepted ? `<div style="font-size:0.7rem;color:${ast.percent > 100 ? 'var(--accent-red)' : 'var(--text-muted)'}">${ast.percent.toFixed(0)}% HĐ</div>` : ''}</td>
+                    <td>${getPackageStatusBadge(pkg)}</td>
+                    <td>${docp.total ? `<span class="badge ${docp.done === docp.total ? 'badge-success' : 'badge-neutral'}" title="Mục bắt buộc đã có hồ sơ">${docp.done}/${docp.total}</span>` : '—'}</td>
                     <td>
                       <div class="pkg-actions">
                         <button class="btn-icon btn-sm" title="Xem chi tiết" onclick="viewPackageDetail('${cat.id}','${pkg.id}')">
@@ -1411,11 +1518,47 @@ function renderReports() {
       </div>
     </div>
 
+    <!-- Package contract & acceptance summary -->
+    <div class="report-section">
+      <h3><span class="material-symbols-rounded">fact_check</span> Tổng hợp gói thầu: giá trị hợp đồng & nghiệm thu</h3>
+      <div class="report-table-wrapper">
+        <table class="report-table">
+          <thead>
+            <tr>
+              <th>TT</th><th>Tên gói thầu</th><th>Nhà thầu</th>
+              <th class="text-right">Giá trị HĐ hiện hành</th><th class="text-right">Nghiệm thu</th>
+              <th class="text-right">% NT</th><th class="text-right">Còn lại</th>
+              <th>Hạn hoàn thành</th><th>Trạng thái</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${allPkgs.map((p, i) => {
+    const st = getAcceptanceStats(p);
+    return `<tr>
+              <td>${i + 1}</td>
+              <td class="pkg-wrap">${esc(p.name)}</td>
+              <td>${esc(p.contractor || '—')}</td>
+              <td class="text-right">${st.contract ? formatCurrency(st.contract, true) : '—'}</td>
+              <td class="text-right">${st.accepted ? formatCurrency(st.accepted, true) : '—'}</td>
+              <td class="text-right">${st.percent != null ? formatPercent(st.percent) : '—'}</td>
+              <td class="text-right">${st.remaining != null ? formatCurrency(st.remaining, true) : '—'}</td>
+              <td>${formatDateVN(p.contractEndDate)}</td>
+              <td>${getPackageStatusBadge(p)}</td>
+            </tr>`;
+  }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
     <!-- Template Export -->
     <!-- Template Export -->
     <div class="report-section">
       <h3><span class="material-symbols-rounded">print</span> In & Xuất mẫu biểu báo cáo</h3>
       <div class="header-actions" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px">
+        <button class="btn btn-primary" onclick="exportPackageAcceptanceReport()">
+          <span class="material-symbols-rounded">fact_check</span> In bảng tổng hợp gói thầu & nghiệm thu
+        </button>
         <button class="btn btn-primary" onclick="exportFullProjectReport()">
           <span class="material-symbols-rounded">print</span> Báo cáo tổng hợp dự án & Giải ngân
         </button>
@@ -1595,6 +1738,74 @@ function exportFullProjectReport() {
   `);
 }
 
+function exportPackageAcceptanceReport() {
+  const project = getCurrentProject();
+  if (!project) return;
+  const today = new Date();
+  const allPkgs = project.categories.flatMap(c => c.packages);
+  const sum = (fn) => allPkgs.reduce((s, p) => s + fn(p), 0);
+  const totalContract = sum(p => getCurrentContractValue(p));
+  const totalAccepted = sum(p => p.acceptanceValue || 0);
+
+  openPrintWindow(`Tổng hợp gói thầu - ${esc(project.name)}`, `
+    <div class="print-header">
+      <h2>${esc(project.owner || 'CHỦ ĐẦU TƯ')}</h2>
+      <h3>DỰ ÁN: ${esc(project.fullName || project.name)}</h3>
+      <hr style="width: 30%; margin: 8px auto; border: 0.5px solid #000;">
+    </div>
+    <div class="print-title">BẢNG TỔNG HỢP GÓI THẦU, GIÁ TRỊ HỢP ĐỒNG VÀ NGHIỆM THU</div>
+    <div class="print-subtitle">Tính đến ngày ${today.getDate()}/${today.getMonth() + 1}/${today.getFullYear()}</div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:30px">TT</th><th>Tên gói thầu</th><th>Nhà thầu</th>
+          <th class="text-right">Dự toán</th><th class="text-right">Trúng thầu</th>
+          <th class="text-right">Phát sinh đã duyệt</th><th class="text-right">Giá trị HĐ hiện hành</th>
+          <th class="text-right">Nghiệm thu</th><th class="text-center">% NT</th><th>Trạng thái</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${allPkgs.map((p, i) => {
+    const st = getAcceptanceStats(p);
+    return `<tr>
+          <td class="text-center">${i + 1}</td>
+          <td>${esc(p.name)}</td>
+          <td>${esc(p.contractor || '—')}</td>
+          <td class="text-right">${formatCurrency(p.estimateValue)}</td>
+          <td class="text-right">${formatCurrency(p.bidValue)}</td>
+          <td class="text-right">${formatCurrency(getApprovedVariationTotal(p))}</td>
+          <td class="text-right">${formatCurrency(st.contract)}</td>
+          <td class="text-right">${formatCurrency(st.accepted)}</td>
+          <td class="text-center">${st.percent != null ? st.percent.toFixed(1) + '%' : '—'}</td>
+          <td>${PKG_STATUSES[getPackageStatus(p)].label}</td>
+        </tr>`;
+  }).join('')}
+        <tr class="total-row">
+          <td colspan="3" class="text-center">TỔNG CỘNG</td>
+          <td class="text-right">${formatCurrency(sum(p => p.estimateValue || 0))}</td>
+          <td class="text-right">${formatCurrency(sum(p => p.bidValue || 0))}</td>
+          <td class="text-right">${formatCurrency(sum(p => getApprovedVariationTotal(p)))}</td>
+          <td class="text-right">${formatCurrency(totalContract)}</td>
+          <td class="text-right">${formatCurrency(totalAccepted)}</td>
+          <td class="text-center">${totalContract > 0 ? (totalAccepted / totalContract * 100).toFixed(1) + '%' : '—'}</td>
+          <td></td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="sign-row">
+      <div class="sign-col">
+        <p><strong>NGƯỜI LẬP BÁO CÁO</strong></p>
+        <p style="margin-top:60px">(Ký, ghi rõ họ tên)</p>
+      </div>
+      <div class="sign-col">
+        <p>${esc(project.location || '.....')}, ngày ${today.getDate()} tháng ${today.getMonth() + 1} năm ${today.getFullYear()}</p>
+        <p><strong>ĐẠI DIỆN CHỦ ĐẦU TƯ</strong></p>
+        <p style="margin-top:60px">(Ký, ghi rõ họ tên, đóng dấu)</p>
+      </div>
+    </div>
+  `);
+}
+
 function exportPackagesReport() {
   const project = getCurrentProject();
   if (!project) return;
@@ -1746,7 +1957,6 @@ async function exportExcel(scope) {
 // Sở Xây dựng, UBND... liên quan đến dự án (phê duyệt dự án, dự toán, KHLCNT, chỉ định thầu...).
 // Dữ liệu lưu trong project.initiations: [{ id, type, title, agency, number, date, note, files:[{id,name,size}] }]
 let CHU_TRUONG_AGENCIES = ['Ủy ban nhân dân thành phố', 'Sở Tài chính', 'Sở Xây dựng', 'Cơ quan khác'];
-let LEGAL_DOC_TYPES = ['Phê duyệt dự án', 'Phê duyệt dự toán', 'Phê duyệt KHLCNT', 'Quyết định chỉ định thầu', 'Quyết định trúng thầu', 'Văn bản khác'];
 
 let chuTruongEditId = null;
 let chuTruongFiles = []; // PDF đang chờ lưu của hồ sơ đang mở
@@ -1811,7 +2021,6 @@ function renderInitiationChuTruongList() {
             <span>${esc(ini.title || ini.name || 'Chưa có tên')}</span>
           </div>
           <div class="ini-card-sub">
-            ${ini.type ? `<span class="tpl-chip" style="background:rgba(6,182,212,.1);color:var(--accent-cyan)">${esc(ini.type)}</span>` : ''}
             <span class="tpl-chip">${esc(ini.agency || '—')}</span>
             ${ini.number ? `<span>Số: <strong>${esc(ini.number)}</strong></span>` : ''}
           </div>
@@ -1819,7 +2028,6 @@ function renderInitiationChuTruongList() {
       </div>
 
       <div class="ini-meta">
-        <div class="ini-meta-item"><span class="label">Loại văn bản</span><span class="value">${esc(ini.type || '—')}</span></div>
         <div class="ini-meta-item"><span class="label">Cơ quan ban hành</span><span class="value">${esc(ini.agency || '—')}</span></div>
         <div class="ini-meta-item"><span class="label">Số văn bản</span><span class="value">${esc(ini.number || '—')}</span></div>
         <div class="ini-meta-item"><span class="label">Ngày ban hành</span><span class="value">${formatDateVN(ini.date)}</span></div>
@@ -1883,13 +2091,6 @@ function openChuTruongForm(doc = null) {
   openModal(doc ? 'Sửa văn bản pháp lý' : 'Thêm văn bản pháp lý', `
     <div class="form-grid">
       <div class="form-group full-width"><label>Tiêu đề văn bản *</label><input type="text" id="ct-title" value="${esc(doc?.title || '')}"></div>
-      <div class="form-group">
-        <label>Loại văn bản</label>
-        <select id="ct-type">
-          <option value="">— Chọn —</option>
-          ${LEGAL_DOC_TYPES.map(t => `<option value="${t}" ${doc?.type === t ? 'selected' : ''}>${t}</option>`).join('')}
-        </select>
-      </div>
       <div class="form-group">
         <label>Cơ quan ban hành *</label>
         <input type="text" id="ct-agency" list="ct-agency-list" value="${esc(doc?.agency || '')}" placeholder="Chọn hoặc gõ cơ quan mới">
@@ -1960,7 +2161,6 @@ async function removeChuTruPDF(pdfId) {
 function saveChuTruong() {
   const title = document.getElementById('ct-title').value.trim();
   const agency = document.getElementById('ct-agency').value.trim();
-  const type = document.getElementById('ct-type').value;
   if (!title || !agency) { showToast('Vui lòng nhập tiêu đề và cơ quan ban hành', 'error'); return; }
   // Cập nhật danh sách cơ quan (nếu gõ cơ quan mới)
   if (agency && !CHU_TRUONG_AGENCIES.includes(agency)) {
@@ -1972,7 +2172,6 @@ function saveChuTruong() {
     const ini = project.initiations.find(i => i.id === chuTruongEditId);
     if (ini) {
       ini.title = title;
-      ini.type = type;
       ini.agency = agency;
       ini.number = document.getElementById('ct-number').value.trim();
       ini.date = toIso(document.getElementById('ct-date').value);
@@ -1982,7 +2181,7 @@ function saveChuTruong() {
   } else {
     project.initiations.push({
       id: generateId(),
-      title, type, agency,
+      title, agency,
       number: document.getElementById('ct-number').value.trim(),
       date: toIso(document.getElementById('ct-date').value),
       note: document.getElementById('ct-note').value.trim(),
@@ -2033,7 +2232,6 @@ function openChuTruongDetail(iniId) {
   openModal('Chi tiết văn bản pháp lý', `
     <div class="detail-grid">
       <div class="detail-item full-width"><span class="detail-label">Tiêu đề</span><span class="detail-value">${esc(ini.title || ini.name || '')}</span></div>
-      <div class="detail-item"><span class="detail-label">Loại văn bản</span><span class="detail-value">${esc(ini.type || '—')}</span></div>
       <div class="detail-item"><span class="detail-label">Cơ quan</span><span class="detail-value">${esc(ini.agency || '—')}</span></div>
       <div class="detail-item"><span class="detail-label">Số văn bản</span><span class="detail-value">${esc(ini.number || '—')}</span></div>
       <div class="detail-item"><span class="detail-label">Ngày ban hành</span><span class="detail-value">${formatDateVN(ini.date)}</span></div>
@@ -2346,6 +2544,7 @@ function convertDateInputs() {
     text.placeholder = 'dd/mm/yyyy';
     text.id = inp.id;
     text.value = toDmy(inp.value);
+    text.readOnly = inp.readOnly;
     text.setAttribute('autocomplete', 'off');
     inp.replaceWith(text);
   });
@@ -2400,7 +2599,7 @@ function togglePkgScopeFields() {
 let tempUploadedPDFs = [];
 let tempPayments = [];
 
-// Loại văn bản pháp lý tương ứng với từng ô chọn trong form gói thầu
+// Nhãn các ô chọn văn bản pháp lý trong form gói thầu
 const LEGAL_KIND_TYPES = {
   project: 'Phê duyệt dự án',
   estimate: 'Phê duyệt dự toán',
@@ -2408,12 +2607,12 @@ const LEGAL_KIND_TYPES = {
   direct: 'Quyết định chỉ định thầu'
 };
 
-function getLegalDocsByKind(kind) {
-  return (getCurrentProject()?.initiations || []).filter(d => d.type === LEGAL_KIND_TYPES[kind]);
+function getLegalDocsByKind() {
+  return getCurrentProject()?.initiations || [];
 }
 
 function getLegalDocLabel(d) {
-  const base = d.number || d.title || d.name || '—';
+  const base = [d.number, d.title || d.name].filter(Boolean).join(' — ') || '—';
   return d.date ? `${base} (${formatDateVN(d.date)})` : base;
 }
 
@@ -2437,7 +2636,7 @@ function getPackageFormHTML(pkg = null, catId = '') {
   const effectiveScope = pkg ? (pkg.pkgScope || 'project') : (getCurrentProject()?.projectScope || 'project');
   const legalSelectHTML = (kind, label) => {
     const sel = pkg?.legalRefs?.[kind] || '';
-    const opts = getLegalDocsByKind(kind).map(d => `<option value="${esc(d.id)}" ${sel === d.id ? 'selected' : ''}>${esc(getLegalDocLabel(d))}</option>`).join('');
+    const opts = getLegalDocsByKind().map(d => `<option value="${esc(d.id)}" ${sel === d.id ? 'selected' : ''}>${esc(getLegalDocLabel(d))}</option>`).join('');
     return `<div class="form-group"><label>${label}</label>
         <select id="f-legal-${kind}" onchange="applyLegalDocToPackage('${kind}')"><option value="">— Chọn từ Pháp lý —</option>${opts}</select></div>`;
   };
@@ -2680,9 +2879,10 @@ function getPackageFormHTML(pkg = null, catId = '') {
       </div>
 
       <div class="form-section-title"><span class="material-symbols-rounded">tenancy</span> Nghiệm thu hoàn thành</div>
+      ${pkg?.acceptances?.length ? `<p class="form-hint" style="grid-column:1/-1;margin:0;font-size:0.78rem;color:var(--text-muted)">Giá trị và ngày tự tính từ các đợt nghiệm thu. Thêm/sửa đợt trong mục Chi tiết gói thầu.</p>` : ''}
       <div class="form-group">
         <label>Giá trị nghiệm thu hoàn thành (VNĐ)</label>
-        <input type="number" id="f-acceptanceValue" value="${pkg?.acceptanceValue || ''}">
+        <input type="number" id="f-acceptanceValue" value="${pkg?.acceptanceValue || ''}" ${pkg?.acceptances?.length ? 'readonly' : ''}>
       </div>
       <div class="form-group">
         <label>Trạng thái</label>
@@ -2692,7 +2892,7 @@ function getPackageFormHTML(pkg = null, catId = '') {
       </div>
       <div class="form-group">
         <label>Ngày nghiệm thu hoàn thành</label>
-        <input type="date" id="f-acceptanceDate" value="${pkg?.acceptanceDate || ''}">
+        <input type="date" id="f-acceptanceDate" value="${pkg?.acceptanceDate || ''}" ${pkg?.acceptances?.length ? 'readonly' : ''}>
       </div>
 
       <div class="form-section-title"><span class="material-symbols-rounded">receipt</span> Hóa đơn GTGT (NĐ 123/2020)</div>
@@ -2903,6 +3103,8 @@ function saveNewPackage(catId) {
   if (!cat) return;
   data.id = generateId();
   data.pdfs = [...tempUploadedPDFs];
+  data.acceptances = [];
+  ensureAcceptanceEntry(data);
   cat.packages.push(data);
   addAudit(project, 'create', 'gói thầu', data.name, `Danh mục: ${esc(cat.name || '')}`);
   saveState();
@@ -2935,6 +3137,8 @@ function saveEditPackage(catId, pkgId) {
   const pkg = cat?.packages.find(p => p.id === pkgId);
   if (!pkg) return;
   Object.assign(pkg, data);
+  pkg.acceptances = pkg.acceptances || [];
+  ensureAcceptanceEntry(pkg);
   addAudit(project, 'update', 'gói thầu', data.name, `Danh mục: ${esc(cat?.name || '')}`);
   saveState();
   closeModal();
@@ -3178,19 +3382,58 @@ function viewPackageDetail(catId, pkgId) {
         <span class="detail-value"><span class="badge ${pkg.docAcceptStatus === 'Đã nghiệm thu' ? 'badge-success' : 'badge-warning'}">${pkg.docAcceptStatus || 'Chưa nghiệm thu'}</span></span>
       </div>
       ` : ''}
-      <div class="detail-section-title">Nghiệm thu hoàn thành</div>
-      <div class="detail-item">
-        <span class="detail-label">Giá trị nghiệm thu hoàn thành</span>
-        <span class="detail-value money">${formatCurrency(pkg.acceptanceValue)}</span>
+      ${(() => {
+        const st = getAcceptanceStats(pkg);
+        const accs = [...(pkg.acceptances || [])].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+        const vars = pkg.variations || [];
+        const varStatus = { pending: 'Chờ duyệt', approved: 'Đã duyệt', rejected: 'Từ chối' };
+        return `
+      <div class="detail-section-title">Giá trị hợp đồng & nghiệm thu</div>
+      <div class="detail-item"><span class="detail-label">Trạng thái gói thầu</span><span class="detail-value">${getPackageStatusBadge(pkg)}</span></div>
+      <div class="detail-item"><span class="detail-label">Giá trị trúng thầu</span><span class="detail-value money">${formatCurrency(pkg.bidValue)}</span></div>
+      <div class="detail-item"><span class="detail-label">Phát sinh đã duyệt</span><span class="detail-value money">${formatCurrency(getApprovedVariationTotal(pkg))}</span></div>
+      <div class="detail-item"><span class="detail-label">Giá trị hợp đồng hiện hành</span><span class="detail-value money"><strong>${formatCurrency(st.contract)}</strong></span></div>
+      <div class="detail-item"><span class="detail-label">Giá trị nghiệm thu lũy kế</span><span class="detail-value money">${formatCurrency(st.accepted)}</span></div>
+      <div class="detail-item"><span class="detail-label">% nghiệm thu / hợp đồng</span><span class="detail-value">${st.percent != null ? `<span class="${st.percent > 100 ? 'badge badge-danger' : ''}">${formatPercent(st.percent)}</span>` : '—'}</span></div>
+      <div class="detail-item"><span class="detail-label">Còn lại chưa nghiệm thu</span><span class="detail-value money">${st.remaining != null ? formatCurrency(st.remaining) : '—'}</span></div>
+      <div class="detail-item"><span class="detail-label">Chênh lệch dự toán - trúng thầu</span><span class="detail-value money">${st.saving != null ? formatCurrency(st.saving) : '—'}</span></div>
+      <div class="detail-item"><span class="detail-label">Trạng thái nghiệm thu</span><span class="detail-value"><span class="badge ${pkg.acceptanceStatus === 'Đã nghiệm thu' ? 'badge-success' : 'badge-warning'}">${pkg.acceptanceStatus || 'Chưa nghiệm thu'}</span></span></div>
+      <div class="detail-item"><span class="detail-label">Ngày nghiệm thu gần nhất</span><span class="detail-value">${formatDateVN(pkg.acceptanceDate)}</span></div>
+
+      <div class="detail-section-title">Các đợt nghiệm thu
+        <button type="button" class="btn btn-secondary btn-sm edit-only" style="margin-left:8px" onclick="openAcceptanceForm('${catId}','${pkgId}')"><span class="material-symbols-rounded">add</span> Thêm đợt</button>
       </div>
-      <div class="detail-item">
-        <span class="detail-label">Trạng thái</span>
-        <span class="detail-value"><span class="badge ${pkg.acceptanceStatus === 'Đã nghiệm thu' ? 'badge-success' : 'badge-warning'}">${pkg.acceptanceStatus || 'Chưa nghiệm thu'}</span></span>
+      <div class="detail-item full-width">
+        ${accs.length ? `<table class="report-table"><thead><tr><th>Đợt</th><th>Ngày</th><th>Số biên bản</th><th class="text-right">Giá trị</th><th>Ghi chú</th><th></th></tr></thead><tbody>
+          ${accs.map((a, i) => `<tr>
+            <td>${i + 1}${a.final ? ' <span class="badge badge-success">Hoàn thành</span>' : ''}</td>
+            <td>${formatDateVN(a.date)}</td>
+            <td>${esc(a.doc || '—')}</td>
+            <td class="text-right">${formatCurrency(a.value)}</td>
+            <td>${esc(a.note || '')}</td>
+            <td class="edit-only" style="white-space:nowrap">
+              <button class="btn-icon btn-sm" title="Sửa" onclick="openAcceptanceForm('${catId}','${pkgId}','${a.id}')"><span class="material-symbols-rounded">edit</span></button>
+              <button class="btn-icon btn-sm" title="Xóa" onclick="deleteAcceptance('${catId}','${pkgId}','${a.id}')"><span class="material-symbols-rounded">delete</span></button>
+            </td></tr>`).join('')}
+        </tbody></table>` : '<p class="pdf-empty">Chưa có đợt nghiệm thu</p>'}
       </div>
-      <div class="detail-item">
-        <span class="detail-label">Ngày</span>
-        <span class="detail-value">${formatDateVN(pkg.acceptanceDate)}</span>
+
+      <div class="detail-section-title">Phát sinh khối lượng
+        <button type="button" class="btn btn-secondary btn-sm edit-only" style="margin-left:8px" onclick="addVariation('${catId}','${pkgId}')"><span class="material-symbols-rounded">add</span> Thêm phát sinh</button>
       </div>
+      <div class="detail-item full-width">
+        ${vars.length ? `<table class="report-table"><thead><tr><th>Ngày</th><th class="text-right">Giá trị</th><th>Trạng thái</th><th>Người duyệt</th><th>Lý do</th><th></th></tr></thead><tbody>
+          ${vars.map(v => `<tr>
+            <td>${formatDateVN(v.date)}</td>
+            <td class="text-right">${formatCurrency(v.amount)}</td>
+            <td>${varStatus[v.status] || esc(v.status || '')}</td>
+            <td>${esc(v.approvedBy || '—')}</td>
+            <td>${esc(v.reason || '')}</td>
+            <td class="edit-only"><button class="btn-icon btn-sm" title="Xóa" onclick="deleteVariation('${catId}','${pkgId}','${v.id}')"><span class="material-symbols-rounded">delete</span></button></td>
+          </tr>`).join('')}
+        </tbody></table>` : '<p class="pdf-empty">Chưa có phát sinh</p>'}
+      </div>`;
+      })()}
 
       <div class="detail-section-title">Hóa đơn GTGT (NĐ 123/2020)</div>
       <div class="detail-item">
@@ -3308,6 +3551,78 @@ function deleteDeliverable(catId, pkgId, delId) {
   showToast('Đã xóa sản phẩm giao nộp', 'info');
 }
 
+// Số nghiệm thu nhập trực tiếp trong form gói thầu -> đợt nghiệm thu đầu tiên
+function ensureAcceptanceEntry(pkg) {
+  if (pkg.acceptances.length || !(pkg.acceptanceValue > 0)) return;
+  pkg.acceptances.push({
+    id: generateId(), date: pkg.acceptanceDate || '', value: pkg.acceptanceValue,
+    doc: '', note: '', final: pkg.acceptanceStatus === 'Đã nghiệm thu'
+  });
+}
+
+function findPackage(catId, pkgId) {
+  const project = getCurrentProject();
+  const pkg = project?.categories?.find(c => c.id === catId)?.packages?.find(p => p.id === pkgId);
+  return { project, pkg };
+}
+
+function openAcceptanceForm(catId, pkgId, accId = null) {
+  if (!requireEditPermission()) return;
+  const { pkg } = findPackage(catId, pkgId);
+  if (!pkg) return;
+  const a = accId ? (pkg.acceptances || []).find(x => x.id === accId) : null;
+  openModal(a ? 'Sửa đợt nghiệm thu' : 'Thêm đợt nghiệm thu', `
+    <div class="form-grid" style="grid-template-columns:1fr 1fr">
+      <div class="form-group"><label>Ngày nghiệm thu</label><input type="date" id="acc-date" value="${a?.date || ''}"></div>
+      <div class="form-group"><label>Giá trị nghiệm thu (VNĐ) *</label><input type="number" id="acc-value" value="${a?.value ?? ''}"></div>
+      <div class="form-group"><label>Số biên bản</label><input type="text" id="acc-doc" value="${esc(a?.doc || '')}" placeholder="VD: 02/BBNT ngày ..."></div>
+      <div class="form-group" style="display:flex;align-items:flex-end"><label style="display:flex;align-items:center;gap:6px;text-transform:none;font-size:0.85rem"><input type="checkbox" id="acc-final" style="width:auto" ${a?.final ? 'checked' : ''}> Nghiệm thu hoàn thành (đợt cuối)</label></div>
+      <div class="form-group full-width"><label>Ghi chú / khối lượng</label><textarea id="acc-note">${esc(a?.note || '')}</textarea></div>
+    </div>
+  `, `
+    <button class="btn btn-secondary" onclick="viewPackageDetail('${catId}','${pkgId}')">Hủy</button>
+    <button class="btn btn-primary" onclick="saveAcceptance('${catId}','${pkgId}','${accId || ''}')">Lưu</button>
+  `);
+}
+
+function saveAcceptance(catId, pkgId, accId) {
+  const { project, pkg } = findPackage(catId, pkgId);
+  if (!pkg) return;
+  const value = Number(document.getElementById('acc-value').value);
+  if (!(value > 0)) { showToast('Vui lòng nhập giá trị nghiệm thu', 'error'); return; }
+  pkg.acceptances = pkg.acceptances || [];
+  const entry = {
+    date: toIso(document.getElementById('acc-date').value),
+    value,
+    doc: document.getElementById('acc-doc').value.trim(),
+    note: document.getElementById('acc-note').value.trim(),
+    final: document.getElementById('acc-final').checked
+  };
+  const existing = accId ? pkg.acceptances.find(x => x.id === accId) : null;
+  if (existing) Object.assign(existing, entry);
+  else pkg.acceptances.push({ id: generateId(), ...entry });
+  syncPackageAcceptance(pkg);
+  addAudit(project, existing ? 'update' : 'create', 'nghiệm thu', pkg.name, `Đợt ${pkg.acceptances.length}: ${formatCurrency(value)}`);
+  saveState();
+  closeModal();
+  viewPackageDetail(catId, pkgId);
+  renderAll();
+  showToast('Đã lưu đợt nghiệm thu');
+}
+
+function deleteAcceptance(catId, pkgId, accId) {
+  if (!requireEditPermission()) return;
+  const { project, pkg } = findPackage(catId, pkgId);
+  if (!pkg?.acceptances) return;
+  pkg.acceptances = pkg.acceptances.filter(x => x.id !== accId);
+  syncPackageAcceptance(pkg);
+  addAudit(project, 'delete', 'nghiệm thu', pkg.name);
+  saveState();
+  viewPackageDetail(catId, pkgId);
+  renderAll();
+  showToast('Đã xóa đợt nghiệm thu', 'info');
+}
+
 function addVariation(catId, pkgId) {
   if (!requireEditPermission()) return;
   openModal('Thêm phát sinh khối lượng', `
@@ -3338,7 +3653,7 @@ function saveVariation(catId, pkgId) {
   pkg.variations = pkg.variations || [];
   pkg.variations.push({
     id: generateId(),
-    date: document.getElementById('var-date').value,
+    date: toIso(document.getElementById('var-date').value),
     amount: Number(document.getElementById('var-amount').value) || 0,
     status: document.getElementById('var-status').value,
     approvedBy: document.getElementById('var-approvedBy').value.trim(),
@@ -3348,6 +3663,7 @@ function saveVariation(catId, pkgId) {
   saveState();
   closeModal();
   viewPackageDetail(catId, pkgId);
+  renderAll();
   showToast('Đã thêm phát sinh khối lượng');
 }
 
@@ -3361,6 +3677,7 @@ function deleteVariation(catId, pkgId, varId) {
   addAudit(project, 'delete', 'phát sinh', pkg.name);
   saveState();
   viewPackageDetail(catId, pkgId);
+  renderAll();
   showToast('Đã xóa phát sinh khối lượng', 'info');
 }
 
@@ -3854,6 +4171,15 @@ document.getElementById('project-selector').addEventListener('change', (e) => {
 document.getElementById('search-packages')?.addEventListener('input', (e) => {
   renderPackages(e.target.value);
 });
+['filter-pkg-status', 'filter-pkg-type'].forEach(id => {
+  document.getElementById(id)?.addEventListener('change', () => renderPackages());
+});
+
+function setPkgStatusFilter(code) {
+  const sel = document.getElementById('filter-pkg-status');
+  if (sel) sel.value = sel.value === code ? '' : code;
+  renderPackages();
+}
 
 // ============================================================
 // SECTION 9: ACCOUNT & USER MANAGEMENT

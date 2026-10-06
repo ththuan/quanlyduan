@@ -966,6 +966,16 @@ canvas {
   gap: 12px;
 }
 
+.header-actions select {
+  padding: 7px 10px;
+  font-family: inherit;
+  font-size: 0.85rem;
+  background: #ffffff;
+  color: var(--text-primary);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-sm);
+}
+
 .search-box {
   display: flex;
   align-items: center;
