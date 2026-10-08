@@ -295,6 +295,14 @@ async function loadState() {
         }
         pkg.documentChecklist = pkg.documentChecklist || [];
         pkg.pdfs = pkg.pdfs || [];
+        // Hóa đơn cũ (1 giá trị) -> đợt hóa đơn đầu tiên
+        pkg.invoices = pkg.invoices || [];
+        if (!pkg.invoices.length && (pkg.invoiceNumber || pkg.invoiceValue || pkg.invoiceDate)) {
+          pkg.invoices.push({
+            id: generateId(), number: pkg.invoiceNumber || '', date: pkg.invoiceDate || '',
+            value: Number(pkg.invoiceValue) || 0, xml: !!pkg.invoiceXml, note: 'Chuyển từ hóa đơn cũ'
+          });
+        }
       });
     });
   });
@@ -563,13 +571,15 @@ function computeContractAlerts(pkg) {
   }
 
   // 2) Ràng buộc bắt buộc: ngày xuất hóa đơn GTGT phải đồng bộ với ngày biên bản nghiệm thu KL hoàn thành (NĐ 123/2020)
-  if (pkg.invoiceDate && pkg.acceptanceDate && pkg.invoiceDate < pkg.acceptanceDate) {
-    alerts.push({ level: 'danger', icon: 'receipt_long', message: `Gói "${pkg.name}": ngày HĐ GTGT (${formatDateVN(pkg.invoiceDate)}) trước ngày nghiệm thu (${formatDateVN(pkg.acceptanceDate)}). Không hợp lệ theo NĐ 123/2020.` });
+  const invs = [...(pkg.invoices || [])].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  const invoiceDate = invs.length ? invs[invs.length - 1].date : null;
+  if (invoiceDate && pkg.acceptanceDate && invoiceDate < pkg.acceptanceDate) {
+    alerts.push({ level: 'danger', icon: 'receipt_long', message: `Gói "${pkg.name}": ngày HĐ GTGT (${formatDateVN(invoiceDate)}) trước ngày nghiệm thu (${formatDateVN(pkg.acceptanceDate)}). Không hợp lệ theo NĐ 123/2020.` });
   }
-  if (pkg.invoiceDate && !pkg.acceptanceDate) {
-    alerts.push({ level: 'warning', icon: 'receipt_long', message: `Gói "${pkg.name}": đã xuất HĐ GTGT ${formatDateVN(pkg.invoiceDate)} nhưng chưa có biên bản nghiệm thu KL hoàn thành.` });
+  if (invoiceDate && !pkg.acceptanceDate) {
+    alerts.push({ level: 'warning', icon: 'receipt_long', message: `Gói "${pkg.name}": đã xuất HĐ GTGT ${formatDateVN(invoiceDate)} nhưng chưa có biên bản nghiệm thu KL hoàn thành.` });
   }
-  if (!pkg.invoiceDate && pkg.acceptanceDate) {
+  if (!invoiceDate && pkg.acceptanceDate) {
     alerts.push({ level: 'warning', icon: 'receipt_long', message: `Gói "${pkg.name}": đã nghiệm thu (${formatDateVN(pkg.acceptanceDate)}) nhưng chưa xuất HĐ GTGT đồng bộ.` });
   }
 
@@ -1502,6 +1512,8 @@ function renderReports() {
     if (ca.some(a => a.level === 'danger')) status = '<span class="badge badge-danger">Cảnh báo đỏ</span>';
     else if (ca.length) status = '<span class="badge badge-warning">Cần lưu ý</span>';
     const routeBadge = r.code === 'ktkt' ? '<span class="badge badge-warning">' + r.name + '</span>' : (r.code === 'bcnckt' ? '<span class="badge badge-info">' + r.name + '</span>' : '<span class="badge badge-neutral">' + r.name + '</span>');
+    const invs = [...(p.invoices || [])].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    const invLabel = invs.length ? formatDateVN(invs[invs.length - 1].date) + (invs.length > 1 ? ` <span class="badge badge-neutral">${invs.length} HĐ</span>` : '') : '—';
     return `
               <tr>
                 <td>${i + 1}</td>
@@ -1510,7 +1522,7 @@ function renderReports() {
                 <td>${formatDateVN(p.contractEndDate)}</td>
                 <td class="text-center">${(p.pkgType === 'consulting' || p.pkgType === 'nonConsulting') ? '<strong>—</strong>' : `<strong>${p.progress || 0}%</strong>`}</td>
                 <td>${formatDateVN(p.acceptanceDate)}</td>
-                <td>${p.invoiceDate ? formatDateVN(p.invoiceDate) + (p.invoiceXml ? ' <span class="badge badge-success">XML</span>' : '') : '—'}</td>
+                <td>${invLabel}</td>
                 <td>${status}</td>
               </tr>`;
   }).join('')}
@@ -2962,6 +2974,7 @@ function openModal(title, bodyHTML, footerHTML = '', size = '') {
   document.getElementById('modal-body').innerHTML = bodyHTML;
   document.getElementById('modal-footer').innerHTML = footerHTML;
   modal.classList.toggle('modal-lg', size === 'lg');
+  modal.classList.toggle('modal-xl', size === 'xl');
   document.getElementById('modal-backdrop').classList.remove('hidden');
   modal.classList.remove('hidden');
   convertDateInputs();
@@ -2983,9 +2996,12 @@ function convertDateInputs() {
 }
 
 function closeModal() {
+  if (previewObjectUrl) { URL.revokeObjectURL(previewObjectUrl); previewObjectUrl = null; }
   document.getElementById('modal-backdrop').classList.add('hidden');
   document.getElementById('modal').classList.add('hidden');
 }
+
+let previewObjectUrl = null;
 
 const PKG_TYPE_INFO = {
   construction: { label: 'Gói XÂY LẮP', hint: 'Thời gian thi công, tiến độ %, nghiệm thu khối lượng, bàn giao & bảo hành công trình.' },
@@ -3262,23 +3278,7 @@ function getPackageFormHTML(pkg = null, catId = '') {
       ${docAttachBlock(catId, pkgId, pkg, 'Phụ lục 03a - Bảng tính giá trị khối lượng')}
 
       <div class="form-section-title"><span class="material-symbols-rounded">receipt</span> Hóa đơn GTGT (NĐ 123/2020)</div>
-      <div class="form-group">
-        <label>Số hóa đơn GTGT</label>
-        <input type="text" id="f-invoiceNumber" value="${esc(pkg?.invoiceNumber || '')}" placeholder="Ký hiệu & số HĐ">
-      </div>
-      <div class="form-group">
-        <label>Ngày xuất hóa đơn</label>
-        <input type="date" id="f-invoiceDate" value="${pkg?.invoiceDate || ''}">
-      </div>
-      <div class="form-group">
-        <label>Giá trị HĐ GTGT (VNĐ)</label>
-        <input type="number" id="f-invoiceValue" value="${pkg?.invoiceValue || ''}">
-      </div>
-      <div class="form-group" style="display:flex;align-items:flex-end;gap:6px">
-        <label style="display:flex;align-items:center;gap:6px;text-transform:none;font-size:0.85rem">
-          <input type="checkbox" id="f-invoiceXml" ${pkg?.invoiceXml ? 'checked' : ''} style="width:auto"> HĐ điện tử XML (đồng bộ KBĐT)
-        </label>
-      </div>
+      ${pkg?.invoices?.length ? `<p class="form-hint" style="grid-column:1/-1;margin:0;font-size:0.78rem;color:var(--text-muted)">Đã có ${pkg.invoices.length} hóa đơn (tổng ${formatCurrency(pkg.invoices.reduce((s, i) => s + (Number(i.value) || 0), 0))}). Thêm/sửa trong mục Chi tiết gói thầu.</p>` : `<p class="form-hint" style="grid-column:1/-1;margin:0;font-size:0.78rem;color:var(--text-muted)">Hóa đơn được thêm theo từng đợt trong mục Chi tiết gói thầu.</p>`}
       ${docAttachBlock(catId, pkgId, pkg, 'Hóa đơn GTGT')}
 
       <div data-show="construction mixed goods" class="pkg-show">
@@ -3417,10 +3417,6 @@ function getPackageFormData() {
     liquidationValue: Number(document.getElementById('f-liquidationValue').value) || 0,
     pl01qdaValue: Number(document.getElementById('f-pl01qdaValue').value) || 0,
     pl01qdaDate: toIso(document.getElementById('f-pl01qdaDate').value),
-    invoiceNumber: document.getElementById('f-invoiceNumber').value.trim(),
-    invoiceDate: toIso(document.getElementById('f-invoiceDate').value),
-    invoiceValue: Number(document.getElementById('f-invoiceValue').value) || 0,
-    invoiceXml: document.getElementById('f-invoiceXml').checked,
     handoverDate: toIso(document.getElementById('f-handoverDate').value),
     warrantyMonths: document.getElementById('f-warrantyMonths').value ? Number(document.getElementById('f-warrantyMonths').value) : null,
     warrantyGuaranteeNumber: ['construction', 'mixed', 'goods'].includes(pkgType) ? document.getElementById('f-warrantyGuaranteeNumber').value.trim() : '',
@@ -3511,6 +3507,7 @@ function saveNewPackage(catId) {
   data.id = generateId();
   data.pdfs = [...tempUploadedPDFs];
   data.acceptances = [];
+  data.invoices = [];
   ensureAcceptanceEntry(data);
   cat.packages.push(data);
   addAudit(project, 'create', 'gói thầu', data.name, `Danh mục: ${esc(cat.name || '')}`);
@@ -3621,6 +3618,23 @@ function viewPackageDetail(catId, pkgId) {
         </div>
       `).join('')
     : '<p class="pdf-empty">Chưa có file đính kèm</p>';
+
+  const invoices = [...(pkg.invoices || [])].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  const invoicesHTML = invoices.length
+    ? `<table class="report-table"><thead><tr><th>Đợt</th><th>Ngày</th><th>Số hóa đơn</th><th class="text-right">Giá trị</th><th>XML</th><th></th></tr></thead><tbody>
+        ${invoices.map((inv, i) => `<tr>
+          <td>${i + 1}</td>
+          <td>${formatDateVN(inv.date)}</td>
+          <td>${esc(inv.number || '—')}</td>
+          <td class="text-right">${formatCurrency(inv.value)}</td>
+          <td>${inv.xml ? '<span class="badge badge-success">XML</span>' : '<span class="badge badge-neutral">—</span>'}</td>
+          <td class="edit-only" style="white-space:nowrap">
+            <button class="btn-icon btn-sm" title="Sửa" onclick="openInvoiceForm('${catId}','${pkgId}','${inv.id}')"><span class="material-symbols-rounded">edit</span></button>
+            <button class="btn-icon btn-sm" title="Xóa" onclick="deleteInvoice('${catId}','${pkgId}','${inv.id}')"><span class="material-symbols-rounded">delete</span></button>
+          </td>
+        </tr>`).join('')}
+      </tbody></table>`
+    : '<p class="pdf-empty">Chưa có hóa đơn GTGT</p>';
 
   openModal(pkg.name, `
     <div class="detail-grid">
@@ -3814,22 +3828,11 @@ function viewPackageDetail(catId, pkgId) {
       </div>`;
       })()}
 
-      <div class="detail-section-title">Hóa đơn GTGT (NĐ 123/2020)</div>
-      <div class="detail-item">
-        <span class="detail-label">Số hóa đơn GTGT</span>
-        <span class="detail-value">${esc(pkg.invoiceNumber || '—')}</span>
+      <div class="detail-section-title">Hóa đơn GTGT (NĐ 123/2020)
+        <button type="button" class="btn btn-secondary btn-sm edit-only" style="margin-left:8px" onclick="openInvoiceForm('${catId}','${pkgId}')"><span class="material-symbols-rounded">add</span> Thêm hóa đơn</button>
       </div>
-      <div class="detail-item">
-        <span class="detail-label">Ngày xuất hóa đơn</span>
-        <span class="detail-value">${formatDateVN(pkg.invoiceDate)}</span>
-      </div>
-      <div class="detail-item">
-        <span class="detail-label">Giá trị HĐ GTGT</span>
-        <span class="detail-value money">${formatCurrency(pkg.invoiceValue)}</span>
-      </div>
-      <div class="detail-item">
-        <span class="detail-label">HĐ điện tử XML</span>
-        <span class="detail-value">${pkg.invoiceXml ? '<span class="badge badge-success">Đồng bộ KB điện tử</span>' : '<span class="badge badge-neutral">Chưa</span>'}</span>
+      <div class="detail-item full-width">
+        ${invoicesHTML}
       </div>
       ${(() => { const ca = computeContractAlerts(pkg); return ca.length ? `<div class="detail-item full-width"><span class="detail-label">Cảnh báo hợp đồng</span><span class="detail-value">${ca.map(a => `<div class="log-item" style="margin-top:2px"><span class="material-symbols-rounded" style="font-size:16px;color:var(--accent-${a.level === 'danger' ? 'red' : 'amber'})">${a.icon}</span> ${esc(a.message)}</div>`).join('')}</span></div>` : ''; })()}
 
@@ -4027,6 +4030,61 @@ function deleteAcceptance(catId, pkgId, accId) {
   viewPackageDetail(catId, pkgId);
   renderAll();
   showToast('Đã xóa đợt nghiệm thu', 'info');
+}
+
+function openInvoiceForm(catId, pkgId, invId = null) {
+  if (!requireEditPermission()) return;
+  const { pkg } = findPackage(catId, pkgId);
+  if (!pkg) return;
+  const inv = invId ? (pkg.invoices || []).find(x => x.id === invId) : null;
+  openModal(inv ? 'Sửa hóa đơn GTGT' : 'Thêm hóa đơn GTGT', `
+    <div class="form-grid" style="grid-template-columns:1fr 1fr">
+      <div class="form-group"><label>Số hóa đơn GTGT</label><input type="text" id="inv-number" value="${esc(inv?.number || '')}" placeholder="Ký hiệu & số HĐ"></div>
+      <div class="form-group"><label>Ngày xuất hóa đơn</label><input type="date" id="inv-date" value="${inv?.date || ''}"></div>
+      <div class="form-group"><label>Giá trị HĐ GTGT (VNĐ) *</label><input type="number" id="inv-value" value="${inv?.value ?? ''}"></div>
+      <div class="form-group" style="display:flex;align-items:flex-end"><label style="display:flex;align-items:center;gap:6px;text-transform:none;font-size:0.85rem"><input type="checkbox" id="inv-xml" style="width:auto" ${inv?.xml ? 'checked' : ''}> HĐ điện tử XML (KBĐT)</label></div>
+      <div class="form-group full-width"><label>Ghi chú</label><input type="text" id="inv-note" value="${esc(inv?.note || '')}" placeholder="Đợt thanh toán, nội dung..."></div>
+    </div>
+  `, `
+    <button class="btn btn-secondary" onclick="viewPackageDetail('${catId}','${pkgId}')">Hủy</button>
+    <button class="btn btn-primary" onclick="saveInvoice('${catId}','${pkgId}','${invId || ''}')">Lưu</button>
+  `);
+}
+
+function saveInvoice(catId, pkgId, invId) {
+  const { project, pkg } = findPackage(catId, pkgId);
+  if (!pkg) return;
+  const value = Number(document.getElementById('inv-value').value);
+  if (!(value > 0)) { showToast('Vui lòng nhập giá trị hóa đơn', 'error'); return; }
+  pkg.invoices = pkg.invoices || [];
+  const entry = {
+    number: document.getElementById('inv-number').value.trim(),
+    date: toIso(document.getElementById('inv-date').value),
+    value,
+    xml: document.getElementById('inv-xml').checked,
+    note: document.getElementById('inv-note').value.trim()
+  };
+  const existing = invId ? pkg.invoices.find(x => x.id === invId) : null;
+  if (existing) Object.assign(existing, entry);
+  else pkg.invoices.push({ id: generateId(), ...entry });
+  addAudit(project, existing ? 'update' : 'create', 'hóa đơn', pkg.name, `${entry.number || ''}: ${formatCurrency(value)}`);
+  saveState();
+  closeModal();
+  viewPackageDetail(catId, pkgId);
+  renderAll();
+  showToast('Đã lưu hóa đơn GTGT');
+}
+
+function deleteInvoice(catId, pkgId, invId) {
+  if (!requireEditPermission()) return;
+  const { project, pkg } = findPackage(catId, pkgId);
+  if (!pkg?.invoices) return;
+  pkg.invoices = pkg.invoices.filter(x => x.id !== invId);
+  addAudit(project, 'delete', 'hóa đơn', pkg.name);
+  saveState();
+  viewPackageDetail(catId, pkgId);
+  renderAll();
+  showToast('Đã xóa hóa đơn', 'info');
 }
 
 function addVariation(catId, pkgId) {
@@ -4586,14 +4644,37 @@ async function removeDocAttach(fileId, category, catId, pkgId) {
 
 async function viewPDF(pdfId) {
   try {
-    // window.open() navigates directly and skips our fetch wrapper, so the
-    // Authorization header never reaches the server -> fetch as blob instead.
     const res = handleAuthResponse(await fetch(`${API_BASE}/pdfs/${pdfId}`));
     if (!res.ok) throw new Error('Không tải được file');
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
-    window.open(url, '_blank');
-    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    const mime = blob.type || '';
+
+    if (mime === 'application/pdf') {
+      if (previewObjectUrl) URL.revokeObjectURL(previewObjectUrl);
+      previewObjectUrl = url;
+      openModal('Xem tài liệu PDF', `
+        <div class="pdf-preview-wrap">
+          <iframe src="${url}" title="Xem trước PDF"></iframe>
+        </div>
+      `, `
+        <button class="btn btn-secondary" onclick="closeModal()">Đóng</button>
+      `, 'xl');
+    } else if (mime.startsWith('image/')) {
+      if (previewObjectUrl) URL.revokeObjectURL(previewObjectUrl);
+      previewObjectUrl = url;
+      openModal('Xem hình ảnh', `
+        <div class="pdf-preview-wrap">
+          <img src="${url}" style="max-width:100%;max-height:100%;object-fit:contain">
+        </div>
+      `, `
+        <button class="btn btn-secondary" onclick="closeModal()">Đóng</button>
+      `, 'xl');
+    } else {
+      // Tài liệu Word/Excel/khác: không xem trực tiếp được -> tải xuống
+      window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    }
   } catch (err) {
     showToast('Lỗi mở file: ' + err.message, 'error');
   }
