@@ -2392,6 +2392,7 @@ async function exportExcel(scope) {
 // Sở Xây dựng, UBND... liên quan đến dự án (phê duyệt dự án, dự toán, KHLCNT, chỉ định thầu...).
 // Dữ liệu lưu trong project.initiations: [{ id, type, title, agency, number, date, note, files:[{id,name,size}] }]
 let CHU_TRUONG_AGENCIES = ['Ủy ban nhân dân thành phố', 'Sở Tài chính', 'Sở Xây dựng', 'Cơ quan khác'];
+let LEGAL_DOC_TYPES = ['Phê duyệt dự án', 'Phê duyệt dự toán', 'Phê duyệt KHLCNT', 'Quyết định chỉ định thầu', 'Quyết định phê duyệt kết quả', 'Văn bản khác'];
 
 let chuTruongEditId = null;
 let chuTruongFiles = []; // PDF đang chờ lưu của hồ sơ đang mở
@@ -2420,6 +2421,7 @@ function renderInitiationChuTruongList() {
             <span>${esc(ini.title || ini.name || 'Chưa có tên')}</span>
           </div>
           <div class="ini-card-sub">
+            ${ini.type ? `<span class="tpl-chip" style="background:rgba(6,182,212,.1);color:var(--accent-cyan)">${esc(ini.type)}</span>` : ''}
             <span class="tpl-chip">${esc(ini.agency || '—')}</span>
             ${ini.number ? `<span>Số: <strong>${esc(ini.number)}</strong></span>` : ''}
           </div>
@@ -2491,6 +2493,13 @@ function openChuTruongForm(doc = null) {
     <div class="form-grid">
       <div class="form-group full-width"><label>Tiêu đề văn bản *</label><input type="text" id="ct-title" value="${esc(doc?.title || '')}"></div>
       <div class="form-group">
+        <label>Loại văn bản</label>
+        <select id="ct-type">
+          <option value="">— Chọn —</option>
+          ${LEGAL_DOC_TYPES.map(t => `<option value="${t}" ${doc?.type === t ? 'selected' : ''}>${t}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group">
         <label>Cơ quan ban hành *</label>
         <input type="text" id="ct-agency" list="ct-agency-list" value="${esc(doc?.agency || '')}" placeholder="Chọn hoặc gõ cơ quan mới">
         <datalist id="ct-agency-list">${CHU_TRUONG_AGENCIES.map(a => `<option value="${a}"></option>`).join('')}</datalist>
@@ -2560,6 +2569,7 @@ async function removeChuTruPDF(pdfId) {
 function saveChuTruong() {
   const title = document.getElementById('ct-title').value.trim();
   const agency = document.getElementById('ct-agency').value.trim();
+  const type = document.getElementById('ct-type').value;
   if (!title || !agency) { showToast('Vui lòng nhập tiêu đề và cơ quan ban hành', 'error'); return; }
   // Cập nhật danh sách cơ quan (nếu gõ cơ quan mới)
   if (agency && !CHU_TRUONG_AGENCIES.includes(agency)) {
@@ -2571,6 +2581,7 @@ function saveChuTruong() {
     const ini = project.initiations.find(i => i.id === chuTruongEditId);
     if (ini) {
       ini.title = title;
+      ini.type = type;
       ini.agency = agency;
       ini.number = document.getElementById('ct-number').value.trim();
       ini.date = toIso(document.getElementById('ct-date').value);
@@ -2580,7 +2591,7 @@ function saveChuTruong() {
   } else {
     project.initiations.push({
       id: generateId(),
-      title, agency,
+      title, type, agency,
       number: document.getElementById('ct-number').value.trim(),
       date: toIso(document.getElementById('ct-date').value),
       note: document.getElementById('ct-note').value.trim(),
@@ -3002,6 +3013,10 @@ let tempPayments = [];
 function getPackageFormHTML(pkg = null, catId = '') {
   const methods = SELECTION_METHODS;
   const effectiveScope = pkg ? (pkg.pkgScope || 'project') : (getCurrentProject()?.projectScope || 'project');
+  const legalDocs = getCurrentProject()?.initiations || [];
+  const khlcntDocs = legalDocs.filter(d => d.type === 'Phê duyệt KHLCNT');
+  const resultDocs = legalDocs.filter(d => d.type === 'Quyết định phê duyệt kết quả' || d.type === 'Quyết định chỉ định thầu');
+  const docOpts = (docs, sel) => docs.map(d => `<option value="${esc(d.id)}" ${sel === d.id ? 'selected' : ''}>${esc([d.number, d.title].filter(Boolean).join(' — ') || '—')}</option>`).join('');
   const fundOptions = FUND_SOURCES.map(f => `<option value="${f}" ${(pkg?.fundSource || '') === f ? 'selected' : ''}>${f}</option>`).join('');
   const legacyFund = pkg?.fundSource && !FUND_SOURCES.includes(pkg.fundSource) ? `<option value="${esc(pkg.fundSource)}" selected>${esc(pkg.fundSource)}</option>` : '';
   const pdfs = pkg ? (pkg.pdfs || []) : tempUploadedPDFs;
@@ -3073,7 +3088,10 @@ function getPackageFormHTML(pkg = null, catId = '') {
       <div class="form-section-title"><span class="material-symbols-rounded">description</span> Thông tin hợp đồng</div>
       <div class="form-group">
         <label>Quyết định phê duyệt kết quả</label>
-        <input type="text" id="f-bidDecision" value="${esc(pkg?.bidDecision || '')}" placeholder="Số quyết định phê duyệt kết quả lựa chọn nhà thầu">
+        <select id="f-resultDoc">
+          <option value="">— Chọn từ Pháp lý —</option>
+          ${docOpts(resultDocs, pkg?.resultDocId)}
+        </select>
       </div>
       <div class="form-group">
         <label>Hợp đồng</label>
@@ -3101,14 +3119,6 @@ function getPackageFormHTML(pkg = null, catId = '') {
       <div class="form-group">
         <label>Số PL gia hạn (nếu có)</label>
         <input type="text" id="f-contractExtension" value="${esc(pkg?.contractExtension || '')}" placeholder="VD: PL01/HĐ ngày ...">
-      </div>
-      <div class="form-group">
-        <label>Ngày thanh lý hợp đồng</label>
-        <input type="date" id="f-liquidationDate" value="${pkg?.liquidationDate || ''}">
-      </div>
-      <div class="form-group">
-        <label>Giá trị thanh lý (VNĐ)</label>
-        <input type="number" id="f-liquidationValue" value="${pkg?.liquidationValue || ''}">
       </div>
       <div class="form-group">
         <label>Hình thức lựa chọn nhà thầu</label>
@@ -3146,16 +3156,11 @@ function getPackageFormHTML(pkg = null, catId = '') {
       </div>
       </div>
       <div class="form-group">
-        <label>Số QĐ phê duyệt KHLCNT</label>
-        <input type="text" id="f-khlcntNumber" value="${esc(pkg?.khlcntNumber || '')}" placeholder="Kế hoạch lựa chọn nhà thầu">
-      </div>
-      <div class="form-group">
-        <label>Ngày phê duyệt KHLCNT</label>
-        <input type="date" id="f-khlcntDate" value="${pkg?.khlcntDate || ''}">
-      </div>
-      <div class="form-group">
-        <label>Ngày phê duyệt kết quả</label>
-        <input type="date" id="f-resultApprovalDate" value="${pkg?.resultApprovalDate || ''}">
+        <label>Kế hoạch lựa chọn nhà thầu (KHLCNT)</label>
+        <select id="f-khlcntDoc">
+          <option value="">— Chọn từ Pháp lý —</option>
+          ${docOpts(khlcntDocs, pkg?.khlcntDocId)}
+        </select>
       </div>
       <div class="form-group full-width">
         <label>Căn cứ chỉ định thầu</label>
@@ -3243,6 +3248,16 @@ function getPackageFormHTML(pkg = null, catId = '') {
         </div>
       </div>
 
+      <div class="form-section-title"><span class="material-symbols-rounded">receipt_long</span> Quyết toán A-B / Thanh lý</div>
+      <div class="form-group">
+        <label>Ngày thanh lý hợp đồng</label>
+        <input type="date" id="f-liquidationDate" value="${pkg?.liquidationDate || ''}">
+      </div>
+      <div class="form-group">
+        <label>Giá trị thanh lý (VNĐ)</label>
+        <input type="number" id="f-liquidationValue" value="${pkg?.liquidationValue || ''}">
+      </div>
+
       <div class="form-group full-width">
         <label>Ghi chú</label>
         <textarea id="f-notes">${pkg?.notes || ''}</textarea>
@@ -3279,6 +3294,11 @@ function getPackageFormData() {
   const pkgScope = document.getElementById('f-pkgScope').value || 'project';
   const quoteApplies = ['goods', 'nonConsulting', 'mixed'].includes(pkgType);
   const hasQuote = quoteApplies && document.getElementById('f-hasQuote')?.checked;
+  const legalDocs = getCurrentProject()?.initiations || [];
+  const resultDocId = document.getElementById('f-resultDoc')?.value || '';
+  const khlcntDocId = document.getElementById('f-khlcntDoc')?.value || '';
+  const resultDoc = legalDocs.find(d => d.id === resultDocId);
+  const khlcntDoc = legalDocs.find(d => d.id === khlcntDocId);
   return {
     name: document.getElementById('f-name').value.trim(),
     pkgType,
@@ -3287,16 +3307,18 @@ function getPackageFormData() {
     estimateValue: Number(document.getElementById('f-estimateValue').value) || 0,
     bidValue: Number(document.getElementById('f-bidValue').value) || 0,
     fundSource: document.getElementById('f-fundSource').value.trim(),
-    bidDecision: document.getElementById('f-bidDecision').value.trim(),
+    resultDocId,
+    bidDecision: resultDoc ? (resultDoc.number || resultDoc.title) : '',
+    resultApprovalDate: resultDoc?.date || '',
     contract: document.getElementById('f-contract').value.trim(),
     selectionMethod: document.getElementById('f-selectionMethod').value,
     contractor: document.getElementById('f-contractor').value.trim(),
     quoteNumber: hasQuote ? document.getElementById('f-quoteNumber').value.trim() : '',
     quoteDate: hasQuote ? toIso(document.getElementById('f-quoteDate').value) : '',
     quoteCount: hasQuote ? (Number(document.getElementById('f-quoteCount').value) || 0) : 0,
-    khlcntNumber: document.getElementById('f-khlcntNumber').value.trim(),
-    khlcntDate: toIso(document.getElementById('f-khlcntDate').value),
-    resultApprovalDate: toIso(document.getElementById('f-resultApprovalDate').value),
+    khlcntDocId,
+    khlcntNumber: khlcntDoc ? (khlcntDoc.number || khlcntDoc.title) : '',
+    khlcntDate: khlcntDoc?.date || '',
     directBasis: document.getElementById('f-directBasis').value.trim(),
     duration: document.getElementById('f-duration').value.trim(),
     progress: Number(document.getElementById('f-progress').value) || 0,
@@ -3574,20 +3596,11 @@ function viewPackageDetail(catId, pkgId) {
         <span class="detail-label">PL gia hạn</span>
         <span class="detail-value">${esc(pkg.contractExtension || 'Không có')}</span>
       </div>
-      ${pkg.liquidationDate || pkg.liquidationValue ? `
-      <div class="detail-item">
-        <span class="detail-label">Ngày thanh lý hợp đồng</span>
-        <span class="detail-value">${formatDateVN(pkg.liquidationDate)}</span>
-      </div>
-      <div class="detail-item">
-        <span class="detail-label">Giá trị thanh lý</span>
-        <span class="detail-value money">${formatCurrency(pkg.liquidationValue)}</span>
-      </div>` : ''}
       <div class="detail-item">
         <span class="detail-label">Hình thức lựa chọn</span>
         <span class="detail-value">${esc(pkg.selectionMethod || '—')}</span>
       </div>
-      ${pkg.quoteNumber || pkg.quoteDate || pkg.quoteCount || pkg.khlcntNumber || pkg.khlcntDate || pkg.hsmtNumber || pkg.hsmtDate || pkg.bidCloseDate || pkg.bidOpenDate || pkg.evaluationDate || pkg.resultApprovalDate || pkg.resultPublishDate || pkg.directBasis ? `
+      ${pkg.quoteNumber || pkg.quoteDate || pkg.quoteCount || pkg.khlcntNumber || pkg.khlcntDate || pkg.resultApprovalDate || pkg.directBasis ? `
       <div class="detail-section-title">Quy trình lựa chọn nhà thầu</div>
       ${pkg.quoteNumber || pkg.quoteDate || pkg.quoteCount ? `
       <div class="detail-item">
@@ -3599,35 +3612,10 @@ function viewPackageDetail(catId, pkgId) {
         <span class="detail-label">KHLCNT</span>
         <span class="detail-value">${esc(pkg.khlcntNumber || '—')}${pkg.khlcntDate ? ` — ${formatDateVN(pkg.khlcntDate)}` : ''}</span>
       </div>` : ''}
-      ${pkg.hsmtNumber || pkg.hsmtDate ? `
-      <div class="detail-item">
-        <span class="detail-label">HSMT/HSYC</span>
-        <span class="detail-value">${esc(pkg.hsmtNumber || '—')}${pkg.hsmtDate ? ` — phát hành ${formatDateVN(pkg.hsmtDate)}` : ''}</span>
-      </div>` : ''}
-      ${pkg.bidCloseDate ? `
-      <div class="detail-item">
-        <span class="detail-label">Đóng thầu</span>
-        <span class="detail-value">${formatDateVN(pkg.bidCloseDate)}</span>
-      </div>` : ''}
-      ${pkg.bidOpenDate ? `
-      <div class="detail-item">
-        <span class="detail-label">Mở thầu</span>
-        <span class="detail-value">${formatDateVN(pkg.bidOpenDate)}</span>
-      </div>` : ''}
-      ${pkg.evaluationDate ? `
-      <div class="detail-item">
-        <span class="detail-label">Đánh giá HSDT/HSĐX</span>
-        <span class="detail-value">${formatDateVN(pkg.evaluationDate)}</span>
-      </div>` : ''}
       ${pkg.resultApprovalDate ? `
       <div class="detail-item">
-        <span class="detail-label">Phê duyệt KQLCNT</span>
+        <span class="detail-label">Phê duyệt kết quả</span>
         <span class="detail-value">${formatDateVN(pkg.resultApprovalDate)}</span>
-      </div>` : ''}
-      ${pkg.resultPublishDate ? `
-      <div class="detail-item">
-        <span class="detail-label">Công khai KQLCNT</span>
-        <span class="detail-value">${formatDateVN(pkg.resultPublishDate)}</span>
       </div>` : ''}
       ${pkg.directBasis ? `
       <div class="detail-item full-width">
@@ -3762,6 +3750,17 @@ function viewPackageDetail(catId, pkgId) {
         <span class="detail-value">${pkg.warrantyMonths || computeWarrantyMonths(project.buildingGrade)} tháng</span>
       </div>
       ` : ''}
+
+      ${pkg.liquidationDate || pkg.liquidationValue ? `
+      <div class="detail-section-title">Quyết toán A-B / Thanh lý</div>
+      <div class="detail-item">
+        <span class="detail-label">Ngày thanh lý hợp đồng</span>
+        <span class="detail-value">${formatDateVN(pkg.liquidationDate)}</span>
+      </div>
+      <div class="detail-item">
+        <span class="detail-label">Giá trị thanh lý</span>
+        <span class="detail-value money">${formatCurrency(pkg.liquidationValue)}</span>
+      </div>` : ''}
 
       ${pkg.notes ? `<div class="detail-item full-width"><span class="detail-label">Ghi chú</span><span class="detail-value">${esc(pkg.notes)}</span></div>` : ''}
 
