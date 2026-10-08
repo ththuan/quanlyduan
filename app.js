@@ -3146,7 +3146,6 @@ function getPackageFormHTML(pkg = null, catId = '') {
           ${docOpts(resultDocs, pkg?.resultDocId)}
         </select>
       </div>
-      ${docAttachBlock(catId, pkgId, pkg, 'Quyết định phê duyệt kết quả')}
       <div class="form-group full-width">
         <label>Biên bản thương thảo hợp đồng (số + ngày, hoặc chỉ ngày)</label>
         <input type="text" id="f-negotiation" value="${esc(pkg?.negotiation || '')}" placeholder="VD: Số 05/BBTT ngày 12/03/2026 — nếu không có số chỉ điền ngày">
@@ -3342,7 +3341,6 @@ function getPackageFormHTML(pkg = null, catId = '') {
           <select id="pdf-category-form" style="font-size:0.75rem;width:auto;margin-right:4px">
             <option value="">-- Loại hồ sơ --</option>
             <option value="Biên bản thương thảo hợp đồng">Biên bản thương thảo hợp đồng</option>
-            <option value="Quyết định phê duyệt kết quả">Quyết định phê duyệt kết quả</option>
             <option value="Hợp đồng">Hợp đồng</option>
             <option value="Phụ lục 02a - Bảng thông tin hợp đồng">Phụ lục 02a - Bảng thông tin hợp đồng</option>
             <option value="Biên bản nghiệm thu">Biên bản nghiệm thu</option>
