@@ -2389,10 +2389,10 @@ async function exportExcel(scope) {
 // SECTION 6.5: MODULE 1 - CHỦ TRƯƠNG (Quyết định & Công văn)
 // ============================================================
 // Pháp lý là nơi lưu trữ các quyết định / công văn của Sở Tài chính,
-// Sở Xây dựng, UBND... liên quan đến dự án (phê duyệt dự án, dự toán, KHLCNT, chỉ định thầu...).
+// Sở Xây dựng, UBND... liên quan đến dự án (phê duyệt dự án, dự toán, KHLCNT, phê duyệt kết quả...).
 // Dữ liệu lưu trong project.initiations: [{ id, type, title, agency, number, date, note, files:[{id,name,size}] }]
 let CHU_TRUONG_AGENCIES = ['Ủy ban nhân dân thành phố', 'Sở Tài chính', 'Sở Xây dựng', 'Cơ quan khác'];
-let LEGAL_DOC_TYPES = ['Phê duyệt dự án', 'Phê duyệt dự toán', 'Phê duyệt KHLCNT', 'Quyết định chỉ định thầu', 'Quyết định phê duyệt kết quả', 'Văn bản khác'];
+let LEGAL_DOC_TYPES = ['Phê duyệt dự án', 'Phê duyệt dự toán', 'Phê duyệt KHLCNT', 'Quyết định phê duyệt kết quả', 'Văn bản khác'];
 
 let chuTruongEditId = null;
 let chuTruongFiles = []; // PDF đang chờ lưu của hồ sơ đang mở
@@ -3015,7 +3015,7 @@ function getPackageFormHTML(pkg = null, catId = '') {
   const effectiveScope = pkg ? (pkg.pkgScope || 'project') : (getCurrentProject()?.projectScope || 'project');
   const legalDocs = getCurrentProject()?.initiations || [];
   const khlcntDocs = legalDocs.filter(d => d.type === 'Phê duyệt KHLCNT');
-  const resultDocs = legalDocs.filter(d => d.type === 'Quyết định phê duyệt kết quả' || d.type === 'Quyết định chỉ định thầu');
+  const resultDocs = legalDocs.filter(d => d.type === 'Quyết định phê duyệt kết quả');
   const docOpts = (docs, sel) => docs.map(d => `<option value="${esc(d.id)}" ${sel === d.id ? 'selected' : ''}>${esc([d.number, d.title].filter(Boolean).join(' — ') || '—')}</option>`).join('');
   const fundOptions = FUND_SOURCES.map(f => `<option value="${f}" ${(pkg?.fundSource || '') === f ? 'selected' : ''}>${f}</option>`).join('');
   const legacyFund = pkg?.fundSource && !FUND_SOURCES.includes(pkg.fundSource) ? `<option value="${esc(pkg.fundSource)}" selected>${esc(pkg.fundSource)}</option>` : '';
@@ -3124,8 +3124,20 @@ function getPackageFormHTML(pkg = null, catId = '') {
         </select>
       </div>
       <div class="form-group">
+        <label>Biên bản thương thảo hợp đồng</label>
+        <input type="text" id="f-negotiationNumber" value="${esc(pkg?.negotiationNumber || '')}" placeholder="Số biên bản thương thảo">
+      </div>
+      <div class="form-group">
+        <label>Ngày thương thảo hợp đồng</label>
+        <input type="date" id="f-negotiationDate" value="${pkg?.negotiationDate || ''}">
+      </div>
+      <div class="form-group">
         <label>Hợp đồng</label>
         <input type="text" id="f-contract" value="${esc(pkg?.contract || '')}">
+      </div>
+      <div class="form-group">
+        <label>Phụ lục 02a — Bảng thông tin hợp đồng</label>
+        <input type="text" id="f-pl02aNumber" value="${esc(pkg?.pl02aNumber || '')}" placeholder="Số / ký hiệu PL 02a">
       </div>
       <div class="form-group">
         <label>Loại hợp đồng</label>
@@ -3184,6 +3196,10 @@ function getPackageFormHTML(pkg = null, catId = '') {
       <div data-show="consulting nonConsulting" data-hide="construction mixed goods" class="pkg-show">
         <div class="form-section-title"><span class="material-symbols-rounded">verified_user</span> Nghiệm thu hồ sơ</div>
         <div class="form-group">
+          <label>Số biên bản nghiệm thu hồ sơ</label>
+          <input type="text" id="f-docAcceptRecord" value="${esc(pkg?.docAcceptRecord || '')}" placeholder="Số biên bản nghiệm thu">
+        </div>
+        <div class="form-group">
           <label>Ngày nghiệm thu</label>
           <input type="date" id="f-docAcceptDate" value="${pkg?.docAcceptDate || ''}">
         </div>
@@ -3210,6 +3226,16 @@ function getPackageFormHTML(pkg = null, catId = '') {
       <div class="form-group">
         <label>Ngày nghiệm thu hoàn thành</label>
         <input type="date" id="f-acceptanceDate" value="${pkg?.acceptanceDate || ''}" ${pkg?.acceptances?.length ? 'readonly' : ''}>
+      </div>
+      <div data-show="construction mixed" class="pkg-show">
+        <div class="form-group">
+          <label>Phụ lục 03a — Bảng tính giá trị khối lượng</label>
+          <input type="text" id="f-pl03aNumber" value="${esc(pkg?.pl03aNumber || '')}" placeholder="Số / ký hiệu PL 03a">
+        </div>
+        <div class="form-group">
+          <label>Ngày PL 03a</label>
+          <input type="date" id="f-pl03aDate" value="${pkg?.pl03aDate || ''}">
+        </div>
       </div>
 
       <div class="form-section-title"><span class="material-symbols-rounded">receipt</span> Hóa đơn GTGT (NĐ 123/2020)</div>
@@ -3241,9 +3267,33 @@ function getPackageFormHTML(pkg = null, catId = '') {
           <label>Thời hạn bảo hành (tháng)</label>
           <input type="number" id="f-warrantyMonths" min="1" value="${pkg?.warrantyMonths ?? ''}" placeholder="Tự động theo cấp công trình">
         </div>
+        <div class="form-group">
+          <label>Chứng thư bảo lãnh bảo hành (nếu có)</label>
+          <input type="text" id="f-warrantyGuaranteeNumber" value="${esc(pkg?.warrantyGuaranteeNumber || '')}" placeholder="Số chứng thư bảo lãnh">
+        </div>
+        <div class="form-group">
+          <label>Ngày chứng thư bảo lãnh</label>
+          <input type="date" id="f-warrantyGuaranteeDate" value="${pkg?.warrantyGuaranteeDate || ''}">
+        </div>
+        <div class="form-group">
+          <label>Giá trị bảo lãnh (VNĐ)</label>
+          <input type="number" id="f-warrantyGuaranteeValue" value="${pkg?.warrantyGuaranteeValue || ''}">
+        </div>
       </div>
 
       <div class="form-section-title"><span class="material-symbols-rounded">receipt_long</span> Quyết toán A-B / Thanh lý</div>
+      <div class="form-group">
+        <label>Phụ lục 01.QTDA — Quyết toán A-B</label>
+        <input type="text" id="f-pl01qdaNumber" value="${esc(pkg?.pl01qdaNumber || '')}" placeholder="Số / ký hiệu PL 01.QTDA">
+      </div>
+      <div class="form-group">
+        <label>Ngày PL 01.QTDA</label>
+        <input type="date" id="f-pl01qdaDate" value="${pkg?.pl01qdaDate || ''}">
+      </div>
+      <div class="form-group">
+        <label>Biên bản thanh lý hợp đồng</label>
+        <input type="text" id="f-liquidationRecord" value="${esc(pkg?.liquidationRecord || '')}" placeholder="Số biên bản thanh lý">
+      </div>
       <div class="form-group">
         <label>Ngày thanh lý hợp đồng</label>
         <input type="date" id="f-liquidationDate" value="${pkg?.liquidationDate || ''}">
@@ -3263,15 +3313,16 @@ function getPackageFormHTML(pkg = null, catId = '') {
         <div class="pdf-upload-area" style="margin-top:8px">
           <select id="pdf-category-form" style="font-size:0.75rem;width:auto;margin-right:4px">
             <option value="">-- Loại hồ sơ --</option>
-            <option value="Thỏa thuận hợp đồng">Thỏa thuận hợp đồng</option>
-            <option value="Quyết định phê duyệt trúng thầu">QĐ phê duyệt trúng thầu</option>
-            <option value="Đơn dự thầu">Đơn dự thầu</option>
-            <option value="Điều kiện hợp đồng">Điều kiện hợp đồng</option>
-            <option value="HSMT/HSDT">HSMT / HSDT</option>
-            <option value="Bản vẽ thiết kế">Bản vẽ thiết kế</option>
-            <option value="Chỉ dẫn kỹ thuật">Chỉ dẫn kỹ thuật</option>
+            <option value="Biên bản thương thảo hợp đồng">Biên bản thương thảo hợp đồng</option>
+            <option value="Quyết định phê duyệt kết quả">Quyết định phê duyệt kết quả</option>
+            <option value="Hợp đồng">Hợp đồng</option>
+            <option value="Phụ lục 02a - Bảng thông tin hợp đồng">Phụ lục 02a - Bảng thông tin hợp đồng</option>
             <option value="Biên bản nghiệm thu">Biên bản nghiệm thu</option>
-            <option value="Bảng tính quyết toán A-B">Bảng tính quyết toán A-B</option>
+            <option value="Phụ lục 03a - Bảng tính giá trị khối lượng">Phụ lục 03a - Bảng tính giá trị khối lượng</option>
+            <option value="Hóa đơn GTGT">Hóa đơn GTGT</option>
+            <option value="Chứng thư bảo lãnh bảo hành">Chứng thư bảo lãnh bảo hành</option>
+            <option value="Phụ lục 01.QTDA - Quyết toán A-B">Phụ lục 01.QTDA - Quyết toán A-B</option>
+            <option value="Biên bản thanh lý hợp đồng">Biên bản thanh lý hợp đồng</option>
             <option value="Khác">Khác</option>
           </select>
           <input type="file" id="pdf-file-input-form" accept="${ALLOWED_UPLOAD_ACCEPT}" onchange="handlePDFUploadFromForm('${catId}','${pkg?.id || ''}')">
@@ -3306,6 +3357,9 @@ function getPackageFormData() {
     bidDecision: resultDoc ? (resultDoc.number || resultDoc.title) : '',
     resultApprovalDate: resultDoc?.date || '',
     contract: document.getElementById('f-contract').value.trim(),
+    negotiationNumber: document.getElementById('f-negotiationNumber').value.trim(),
+    negotiationDate: toIso(document.getElementById('f-negotiationDate').value),
+    pl02aNumber: document.getElementById('f-pl02aNumber').value.trim(),
     selectionMethod: document.getElementById('f-selectionMethod').value,
     contractor: document.getElementById('f-contractor').value.trim(),
     quoteNumber: hasQuote ? document.getElementById('f-quoteNumber').value.trim() : '',
@@ -3319,17 +3373,23 @@ function getPackageFormData() {
     cumulativeValue: Number(document.getElementById('f-cumulativeValue').value) || 0,
     cumulativeDisbursed: Number(document.getElementById('f-cumulativeDisbursed').value) || 0,
 
+    docAcceptRecord: document.getElementById('f-docAcceptRecord').value.trim(),
     docAcceptDate: toIso(document.getElementById('f-docAcceptDate').value),
     docAcceptStatus: document.getElementById('f-docAcceptStatus').value,
 
     acceptanceValue: Number(document.getElementById('f-acceptanceValue').value) || 0,
     acceptanceStatus: document.getElementById('f-acceptanceStatus').value,
     acceptanceDate: toIso(document.getElementById('f-acceptanceDate').value),
+    pl03aNumber: ['construction', 'mixed'].includes(pkgType) ? document.getElementById('f-pl03aNumber').value.trim() : '',
+    pl03aDate: ['construction', 'mixed'].includes(pkgType) ? toIso(document.getElementById('f-pl03aDate').value) : '',
     contractType: document.getElementById('f-contractType').value,
     contractSignDate: toIso(document.getElementById('f-contractSignDate').value),
     contractStartDate: toIso(document.getElementById('f-contractStartDate').value),
     contractEndDate: toIso(document.getElementById('f-contractEndDate').value),
     contractExtension: document.getElementById('f-contractExtension').value.trim(),
+    pl01qdaNumber: document.getElementById('f-pl01qdaNumber').value.trim(),
+    pl01qdaDate: toIso(document.getElementById('f-pl01qdaDate').value),
+    liquidationRecord: document.getElementById('f-liquidationRecord').value.trim(),
     liquidationDate: toIso(document.getElementById('f-liquidationDate').value),
     liquidationValue: Number(document.getElementById('f-liquidationValue').value) || 0,
     invoiceNumber: document.getElementById('f-invoiceNumber').value.trim(),
@@ -3338,6 +3398,9 @@ function getPackageFormData() {
     invoiceXml: document.getElementById('f-invoiceXml').checked,
     handoverDate: toIso(document.getElementById('f-handoverDate').value),
     warrantyMonths: document.getElementById('f-warrantyMonths').value ? Number(document.getElementById('f-warrantyMonths').value) : null,
+    warrantyGuaranteeNumber: ['construction', 'mixed', 'goods'].includes(pkgType) ? document.getElementById('f-warrantyGuaranteeNumber').value.trim() : '',
+    warrantyGuaranteeDate: ['construction', 'mixed', 'goods'].includes(pkgType) ? toIso(document.getElementById('f-warrantyGuaranteeDate').value) : '',
+    warrantyGuaranteeValue: ['construction', 'mixed', 'goods'].includes(pkgType) ? (Number(document.getElementById('f-warrantyGuaranteeValue').value) || 0) : 0,
     notes: document.getElementById('f-notes').value.trim()
   };
 }
@@ -3571,10 +3634,20 @@ function viewPackageDetail(catId, pkgId) {
         <span class="detail-label">Quyết định phê duyệt kết quả</span>
         <span class="detail-value">${esc(pkg.bidDecision || '—')}${pkg.resultApprovalDate ? ` — ${formatDateVN(pkg.resultApprovalDate)}` : ''}</span>
       </div>
+      ${pkg.negotiationNumber || pkg.negotiationDate ? `
+      <div class="detail-item">
+        <span class="detail-label">Biên bản thương thảo hợp đồng</span>
+        <span class="detail-value">${esc(pkg.negotiationNumber || '—')}${pkg.negotiationDate ? ` — ${formatDateVN(pkg.negotiationDate)}` : ''}</span>
+      </div>` : ''}
       <div class="detail-item">
         <span class="detail-label">Hợp đồng</span>
         <span class="detail-value">${esc(pkg.contract || '—')}</span>
       </div>
+      ${pkg.pl02aNumber ? `
+      <div class="detail-item">
+        <span class="detail-label">Phụ lục 02a — Bảng thông tin hợp đồng</span>
+        <span class="detail-value">${esc(pkg.pl02aNumber)}</span>
+      </div>` : ''}
       <div class="detail-item">
         <span class="detail-label">Loại hợp đồng</span>
         <span class="detail-value">${esc(pkg.contractType || '—')}</span>
@@ -3640,6 +3713,10 @@ function viewPackageDetail(catId, pkgId) {
       ${pkg.pkgType === 'consulting' || pkg.pkgType === 'nonConsulting' ? `
       <div class="detail-section-title">Nghiệm thu hồ sơ</div>
       <div class="detail-item">
+        <span class="detail-label">Số biên bản nghiệm thu hồ sơ</span>
+        <span class="detail-value">${esc(pkg.docAcceptRecord || '—')}</span>
+      </div>
+      <div class="detail-item">
         <span class="detail-label">Ngày nghiệm thu</span>
         <span class="detail-value">${formatDateVN(pkg.docAcceptDate)}</span>
       </div>
@@ -3665,6 +3742,8 @@ function viewPackageDetail(catId, pkgId) {
       <div class="detail-item"><span class="detail-label">Chênh lệch dự toán - trúng thầu</span><span class="detail-value money">${st.saving != null ? formatCurrency(st.saving) : '—'}</span></div>
       <div class="detail-item"><span class="detail-label">Trạng thái nghiệm thu</span><span class="detail-value"><span class="badge ${pkg.acceptanceStatus === 'Đã nghiệm thu' ? 'badge-success' : 'badge-warning'}">${pkg.acceptanceStatus || 'Chưa nghiệm thu'}</span></span></div>
       <div class="detail-item"><span class="detail-label">Ngày nghiệm thu gần nhất</span><span class="detail-value">${formatDateVN(pkg.acceptanceDate)}</span></div>
+      ${pkg.pl03aNumber || pkg.pl03aDate ? `
+      <div class="detail-item"><span class="detail-label">Phụ lục 03a — Bảng tính giá trị khối lượng</span><span class="detail-value">${esc(pkg.pl03aNumber || '—')}${pkg.pl03aDate ? ` — ${formatDateVN(pkg.pl03aDate)}` : ''}</span></div>` : ''}
 
       <div class="detail-section-title">Các đợt nghiệm thu
         <button type="button" class="btn btn-secondary btn-sm edit-only" style="margin-left:8px" onclick="openAcceptanceForm('${catId}','${pkgId}')"><span class="material-symbols-rounded">add</span> Thêm đợt</button>
@@ -3730,10 +3809,25 @@ function viewPackageDetail(catId, pkgId) {
         <span class="detail-label">Thời hạn bảo hành</span>
         <span class="detail-value">${pkg.warrantyMonths || computeWarrantyMonths(project.buildingGrade)} tháng</span>
       </div>
+      ${pkg.warrantyGuaranteeNumber || pkg.warrantyGuaranteeDate || pkg.warrantyGuaranteeValue ? `
+      <div class="detail-item">
+        <span class="detail-label">Chứng thư bảo lãnh bảo hành</span>
+        <span class="detail-value">${esc(pkg.warrantyGuaranteeNumber || '—')}${pkg.warrantyGuaranteeDate ? ` — ${formatDateVN(pkg.warrantyGuaranteeDate)}` : ''}${pkg.warrantyGuaranteeValue ? ` · ${formatCurrency(pkg.warrantyGuaranteeValue)}` : ''}</span>
+      </div>` : ''}
       ` : ''}
 
-      ${pkg.liquidationDate || pkg.liquidationValue ? `
+      ${pkg.pl01qdaNumber || pkg.pl01qdaDate || pkg.liquidationRecord || pkg.liquidationDate || pkg.liquidationValue ? `
       <div class="detail-section-title">Quyết toán A-B / Thanh lý</div>
+      ${pkg.pl01qdaNumber || pkg.pl01qdaDate ? `
+      <div class="detail-item">
+        <span class="detail-label">Phụ lục 01.QTDA — Quyết toán A-B</span>
+        <span class="detail-value">${esc(pkg.pl01qdaNumber || '—')}${pkg.pl01qdaDate ? ` — ${formatDateVN(pkg.pl01qdaDate)}` : ''}</span>
+      </div>` : ''}
+      ${pkg.liquidationRecord ? `
+      <div class="detail-item">
+        <span class="detail-label">Biên bản thanh lý hợp đồng</span>
+        <span class="detail-value">${esc(pkg.liquidationRecord)}</span>
+      </div>` : ''}
       <div class="detail-item">
         <span class="detail-label">Ngày thanh lý hợp đồng</span>
         <span class="detail-value">${formatDateVN(pkg.liquidationDate)}</span>
