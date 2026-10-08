@@ -4643,15 +4643,6 @@ async function removeDocAttach(fileId, category, catId, pkgId) {
   }
 }
 
-function blobToDataURL(blob) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = () => reject(new Error('Không thể đọc file'));
-    reader.readAsDataURL(blob);
-  });
-}
-
 async function viewPDF(pdfId) {
   try {
     const res = handleAuthResponse(await fetch(`${API_BASE}/pdfs/${pdfId}`));
@@ -4660,15 +4651,14 @@ async function viewPDF(pdfId) {
     const mime = blob.type || '';
 
     if (mime === 'application/pdf') {
-      // Dùng data URL để hiển thị ổn định trên cả Chrome lẫn Safari/iPad
-      const dataUrl = await blobToDataURL(blob);
       openModal('Xem tài liệu PDF', `
-        <div class="pdf-preview-wrap">
-          <iframe src="${dataUrl}" title="Xem trước PDF"></iframe>
+        <div class="pdf-viewer-container" id="pdf-viewer-container">
+          <p class="pdf-loading">Đang tải tài liệu PDF...</p>
         </div>
       `, `
         <button class="btn btn-secondary" onclick="closeModal()">Đóng</button>
       `, 'xl');
+      renderPdfPreview(blob, document.getElementById('pdf-viewer-container'));
     } else if (mime.startsWith('image/')) {
       const url = URL.createObjectURL(blob);
       if (previewObjectUrl) URL.revokeObjectURL(previewObjectUrl);
@@ -4688,6 +4678,43 @@ async function viewPDF(pdfId) {
     }
   } catch (err) {
     showToast('Lỗi mở file: ' + err.message, 'error');
+  }
+}
+
+async function renderPdfPreview(blob, container) {
+  if (!container) return;
+  const lib = window.pdfjsLib || window['pdfjs-dist/build/pdf'];
+  if (!lib) {
+    container.innerHTML = '<p class="pdf-loading">Không thể hiển thị PDF (thiếu thư viện).</p>';
+    return;
+  }
+  try {
+    lib.GlobalWorkerOptions.workerSrc = 'assets/pdf.worker.min.js';
+    const buf = await blob.arrayBuffer();
+    const pdf = await lib.getDocument({ data: new Uint8Array(buf) }).promise;
+    container.innerHTML = '';
+    const scale = 1.5;
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const viewport = page.getViewport({ scale });
+      const canvas = document.createElement('canvas');
+      canvas.className = 'pdf-page-canvas';
+      const ctx = canvas.getContext('2d');
+      const ratio = window.devicePixelRatio || 1;
+      canvas.width = Math.floor(viewport.width * ratio);
+      canvas.height = Math.floor(viewport.height * ratio);
+      canvas.style.width = viewport.width + 'px';
+      canvas.style.height = viewport.height + 'px';
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      await page.render({ canvasContext: ctx, viewport }).promise;
+      container.appendChild(canvas);
+    }
+    const info = document.createElement('p');
+    info.className = 'pdf-page-info';
+    info.textContent = 'Tổng ' + pdf.numPages + ' trang';
+    container.appendChild(info);
+  } catch (err) {
+    container.innerHTML = '<p class="pdf-loading">Lỗi hiển thị PDF: ' + esc(err.message) + '</p>';
   }
 }
 

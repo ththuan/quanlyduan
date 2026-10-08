@@ -103,6 +103,7 @@
 
     <!-- Dashboard View -->
     <section id="view-dashboard" class="view active">
+      <div id="dashboard-header"></div>
       <div id="kpi-cards" class="kpi-grid"></div>
       <div id="capital-summary"></div>
       <div class="charts-row">
@@ -114,10 +115,20 @@
           </div>
         </div>
         <div class="chart-card glass-card">
-          <h3><span class="material-symbols-rounded">bar_chart</span> So sánh Tổng mức đầu tư - Dự toán - Giải ngân</h3>
+          <h3><span class="material-symbols-rounded">bar_chart</span> So sánh Tổng dự toán - Dự toán - Giải ngân</h3>
           <div class="chart-wrapper chart-bars">
             <div id="chart-bar"></div>
           </div>
+        </div>
+      </div>
+      <div class="dash-lower-row">
+        <div class="chart-card glass-card">
+          <h3><span class="material-symbols-rounded">inventory_2</span> Trạng thái gói thầu</h3>
+          <div id="status-overview"></div>
+        </div>
+        <div class="chart-card glass-card">
+          <h3><span class="material-symbols-rounded">event</span> Các mốc sắp đến</h3>
+          <div id="dashboard-timeline"></div>
         </div>
       </div>
       <div id="alerts-panel"></div>
@@ -260,6 +271,7 @@
   <!-- ========== TOAST ========== -->
   <div id="toast-container"></div>
 
+  <script src="assets/pdf.min.js"></script>
   <script src="app.js"></script>
   <script src="legal-ui.js"></script>
 </body>
