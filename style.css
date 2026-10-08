@@ -1233,9 +1233,8 @@ canvas {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 90%;
-  max-width: 800px;
-  max-height: 85vh;
+  width: min(96%, 900px);
+  max-height: 92vh;
   background: #ffffff;
   border: 1px solid var(--border-glass);
   border-radius: var(--radius-xl);
@@ -1244,6 +1243,10 @@ canvas {
   display: flex;
   flex-direction: column;
   animation: modalSlideIn 0.3s ease;
+}
+
+#modal.modal-lg {
+  width: min(96%, 1180px);
 }
 
 @keyframes modalSlideIn {

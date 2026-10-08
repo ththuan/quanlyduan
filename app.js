@@ -2956,12 +2956,14 @@ function saveCloseoutStatus() {
 // ============================================================
 // SECTION 7: MODAL & CRUD
 // ============================================================
-function openModal(title, bodyHTML, footerHTML = '') {
+function openModal(title, bodyHTML, footerHTML = '', size = '') {
+  const modal = document.getElementById('modal');
   document.getElementById('modal-title').textContent = title;
   document.getElementById('modal-body').innerHTML = bodyHTML;
   document.getElementById('modal-footer').innerHTML = footerHTML;
+  modal.classList.toggle('modal-lg', size === 'lg');
   document.getElementById('modal-backdrop').classList.remove('hidden');
-  document.getElementById('modal').classList.remove('hidden');
+  modal.classList.remove('hidden');
   convertDateInputs();
 }
 
@@ -3486,7 +3488,7 @@ function addPackage(catId) {
     <button class="btn btn-primary" onclick="saveNewPackage('${catId}')">
       <span class="material-symbols-rounded">save</span> Lưu
     </button>
-  `);
+  `, 'lg');
   setTimeout(togglePkgTypeFields, 50);
 }
 
@@ -3520,7 +3522,7 @@ function editPackage(catId, pkgId) {
     <button class="btn btn-primary" onclick="saveEditPackage('${catId}','${pkgId}')">
       <span class="material-symbols-rounded">save</span> Cập nhật
     </button>
-  `);
+  `, 'lg');
   setTimeout(togglePkgTypeFields, 50);
 }
 
