@@ -789,6 +789,36 @@ body.read-only .edit-only { display: none !important; }
   font-weight: 600;
 }
 
+/* Mạng liên kết danh mục (nơ-ron) */
+#chart-bar {
+  position: relative;
+}
+
+.network-hint {
+  margin: -10px 0 10px;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.chart-tooltip {
+  position: absolute;
+  z-index: 10;
+  display: none;
+  pointer-events: none;
+  background: #0f172a;
+  color: #f8fafc;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  padding: 8px 10px;
+  border-radius: 8px;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.28);
+  max-width: 240px;
+}
+
+.chart-tooltip b {
+  color: #7dd3fc;
+}
+
 /* Comparison horizontal bar list */
 .cmp-legend {
   display: flex;

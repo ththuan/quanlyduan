@@ -860,9 +860,19 @@ function renderDonutChart() {
   }
 }
 
+let networkAnimFrame = null;
+
+function rateColor(rate) {
+  if (rate >= 100) return '#16a34a';
+  if (rate >= 60) return '#0891b2';
+  if (rate >= 30) return '#d97706';
+  return '#dc2626';
+}
+
 function renderBarChart() {
   const el = document.getElementById('chart-bar');
   if (!el) return;
+  if (networkAnimFrame) { cancelAnimationFrame(networkAnimFrame); networkAnimFrame = null; }
 
   const project = getCurrentProject();
   const cats = project ? getSortedCategories(project) : [];
@@ -872,28 +882,159 @@ function renderBarChart() {
     return;
   }
 
-  const rows = cats.map(cat => {
+  const legend = `
+    <div class="cmp-legend">
+      <span class="cmp-lbl"><i class="cmp-dot" style="background:#16a34a"></i>Hoàn thành</span>
+      <span class="cmp-lbl"><i class="cmp-dot" style="background:#0891b2"></i>&ge; 60%</span>
+      <span class="cmp-lbl"><i class="cmp-dot" style="background:#d97706"></i>&ge; 30%</span>
+      <span class="cmp-lbl"><i class="cmp-dot" style="background:#dc2626"></i>&lt; 30%</span>
+    </div>
+    <p class="network-hint">Kích thước nút = Tổng dự toán &nbsp;&middot;&nbsp; Màu nút = Tiến độ giải ngân</p>`;
+
+  el.innerHTML = legend + '<canvas id="network-canvas"></canvas>';
+  drawCategoryNetwork(document.getElementById('network-canvas'), cats, el);
+}
+
+function drawCategoryNetwork(canvas, cats, container) {
+  if (!canvas) return;
+  const dpr = window.devicePixelRatio || 1;
+  const width = Math.max(320, canvas.parentElement.clientWidth);
+  const height = 380;
+  canvas.style.width = width + 'px';
+  canvas.style.height = height + 'px';
+  canvas.width = width * dpr;
+  canvas.height = height * dpr;
+
+  const maxVal = Math.max(...cats.map(c => getCatInvestTotal(c)), 1);
+  const cx = width / 2;
+  const cy = height / 2;
+  const R = Math.min(width, height) / 2 - 84;
+
+  const totalInvest = cats.reduce((s, c) => s + getCatInvestTotal(c), 0);
+  const totalDisbursed = cats.reduce((s, c) => s + getCatDisbursedTotal(c), 0);
+  const totalRate = totalInvest > 0 ? (totalDisbursed / totalInvest) * 100 : 0;
+
+  const catNodes = cats.map((cat, i) => {
     const invest = getCatInvestTotal(cat);
     const disbursed = getCatDisbursedTotal(cat);
     const rate = invest > 0 ? (disbursed / invest) * 100 : 0;
-    const cls = rate >= 100 ? 'complete' : rate >= 60 ? 'high' : rate >= 30 ? 'medium' : 'low';
-    return `
-      <div class="prog-row">
-        <div class="prog-row-head">
-          <span class="prog-name"><span class="prog-code">${esc(cat.code)}</span> ${esc(cat.name)}</span>
-          <span class="prog-pct">${rate.toFixed(1)}%</span>
-        </div>
-        <div class="prog-track">
-          <span class="prog-fill ${cls}" style="width:${Math.min(100, rate).toFixed(1)}%"></span>
-        </div>
-        <div class="prog-row-meta">
-          <span>Đã giải ngân <b>${formatCurrency(disbursed, true)}</b></span>
-          <span>Tổng dự toán <b>${formatCurrency(invest, true)}</b></span>
-        </div>
-      </div>`;
+    const ang = (i / cats.length) * Math.PI * 2 - Math.PI / 2;
+    return {
+      cat, invest, disbursed, rate,
+      x: cx + Math.cos(ang) * R,
+      y: cy + Math.sin(ang) * R,
+      r: 13 + (invest / maxVal) * 25,
+      color: rateColor(rate)
+    };
   });
 
-  el.innerHTML = rows.join('');
+  const centerNode = { x: cx, y: cy, r: 38, color: '#2563eb', cat: null, rate: totalRate, invest: totalInvest, disbursed: totalDisbursed };
+  const hitNodes = [centerNode, ...catNodes];
+
+  // Tooltip
+  let tip = container.querySelector('.chart-tooltip');
+  if (!tip) { tip = document.createElement('div'); tip.className = 'chart-tooltip'; container.appendChild(tip); }
+
+  let t = 0;
+  function frame() {
+    networkAnimFrame = requestAnimationFrame(frame);
+    t += 0.016;
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, width, height);
+
+    // Edges + traveling signals
+    catNodes.forEach((n, i) => {
+      const grad = ctx.createLinearGradient(cx, cy, n.x, n.y);
+      grad.addColorStop(0, 'rgba(37,99,235,0.06)');
+      grad.addColorStop(1, hexAlpha(n.color, 0.22));
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(n.x, n.y);
+      ctx.stroke();
+
+      const s = (t * (0.4 + n.rate / 100) + i * 0.37) % 1;
+      const sx = cx + (n.x - cx) * s;
+      const sy = cy + (n.y - cy) * s;
+      ctx.fillStyle = hexAlpha(n.color, 0.35);
+      ctx.beginPath();
+      ctx.arc(sx, sy, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = n.color;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 2.6, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // Center node
+    drawNetworkNode(ctx, cx, cy, centerNode.r, centerNode.color, (Math.round(totalRate) + '%'), 0.9);
+
+    // Category nodes
+    catNodes.forEach(n => drawNetworkNode(ctx, n.x, n.y, n.r, n.color, n.cat.code || '?', 0.7));
+
+    // Category labels (name) below nodes
+    ctx.font = '11px Inter, system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillStyle = '#475569';
+    catNodes.forEach(n => {
+      const short = String(n.cat.name || '').length > 22 ? n.cat.name.slice(0, 22) + '…' : (n.cat.name || '');
+      ctx.fillText(short, n.x, n.y + n.r + 6);
+    });
+  }
+  networkAnimFrame = requestAnimationFrame(frame);
+
+  canvas.onmousemove = (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const hit = hitNodes.find(n => Math.hypot(mx - n.x, my - n.y) <= n.r + 4);
+    if (!hit) { tip.style.display = 'none'; canvas.style.cursor = 'default'; return; }
+    canvas.style.cursor = 'pointer';
+    tip.style.display = 'block';
+    if (hit.cat) {
+      tip.innerHTML = `<strong>${esc(hit.cat.code ? hit.cat.code + '. ' : '')}${esc(hit.cat.name)}</strong><br>Tổng dự toán: <b>${esc(formatCurrency(hit.invest))}</b><br>Đã giải ngân: <b>${esc(formatCurrency(hit.disbursed))}</b> (${hit.rate.toFixed(1)}%)`;
+    } else {
+      tip.innerHTML = `<strong>Toàn dự án</strong><br>Tổng dự toán: <b>${esc(formatCurrency(hit.invest))}</b><br>Đã giải ngân: <b>${esc(formatCurrency(hit.disbursed))}</b> (${hit.rate.toFixed(1)}%)`;
+    }
+    const cw = rect.width;
+    tip.style.left = Math.min(mx + 14, cw - 200) + 'px';
+    tip.style.top = Math.max(my - 10, 0) + 'px';
+  };
+  canvas.onmouseleave = () => { tip.style.display = 'none'; };
+}
+
+function drawNetworkNode(ctx, x, y, r, color, label, pulse = 0.7) {
+  ctx.beginPath();
+  ctx.arc(x, y, r + 7, 0, Math.PI * 2);
+  ctx.fillStyle = hexAlpha(color, 0.14);
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.lineWidth = 2.5;
+  ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+  ctx.stroke();
+
+  if (label) {
+    ctx.fillStyle = '#fff';
+    ctx.font = `bold ${Math.max(10, Math.round(r * 0.52))}px Inter, system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, x, y + 1);
+  }
+}
+
+function hexAlpha(hex, alpha) {
+  const h = hex.replace('#', '');
+  const full = h.length === 3 ? h.split('').map(c => c + c).join('') : h;
+  const num = parseInt(full, 16);
+  const r = (num >> 16) & 255, g = (num >> 8) & 255, b = num & 255;
+  return `rgba(${r},${g},${b},${alpha})`;
 }
 
 // ============================================================
