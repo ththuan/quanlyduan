@@ -81,6 +81,36 @@ function requireAdmin(req, res, next) {
   next();
 }
 
+function setSessionCookie(res, sessionId) {
+  const flags = 'HttpOnly; Path=/; SameSite=Lax; Max-Age=' + (7 * 24 * 60 * 60);
+  res.setHeader('Set-Cookie', `qlda_sid=${sessionId}; ${flags}`);
+}
+
+function clearSessionCookie(res) {
+  res.setHeader('Set-Cookie', 'qlda_sid=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0');
+}
+
+function parseCookie(header) {
+  const out = {};
+  if (!header) return out;
+  header.split(';').forEach(p => {
+    const i = p.indexOf('=');
+    if (i > 0) out[p.slice(0, i).trim()] = decodeURIComponent(p.slice(i + 1).trim());
+  });
+  return out;
+}
+
+// Xác thực cho iframe/proxy web (đọc cookie qlda_sid) — không ép đổi mật khẩu.
+function requireAuthWeb(req, res, next) {
+  const sid = parseCookie(req.headers.cookie || '').qlda_sid;
+  const session = sid && db.getSessionById(sid);
+  if (!session) return res.status(401).json({ error: 'Chưa đăng nhập' });
+  const user = db.getUserById(session.user_id);
+  if (!user) return res.status(401).json({ error: 'Chưa đăng nhập' });
+  req.user = { id: user.id, username: user.username, role: user.role };
+  next();
+}
+
 // Public healthcheck (no auth) for Docker HEALTHCHECK / monitoring
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 
@@ -107,6 +137,29 @@ app.get('/assets/inter-vietnamese.woff2', (req, res) => res.sendFile(path.join(R
 app.get('/assets/inter-latin.woff2', (req, res) => res.sendFile(path.join(ROOT_DIR, 'assets', 'inter-latin.woff2'), { headers: { 'Cache-Control': 'public, max-age=31536000, immutable' } }));
 app.get('/assets/pdf.min.js', (req, res) => res.sendFile(path.join(ROOT_DIR, 'assets', 'pdf.min.js'), { headers: { 'Cache-Control': 'public, max-age=31536000, immutable' } }));
 app.get('/assets/pdf.worker.min.js', (req, res) => res.sendFile(path.join(ROOT_DIR, 'assets', 'pdf.worker.min.js'), { headers: { 'Cache-Control': 'public, max-age=31536000, immutable' } }));
+
+// ---- Văn phòng AI (proxy tới service van-phong-ai, nội bộ docker network) ----
+const VANPHONG_URL = process.env.VANPHONG_URL || 'http://van-phong-ai:8765';
+app.use('/van-phong-ai', requireAuthWeb, (req, res) => {
+  const targetPath = req.url || '/';
+  const target = VANPHONG_URL + targetPath;
+  const proxyReq = http.request(target, {
+    method: req.method,
+    headers: { ...req.headers, host: new URL(target).host }
+  }, (proxyRes) => {
+    res.status(proxyRes.statusCode || 500);
+    for (const key of Object.keys(proxyRes.headers)) {
+      if (['connection', 'keep-alive', 'transfer-encoding', 'content-length'].includes(key.toLowerCase())) continue;
+      res.setHeader(key, proxyRes.headers[key]);
+    }
+    proxyRes.pipe(res);
+  });
+  proxyReq.on('error', (err) => {
+    if (!res.headersSent) res.status(502).json({ error: 'Văn phòng AI không khả dụng: ' + err.message });
+    else res.destroy();
+  });
+  req.pipe(proxyReq);
+});
 
 // ---- Auth API ----
 // Rate limiter đơn giản theo IP (in-memory)
@@ -145,6 +198,7 @@ app.post('/api/login', (req, res) => {
   }
   db.resetFailedLogin(user.id);
   const session = db.createSession(user.id);
+  setSessionCookie(res, session.id);
   res.json({
     accessToken: session.accessToken, refreshToken: session.refreshToken,
     accessExpiresAt: session.accessExpiresAt, expiresAt: session.expiresAt,
@@ -155,6 +209,7 @@ app.post('/api/login', (req, res) => {
 app.post('/api/logout', (req, res) => {
   const { refreshToken } = req.body || {};
   db.deleteSessionByRefreshToken(refreshToken);
+  clearSessionCookie(res);
   res.json({ ok: true });
 });
 

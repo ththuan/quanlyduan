@@ -1,0 +1,18 @@
+{
+  "name": "van-phong-ai",
+  "version": "1.0.0",
+  "description": "Văn phòng AI local — xử lý hồ sơ mua sắm, sửa chữa, thanh toán với giao diện pixel art",
+  "main": "van-phong-ai-local-server.js",
+  "scripts": {
+    "start": "node van-phong-ai-local-server.js",
+    "test": "node test-ai-agent-contract.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "pdfjs-dist": "^4.10.38",
+    "pdfkit": "^0.15.2"
+  }
+}

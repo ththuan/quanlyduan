@@ -1,0 +1,13 @@
+{
+  "source": "alirezarezvani/claude-skills",
+  "sourcePath": "claude-skills",
+  "integration": "bounded-runtime-registry",
+  "skills": [
+    { "id": "case-workflow", "source": "engineering/skills/agent-workflow-designer" },
+    { "id": "knowledge-retrieval", "source": "engineering/skills/rag-architect + business-operations/skills/knowledge-ops" },
+    { "id": "procurement-review", "source": "business-operations/skills/procurement-optimizer" },
+    { "id": "decision-record", "source": "ra-qm-team/skills/agent-decision-receipts" },
+    { "id": "prompt-quality", "source": "engineering/prompt-governance + engineering/skills/self-eval" }
+  ],
+  "rule": "Skills provide bounded recommendations and drafts. Human confirmation remains mandatory for signing, approval, acceptance, payment, access grants and external side effects."
+}

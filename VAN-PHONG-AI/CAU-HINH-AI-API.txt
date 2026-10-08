@@ -1,0 +1,24 @@
+CAU HINH OPENAI API CHO VAN PHONG AI
+====================================
+
+1. Mo MO-VAN-PHONG-AI.cmd.
+2. Bam tu HO SO, chon tab Giao viec.
+3. Mo muc "Ket noi OpenAI hoac API tuong thich".
+4. Neu dung nha cung cap ben thu ba, nhap Base URL va chon Responses API hoac Chat Completions theo tai lieu cua ho.
+5. Nhap API key. Model duoc khoa co dinh la cheap-5.6-sol, sau do bam "Luu va bat AI".
+6. Bam "Kiem tra API" de xac nhan ket noi.
+
+BAO MAT API KEY
+
+- API key duoc luu trong file ai-config.local.json tren chinh may nay.
+- API key khong duoc ghi vao HTML, localStorage hoac bo ho so tai ve.
+- Khong gui file ai-config.local.json cho don vi khac.
+- Khi chuyen ung dung sang may khac, hay xoa file ai-config.local.json va nhap key rieng tren may do.
+
+BO HO SO AI
+
+- Moi yeu cau se tao mot thu muc con trong HO-SO-AI.
+- Thu muc gom bao cao tong hop, ra soat bao gia, ghi chu dac thu, lich su trao doi va ban sao cac mau Word.
+- Trong tab Ho so co nut mo thu muc va tai toan bo ZIP.
+- Gia tren web la nguon tham khao; can doi chieu cau hinh, thue, van chuyen, bao hanh va bao gia chinh thuc.
+- AI khong the tu ky, phe duyet phap ly, nghiem thu thuc te hoac thuc hien giao dich ngan hang/Kho bac.

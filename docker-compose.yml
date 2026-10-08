@@ -22,6 +22,23 @@ services:
     networks:
       - qlda_net
 
+  van-phong-ai:
+    build: ./VAN-PHONG-AI
+    image: van-phong-ai:latest
+    container_name: van-phong-ai
+    restart: unless-stopped
+    environment:
+      - AI_OFFICE_PORT=8765
+      - AI_OFFICE_HOST=0.0.0.0
+      - AI_OFFICE_NO_OPEN=1
+    volumes:
+      - van_phong_dossiers:/app/HO-SO-AI
+      - van_phong_kb:/app/KHO-TRI-THUC
+      # Cấu hình AI (chứa API key) — tạo file này trên server rồi bỏ comment:
+      # - ./VAN-PHONG-AI/ai-config.local.json:/app/ai-config.local.json:ro
+    networks:
+      - qlda_net
+
   cloudflared:
     image: cloudflare/cloudflared:latest
     container_name: qlda-tunnel
@@ -37,6 +54,8 @@ services:
 volumes:
   qlda_data:
   qlda_uploads:
+  van_phong_dossiers:
+  van_phong_kb:
 
 networks:
   qlda_net:

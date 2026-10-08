@@ -226,6 +226,17 @@ function getSessionByAccessToken(token) {
   return session;
 }
 
+// Dùng cho xác thực qua cookie (iframe / proxy) — session id ổn định, không xoay vòng.
+function getSessionById(id) {
+  if (!id) return null;
+  const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(id);
+  const now = Date.now();
+  if (!session || session.expires_at < now) return null;
+  db.prepare('UPDATE sessions SET expires_at = ?, last_used_at = ? WHERE id = ?')
+    .run(now + REFRESH_TOKEN_TTL_MS, now, session.id);
+  return session;
+}
+
 function refreshSession(refreshToken) {
   if (!refreshToken) return null;
   const session = db.prepare('SELECT * FROM sessions WHERE refresh_token_hash = ?').get(hashToken(refreshToken));
@@ -450,6 +461,7 @@ module.exports = {
   getLockRemainingMs,
   createSession,
   getSessionByAccessToken,
+  getSessionById,
   refreshSession,
   deleteSession,
   deleteSessionByRefreshToken,

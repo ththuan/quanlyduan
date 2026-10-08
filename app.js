@@ -5035,8 +5035,6 @@ function switchView(viewName) {
   else if (viewName === 'packages') renderPackages();
   else if (viewName === 'initiation') renderInitiationView();
   else if (viewName === 'qtda') renderQtdaView();
-  else if (viewName === 'legal') renderLegalLibrary();
-  else if (viewName === 'wiki') renderWikiView();
   else if (viewName === 'reports') renderReports();
 }
 
@@ -5046,8 +5044,6 @@ function renderAll() {
   else if (state.currentView === 'packages') renderPackages();
   else if (state.currentView === 'initiation') renderInitiationView();
   else if (state.currentView === 'qtda') renderQtdaView();
-  else if (state.currentView === 'legal') renderLegalLibrary();
-  else if (state.currentView === 'wiki') renderWikiView();
   else if (state.currentView === 'reports') renderReports();
 }
 

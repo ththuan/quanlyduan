@@ -1,0 +1,22 @@
+ai-config.local.json
+HO-SO-AI/
+KHO-TRI-THUC/
+node_modules/
+
+# Repo tham khảo lớn (không cần cho runtime Docker)
+openwork/
+claude-skills/
+
+# Thư mục kiểm thử/edge local
+.edge-*/
+
+# File dev trên Windows
+MO-VAN-PHONG-AI.cmd
+test-ai-agent-contract.js
+HUONG-DAN-VAN-PHONG-AI.txt
+
+# Bỏ qua mẫu biểu .doc/.docx chung, nhưng GIỮ các biểu mẫu trong MAU
+*.doc
+*.docx
+!MAU/*.docx
+!MAU/*.doc

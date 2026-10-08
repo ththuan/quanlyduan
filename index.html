@@ -56,13 +56,9 @@
           <span class="material-symbols-rounded">account_balance</span>
           <span>Quyết toán</span>
         </button>
-        <button class="nav-tab" data-view="legal">
-          <span class="material-symbols-rounded">menu_book</span>
-          <span>Tra cứu luật</span>
-        </button>
-        <button class="nav-tab" data-view="wiki">
+        <button class="nav-tab" data-view="vanphong">
           <span class="material-symbols-rounded">hub</span>
-          <span>Kho tri thức</span>
+          <span>Văn phòng AI</span>
         </button>
         <button class="nav-tab" data-view="reports">
           <span class="material-symbols-rounded">bar_chart</span>
@@ -116,10 +112,12 @@
             <div id="donut-legend" class="chart-legend"></div>
           </div>
         </div>
-        <div class="chart-card glass-card">
-          <h3><span class="material-symbols-rounded">hub</span> Mạng liên kết danh mục</h3>
-          <div class="chart-wrapper chart-bars">
-            <div id="chart-bar"></div>
+        <div class="chart-card glass-card" id="vanphong-card" onclick="switchView('vanphong')" style="cursor:pointer">
+          <h3><span class="material-symbols-rounded">hub</span> Văn phòng AI Agent</h3>
+          <div class="vanphong-promo">
+            <div class="vanphong-promo-icon"><span class="material-symbols-rounded">smart_toy</span></div>
+            <p>Trợ lý AI xử lý hồ sơ mua sắm, sửa chữa, thanh toán — tra cứu luật, tủ tri thức, nhắc việc và quy trình biểu mẫu.</p>
+            <button class="btn btn-primary">Mở Văn phòng AI</button>
           </div>
         </div>
       </div>
@@ -193,25 +191,9 @@
       <div id="qtda-container"></div>
     </section>
 
-    <!-- Legal library -->
-    <section id="view-legal" class="view">
-      <div class="section-header">
-        <h2><span class="material-symbols-rounded">menu_book</span> Thư viện pháp luật</h2>
-      </div>
-      <div id="legal-container"></div>
-    </section>
-
-    <!-- Knowledge Wiki View -->
-    <section id="view-wiki" class="view">
-      <div class="section-header">
-        <h2><span class="material-symbols-rounded">hub</span> Kho tri thức pháp luật</h2>
-        <div class="header-actions">
-          <button class="btn btn-secondary" onclick="wikiSetView('list')">Danh sách</button>
-          <button class="btn btn-secondary" onclick="wikiSetView('graph')">Đồ thị</button>
-          <button class="btn btn-primary" onclick="wikiIngest()"><span class="material-symbols-rounded">auto_awesome</span> Ingest văn bản mới</button>
-        </div>
-      </div>
-      <div id="wiki-container"></div>
+    <!-- Văn phòng AI (iframe) -->
+    <section id="view-vanphong" class="view">
+      <iframe id="vanphong-frame" src="/van-phong-ai/quy-trinh-thanh-toan.html" title="Văn phòng AI" style="width:100%;height:calc(100vh - 130px);border:none;border-radius:12px;background:#fff"></iframe>
     </section>
 
     <!-- Reports View -->

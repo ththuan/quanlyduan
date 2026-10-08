@@ -2924,6 +2924,40 @@ canvas {
 
 .ai-save-wiki { display: inline-flex; align-items: center; gap: 4px; }
 
+.vanphong-promo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  min-height: 300px;
+  text-align: center;
+  padding: 20px;
+}
+
+.vanphong-promo-icon {
+  width: 72px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 20px;
+  font-size: 36px;
+  background: linear-gradient(135deg, #2563eb, #0891b2);
+  color: #fff;
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.3);
+}
+
+.vanphong-promo p {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  max-width: 440px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+#view-vanphong { padding: 0; }
+
 /* ---- Kho tri thức (wiki) ---- */
 .wiki-stats {
   display: grid;
