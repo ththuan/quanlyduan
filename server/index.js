@@ -51,7 +51,7 @@ app.use((req, res, next) => {
     "font-src 'self'; " +
     "img-src 'self' data: blob:; " +
     "connect-src 'self'; " +
-    "object-src 'none'; base-uri 'self'; frame-ancestors 'none'; frame-src 'self' blob:"
+    "object-src 'none'; base-uri 'self'; frame-ancestors 'none'; frame-src 'self' blob: data:"
   );
   next();
 });

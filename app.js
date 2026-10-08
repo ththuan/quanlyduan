@@ -786,7 +786,7 @@ function renderDonutChart() {
   const estTotal = cats.reduce((s, c) => s + getCatEstimateTotal(c), 0);
 
   let valueFn, centerLabel;
-  if (invTotal > 0) { valueFn = getCatInvestTotal; centerLabel = 'TỔNG MỨC ĐẦU TƯ'; }
+  if (invTotal > 0) { valueFn = getCatInvestTotal; centerLabel = 'TỔNG DỰ TOÁN'; }
   else if (bidTotal > 0) { valueFn = getCatBidTotal; centerLabel = 'GIÁ TRỊ TRÚNG THẦU'; }
   else { valueFn = getCatEstimateTotal; centerLabel = 'GIÁ TRỊ DỰ TOÁN'; }
 
@@ -870,7 +870,7 @@ function renderBarChart() {
   // Legend
   const legend = `
     <div class="cmp-legend">
-      <span class="cmp-lbl"><i class="cmp-dot" style="background:#2563eb"></i>Tổng mức đầu tư</span>
+      <span class="cmp-lbl"><i class="cmp-dot" style="background:#2563eb"></i>Tổng dự toán</span>
       <span class="cmp-lbl"><i class="cmp-dot" style="background:#06b6d4"></i>Dự toán</span>
       <span class="cmp-lbl"><i class="cmp-dot" style="background:#16a34a"></i>Giải ngân</span>
     </div>`;
@@ -1233,7 +1233,7 @@ function renderPackages(searchTerm = document.getElementById('search-packages')?
         <div class="category-code" style="background:${cat.color || CAT_COLORS[ci]}">${esc(cat.code)}</div>
         <div class="category-name">${esc(cat.name)}</div>
         <div class="category-stats">
-          <span>Tổng mức đầu tư: <span class="stat-value">${formatCurrency(investTotal, true)}</span></span>
+          <span>Tổng dự toán: <span class="stat-value">${formatCurrency(investTotal, true)}</span></span>
           <span>Dự toán: <span class="stat-value">${formatCurrency(estimateTotal, true)}</span></span>
           <span>Nghiệm thu: <span class="stat-value">${formatCurrency(acceptTotal, true)}</span></span>
           <span>Gói: <span class="stat-value">${cat.packages.length}</span></span>
@@ -1371,7 +1371,7 @@ function renderReports() {
             <tr>
               <th>TT</th>
               <th>Danh mục</th>
-              <th class="text-right">Tổng mức đầu tư</th>
+              <th class="text-right">Tổng dự toán</th>
               <th class="text-right">Dự toán</th>
               <th class="text-right">Trúng thầu</th>
               <th class="text-right">Đã thanh toán</th>
@@ -1674,7 +1674,7 @@ function exportFullProjectReport() {
         <tr>
           <th style="width:35px">TT</th>
           <th>Danh mục chi phí</th>
-          <th class="text-right">Tổng mức đầu tư</th>
+          <th class="text-right">Tổng dự toán</th>
           <th class="text-right">Dự toán</th>
           <th class="text-right">Trúng thầu</th>
           <th class="text-right">Lũy kế giải ngân</th>
@@ -4206,7 +4206,7 @@ function editCategory(catId) {
     <div class="form-grid">
       <div class="form-group"><label>Mã danh mục</label><input type="text" id="f-cat-code" value="${esc(cat.code)}"></div>
       <div class="form-group"><label>Màu sắc</label><input type="color" id="f-cat-color" value="${cat.color || '#3b82f6'}"></div>
-      <div class="form-group"><label>Tổng mức đầu tư (VNĐ)</label><input type="number" id="f-cat-investTotal" value="${cat.investTotal || ''}"></div>
+      <div class="form-group"><label>Tổng dự toán (VNĐ)</label><input type="number" id="f-cat-investTotal" value="${cat.investTotal || ''}"></div>
       <div class="form-group full-width"><label>Tên danh mục</label><input type="text" id="f-cat-name" value="${esc(cat.name)}"></div>
       <div class="form-group full-width"><label>Nhóm theo Mẫu 04/QTDA</label>${qtdaGroupSelectHTML(getCatQtdaGroup(cat))}</div>
     </div>
@@ -4273,7 +4273,7 @@ document.getElementById('btn-add-category').addEventListener('click', () => {
     <div class="form-grid">
       <div class="form-group"><label>Mã danh mục</label><input type="text" id="f-cat-code" placeholder="VII"></div>
       <div class="form-group"><label>Màu sắc</label><input type="color" id="f-cat-color" value="#3b82f6"></div>
-      <div class="form-group"><label>Tổng mức đầu tư (VNĐ)</label><input type="number" id="f-cat-investTotal" placeholder="Nhập tổng mức đầu tư của danh mục"></div>
+      <div class="form-group"><label>Tổng dự toán (VNĐ)</label><input type="number" id="f-cat-investTotal" placeholder="Nhập tổng dự toán của danh mục"></div>
       <div class="form-group full-width"><label>Tên danh mục</label><input type="text" id="f-cat-name" placeholder="Tên danh mục chi phí"></div>
       <div class="form-group full-width"><label>Nhóm theo Mẫu 04/QTDA</label>${qtdaGroupSelectHTML('')}</div>
     </div>
@@ -4643,25 +4643,34 @@ async function removeDocAttach(fileId, category, catId, pkgId) {
   }
 }
 
+function blobToDataURL(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('Không thể đọc file'));
+    reader.readAsDataURL(blob);
+  });
+}
+
 async function viewPDF(pdfId) {
   try {
     const res = handleAuthResponse(await fetch(`${API_BASE}/pdfs/${pdfId}`));
     if (!res.ok) throw new Error('Không tải được file');
     const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
     const mime = blob.type || '';
 
     if (mime === 'application/pdf') {
-      if (previewObjectUrl) URL.revokeObjectURL(previewObjectUrl);
-      previewObjectUrl = url;
+      // Dùng data URL để hiển thị ổn định trên cả Chrome lẫn Safari/iPad
+      const dataUrl = await blobToDataURL(blob);
       openModal('Xem tài liệu PDF', `
         <div class="pdf-preview-wrap">
-          <iframe src="${url}" title="Xem trước PDF"></iframe>
+          <iframe src="${dataUrl}" title="Xem trước PDF"></iframe>
         </div>
       `, `
         <button class="btn btn-secondary" onclick="closeModal()">Đóng</button>
       `, 'xl');
     } else if (mime.startsWith('image/')) {
+      const url = URL.createObjectURL(blob);
       if (previewObjectUrl) URL.revokeObjectURL(previewObjectUrl);
       previewObjectUrl = url;
       openModal('Xem hình ảnh', `
@@ -4673,6 +4682,7 @@ async function viewPDF(pdfId) {
       `, 'xl');
     } else {
       // Tài liệu Word/Excel/khác: không xem trực tiếp được -> tải xuống
+      const url = URL.createObjectURL(blob);
       window.open(url, '_blank');
       setTimeout(() => URL.revokeObjectURL(url), 60000);
     }
