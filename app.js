@@ -3085,7 +3085,37 @@ function getPackageFormHTML(pkg = null, catId = '') {
           ${legacyFund}
         </select>
       </div>
+      <div data-show="goods nonConsulting mixed" class="pkg-show">
+        <div class="form-group full-width" style="grid-column:1/-1;display:flex;align-items:center;gap:8px;padding:10px 14px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px">
+          <input type="checkbox" id="f-hasQuote" ${pkg?.quoteNumber || pkg?.quoteDate || pkg?.quoteCount ? 'checked' : ''} style="width:auto;height:16px;width:16px" onchange="toggleQuoteFields()">
+          <label for="f-hasQuote" style="text-transform:none;font-size:0.9rem;font-weight:600;color:var(--accent-amber);cursor:pointer;margin:0">
+            Gói thầu có lấy báo giá (khi không có định mức / đơn giá)
+          </label>
+          <span class="material-symbols-rounded" style="color:var(--accent-amber)">price_check</span>
+        </div>
+        <div id="quote-fields" style="${pkg?.quoteNumber || pkg?.quoteDate || pkg?.quoteCount ? '' : 'display:none'}">
+        <div class="form-group">
+          <label>Số yêu cầu báo giá</label>
+          <input type="text" id="f-quoteNumber" value="${esc(pkg?.quoteNumber || '')}" placeholder="Số YCBG / báo giá">
+        </div>
+        <div class="form-group">
+          <label>Ngày đăng yêu cầu báo giá</label>
+          <input type="date" id="f-quoteDate" value="${pkg?.quoteDate || ''}">
+        </div>
+        <div class="form-group">
+          <label>Số báo giá nhận được</label>
+          <input type="number" id="f-quoteCount" min="0" value="${pkg?.quoteCount ?? ''}" placeholder="Tối thiểu 01 báo giá">
+        </div>
+        </div>
+      </div>
       <div class="form-section-title"><span class="material-symbols-rounded">description</span> Thông tin hợp đồng</div>
+      <div class="form-group">
+        <label>Kế hoạch lựa chọn nhà thầu (KHLCNT)</label>
+        <select id="f-khlcntDoc">
+          <option value="">— Chọn từ Pháp lý —</option>
+          ${docOpts(khlcntDocs, pkg?.khlcntDocId)}
+        </select>
+      </div>
       <div class="form-group">
         <label>Quyết định phê duyệt kết quả</label>
         <select id="f-resultDoc">
@@ -3130,41 +3160,6 @@ function getPackageFormHTML(pkg = null, catId = '') {
       <div class="form-group">
         <label>Đơn vị trúng thầu</label>
         <input type="text" id="f-contractor" value="${esc(pkg?.contractor || '')}">
-      </div>
-      <div class="form-section-title"><span class="material-symbols-rounded">fact_check</span> Quy trình lựa chọn nhà thầu (NĐ 349/2026)</div>
-      <div data-show="goods nonConsulting mixed" class="pkg-show">
-      <div class="form-group full-width" style="grid-column:1/-1;display:flex;align-items:center;gap:8px;padding:10px 14px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px">
-        <input type="checkbox" id="f-hasQuote" ${pkg?.quoteNumber || pkg?.quoteDate || pkg?.quoteCount ? 'checked' : ''} style="width:auto;height:16px;width:16px" onchange="toggleQuoteFields()">
-        <label for="f-hasQuote" style="text-transform:none;font-size:0.9rem;font-weight:600;color:var(--accent-amber);cursor:pointer;margin:0">
-          Gói thầu có lấy báo giá (khi không có định mức / đơn giá)
-        </label>
-        <span class="material-symbols-rounded" style="color:var(--accent-amber)">price_check</span>
-      </div>
-      <div id="quote-fields" style="${pkg?.quoteNumber || pkg?.quoteDate || pkg?.quoteCount ? '' : 'display:none'}">
-      <div class="form-group">
-        <label>Số yêu cầu báo giá</label>
-        <input type="text" id="f-quoteNumber" value="${esc(pkg?.quoteNumber || '')}" placeholder="Số YCBG / báo giá">
-      </div>
-      <div class="form-group">
-        <label>Ngày đăng yêu cầu báo giá</label>
-        <input type="date" id="f-quoteDate" value="${pkg?.quoteDate || ''}">
-      </div>
-      <div class="form-group">
-        <label>Số báo giá nhận được</label>
-        <input type="number" id="f-quoteCount" min="0" value="${pkg?.quoteCount ?? ''}" placeholder="Tối thiểu 01 báo giá">
-      </div>
-      </div>
-      </div>
-      <div class="form-group">
-        <label>Kế hoạch lựa chọn nhà thầu (KHLCNT)</label>
-        <select id="f-khlcntDoc">
-          <option value="">— Chọn từ Pháp lý —</option>
-          ${docOpts(khlcntDocs, pkg?.khlcntDocId)}
-        </select>
-      </div>
-      <div class="form-group full-width">
-        <label>Căn cứ chỉ định thầu</label>
-        <input type="text" id="f-directBasis" value="${esc(pkg?.directBasis || '')}" placeholder="VD: điểm e1 khoản 2 Điều 78 NĐ 214/2025 (sửa bởi NĐ 349/2026)">
       </div>
       <div class="form-section-title"><span class="material-symbols-rounded">schedule</span> Tiến độ & Thời gian</div>
       <div class="form-group">
@@ -3319,7 +3314,6 @@ function getPackageFormData() {
     khlcntDocId,
     khlcntNumber: khlcntDoc ? (khlcntDoc.number || khlcntDoc.title) : '',
     khlcntDate: khlcntDoc?.date || '',
-    directBasis: document.getElementById('f-directBasis').value.trim(),
     duration: document.getElementById('f-duration').value.trim(),
     progress: Number(document.getElementById('f-progress').value) || 0,
     cumulativeValue: Number(document.getElementById('f-cumulativeValue').value) || 0,
@@ -3553,6 +3547,11 @@ function viewPackageDetail(catId, pkgId) {
         <span class="detail-label">Nguồn vốn</span>
         <span class="detail-value">${esc(pkg.fundSource || '—')}</span>
       </div>
+      ${pkg.quoteNumber || pkg.quoteDate || pkg.quoteCount ? `
+      <div class="detail-item">
+        <span class="detail-label">Báo giá</span>
+        <span class="detail-value">${esc(pkg.quoteNumber || '—')}${pkg.quoteDate ? ` — đăng ${formatDateVN(pkg.quoteDate)}` : ''}${pkg.quoteCount ? ` · ${pkg.quoteCount} báo giá` : ''}</span>
+      </div>` : ''}
       <div class="detail-item">
         <span class="detail-label">Phạm vi gói thầu</span>
         <span class="detail-value">${pkg.pkgScope === 'nonProject' ? 'Không hình thành dự án (dự toán mua sắm)' : 'Thuộc dự án'}</span>
@@ -3563,9 +3562,14 @@ function viewPackageDetail(catId, pkgId) {
         <span class="detail-value">${esc(pkg.purchaseType)}</span>
       </div>` : ''}
       <div class="detail-section-title">Thông tin hợp đồng</div>
+      ${pkg.khlcntNumber || pkg.khlcntDate ? `
+      <div class="detail-item">
+        <span class="detail-label">KHLCNT</span>
+        <span class="detail-value">${esc(pkg.khlcntNumber || '—')}${pkg.khlcntDate ? ` — ${formatDateVN(pkg.khlcntDate)}` : ''}</span>
+      </div>` : ''}
       <div class="detail-item">
         <span class="detail-label">Quyết định phê duyệt kết quả</span>
-        <span class="detail-value">${esc(pkg.bidDecision || '—')}</span>
+        <span class="detail-value">${esc(pkg.bidDecision || '—')}${pkg.resultApprovalDate ? ` — ${formatDateVN(pkg.resultApprovalDate)}` : ''}</span>
       </div>
       <div class="detail-item">
         <span class="detail-label">Hợp đồng</span>
@@ -3600,29 +3604,6 @@ function viewPackageDetail(catId, pkgId) {
         <span class="detail-label">Hình thức lựa chọn</span>
         <span class="detail-value">${esc(pkg.selectionMethod || '—')}</span>
       </div>
-      ${pkg.quoteNumber || pkg.quoteDate || pkg.quoteCount || pkg.khlcntNumber || pkg.khlcntDate || pkg.resultApprovalDate || pkg.directBasis ? `
-      <div class="detail-section-title">Quy trình lựa chọn nhà thầu</div>
-      ${pkg.quoteNumber || pkg.quoteDate || pkg.quoteCount ? `
-      <div class="detail-item">
-        <span class="detail-label">Báo giá</span>
-        <span class="detail-value">${esc(pkg.quoteNumber || '—')}${pkg.quoteDate ? ` — đăng ${formatDateVN(pkg.quoteDate)}` : ''}${pkg.quoteCount ? ` · ${pkg.quoteCount} báo giá` : ''}</span>
-      </div>` : ''}
-      ${pkg.khlcntNumber || pkg.khlcntDate ? `
-      <div class="detail-item">
-        <span class="detail-label">KHLCNT</span>
-        <span class="detail-value">${esc(pkg.khlcntNumber || '—')}${pkg.khlcntDate ? ` — ${formatDateVN(pkg.khlcntDate)}` : ''}</span>
-      </div>` : ''}
-      ${pkg.resultApprovalDate ? `
-      <div class="detail-item">
-        <span class="detail-label">Phê duyệt kết quả</span>
-        <span class="detail-value">${formatDateVN(pkg.resultApprovalDate)}</span>
-      </div>` : ''}
-      ${pkg.directBasis ? `
-      <div class="detail-item full-width">
-        <span class="detail-label">Căn cứ chỉ định thầu</span>
-        <span class="detail-value">${esc(pkg.directBasis)}</span>
-      </div>` : ''}
-      ` : ''}
       <div class="detail-item">
         <span class="detail-label">Đơn vị trúng thầu</span>
         <span class="detail-value">${esc(pkg.contractor || '—')}</span>
