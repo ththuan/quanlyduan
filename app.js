@@ -5175,16 +5175,21 @@ async function submitChangePassword(id) {
   }
 }
 
-// Buộc đổi mật khẩu mặc định (admin/admin123) sau khi đăng nhập
+// Buộc đổi mật khẩu sau lần đăng nhập đầu tiên (must_change_password)
 function requireForcePasswordChange() {
-  let raw;
-  try { raw = sessionStorage.getItem('qlda_force_pw'); } catch (e) { return; }
-  if (!raw) return;
-  const info = JSON.parse(raw);
-  const id = (info && info.id) || (currentUser && currentUser.id);
+  let forced = false;
+  let id = (currentUser && currentUser.id) || '';
+  try {
+    const raw = sessionStorage.getItem('qlda_force_pw');
+    if (raw) {
+      const info = JSON.parse(raw);
+      if (info && info.id) { forced = true; id = info.id; }
+    }
+  } catch (e) { /* bỏ qua */ }
+  if (!forced && !(currentUser && currentUser.mustChangePassword)) return;
   if (!id) return;
-  openModal('Yêu cầu đổi mật khẩu mặc định', `
-    <p style="margin-bottom:14px">Bạn đang đăng nhập bằng mật khẩu mặc định <code>admin123</code>. Vì lý do bảo mật, vui lòng đổi mật khẩu trước khi tiếp tục.</p>
+  openModal('Yêu cầu đổi mật khẩu', `
+    <p style="margin-bottom:14px">Vì lý do bảo mật, bạn cần đổi mật khẩu trước khi tiếp tục sử dụng hệ thống.</p>
     <div class="form-grid">
       <div class="form-group full-width">
         <label>Mật khẩu mới * (tối thiểu 6 ký tự)</label>
@@ -5247,6 +5252,8 @@ async function init() {
   }
   renderAccountUI();
   requireForcePasswordChange();
+  // Đang bị buộc đổi mật khẩu: dừng tải dữ liệu, chờ đổi xong rồi reload
+  if (currentUser.mustChangePassword) return;
   try {
     await loadState();
   } catch (err) {

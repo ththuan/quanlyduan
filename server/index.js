@@ -200,8 +200,9 @@ app.put('/api/users/:id/password', requireAuth, (req, res) => {
   if (!password || password.length < 6) return res.status(400).json({ error: 'Mật khẩu phải có ít nhất 6 ký tự' });
   const target = db.getUserById(id);
   if (!target) return res.status(404).json({ error: 'Không tìm thấy tài khoản' });
-  // Tự đổi mật khẩu (không phải admin) phải xác nhận mật khẩu hiện tại
-  if (req.user.role !== 'admin' && req.user.id === id) {
+  // Tự đổi mật khẩu (không phải admin) phải xác nhận mật khẩu hiện tại,
+  // trừ khi đang bị buộc đổi mật khẩu (must_change_password) sau lần đăng nhập đầu tiên.
+  if (req.user.role !== 'admin' && req.user.id === id && !req.user.mustChangePassword) {
     if (!currentPassword || !db.verifyUser(target.username, currentPassword)) {
       return res.status(400).json({ error: 'Mật khẩu hiện tại không đúng' });
     }
