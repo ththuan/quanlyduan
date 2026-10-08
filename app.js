@@ -3154,49 +3154,17 @@ function getPackageFormHTML(pkg = null, catId = '') {
         <input type="date" id="f-khlcntDate" value="${pkg?.khlcntDate || ''}">
       </div>
       <div class="form-group">
-        <label>Số HSMT / HSYC</label>
-        <input type="text" id="f-hsmtNumber" value="${esc(pkg?.hsmtNumber || '')}" placeholder="Hồ sơ mời thầu / hồ sơ yêu cầu">
-      </div>
-      <div class="form-group">
-        <label>Ngày phát hành HSMT/HSYC</label>
-        <input type="date" id="f-hsmtDate" value="${pkg?.hsmtDate || ''}">
-      </div>
-      <div class="form-group">
-        <label>Ngày đóng thầu</label>
-        <input type="date" id="f-bidCloseDate" value="${pkg?.bidCloseDate || ''}">
-      </div>
-      <div class="form-group">
-        <label>Ngày mở thầu</label>
-        <input type="date" id="f-bidOpenDate" value="${pkg?.bidOpenDate || ''}">
-      </div>
-      <div class="form-group">
-        <label>Ngày đánh giá HSDT/HSĐX</label>
-        <input type="date" id="f-evaluationDate" value="${pkg?.evaluationDate || ''}">
-      </div>
-      <div class="form-group">
-        <label>Ngày phê duyệt KQLCNT</label>
+        <label>Ngày phê duyệt kết quả</label>
         <input type="date" id="f-resultApprovalDate" value="${pkg?.resultApprovalDate || ''}">
-      </div>
-      <div class="form-group">
-        <label>Ngày công khai KQLCNT</label>
-        <input type="date" id="f-resultPublishDate" value="${pkg?.resultPublishDate || ''}">
       </div>
       <div class="form-group full-width">
         <label>Căn cứ chỉ định thầu</label>
         <input type="text" id="f-directBasis" value="${esc(pkg?.directBasis || '')}" placeholder="VD: điểm e1 khoản 2 Điều 78 NĐ 214/2025 (sửa bởi NĐ 349/2026)">
       </div>
       <div class="form-section-title"><span class="material-symbols-rounded">schedule</span> Tiến độ & Thời gian</div>
-      <div data-show="construction" class="pkg-show">
-        <div class="form-group">
-          <label>Thời gian KC-HT</label>
-          <input type="text" id="f-duration" value="${esc(pkg?.duration || '')}">
-        </div>
-      </div>
-      <div data-show="consulting nonConsulting" data-hide="construction mixed goods" class="pkg-show">
-        <div class="form-group">
-          <label>Thời gian thực hiện</label>
-          <input type="text" id="f-duration" value="${esc(pkg?.duration || '')}" placeholder="VD: 6 tháng">
-        </div>
+      <div class="form-group">
+        <label>Thời gian thực hiện</label>
+        <input type="text" id="f-duration" value="${esc(pkg?.duration || '')}" placeholder="VD: 6 tháng">
       </div>
       <div data-show="construction" class="pkg-show">
         <div class="form-group">
@@ -3204,21 +3172,13 @@ function getPackageFormHTML(pkg = null, catId = '') {
           <input type="number" id="f-progress" min="0" max="100" value="${pkg?.progress ?? ''}">
         </div>
       </div>
-      <div class="form-section-title"><span class="material-symbols-rounded">assessment</span> Giá trị thực hiện</div>
-      <div class="form-group">
-        <label>Trong kỳ - Giá trị thực hiện (VNĐ)</label>
-        <input type="number" id="f-periodValue" value="${pkg?.periodValue || ''}">
-      </div>
-      <div class="form-group">
-        <label>Trong kỳ - Giải ngân (VNĐ)</label>
-        <input type="number" id="f-periodDisbursed" value="${pkg?.periodDisbursed || ''}">
-      </div>
+      <div class="form-section-title"><span class="material-symbols-rounded">assessment</span> Giá trị thực hiện & thanh toán</div>
       <div class="form-group">
         <label>Lũy kế giá trị thực hiện (VNĐ)</label>
         <input type="number" id="f-cumulativeValue" value="${pkg?.cumulativeValue || ''}">
       </div>
       <div class="form-group">
-        <label>Lũy kế giải ngân (VNĐ)</label>
+        <label>Đã thanh toán (VNĐ)</label>
         <input type="number" id="f-cumulativeDisbursed" value="${pkg?.cumulativeDisbursed || ''}">
       </div>
       <div data-show="consulting nonConsulting" data-hide="construction mixed goods" class="pkg-show">
@@ -3336,18 +3296,10 @@ function getPackageFormData() {
     quoteCount: hasQuote ? (Number(document.getElementById('f-quoteCount').value) || 0) : 0,
     khlcntNumber: document.getElementById('f-khlcntNumber').value.trim(),
     khlcntDate: toIso(document.getElementById('f-khlcntDate').value),
-    hsmtNumber: document.getElementById('f-hsmtNumber').value.trim(),
-    hsmtDate: toIso(document.getElementById('f-hsmtDate').value),
-    bidCloseDate: toIso(document.getElementById('f-bidCloseDate').value),
-    bidOpenDate: toIso(document.getElementById('f-bidOpenDate').value),
-    evaluationDate: toIso(document.getElementById('f-evaluationDate').value),
     resultApprovalDate: toIso(document.getElementById('f-resultApprovalDate').value),
-    resultPublishDate: toIso(document.getElementById('f-resultPublishDate').value),
     directBasis: document.getElementById('f-directBasis').value.trim(),
     duration: document.getElementById('f-duration').value.trim(),
     progress: Number(document.getElementById('f-progress').value) || 0,
-    periodValue: Number(document.getElementById('f-periodValue').value) || 0,
-    periodDisbursed: Number(document.getElementById('f-periodDisbursed').value) || 0,
     cumulativeValue: Number(document.getElementById('f-cumulativeValue').value) || 0,
     cumulativeDisbursed: Number(document.getElementById('f-cumulativeDisbursed').value) || 0,
 
