@@ -3227,15 +3227,13 @@ function getPackageFormHTML(pkg = null, catId = '') {
         <label>Ngày nghiệm thu hoàn thành</label>
         <input type="date" id="f-acceptanceDate" value="${pkg?.acceptanceDate || ''}" ${pkg?.acceptances?.length ? 'readonly' : ''}>
       </div>
-      <div data-show="construction mixed" class="pkg-show">
-        <div class="form-group">
-          <label>Phụ lục 03a — Bảng tính giá trị khối lượng</label>
-          <input type="text" id="f-pl03aNumber" value="${esc(pkg?.pl03aNumber || '')}" placeholder="Số / ký hiệu PL 03a">
-        </div>
-        <div class="form-group">
-          <label>Ngày PL 03a</label>
-          <input type="date" id="f-pl03aDate" value="${pkg?.pl03aDate || ''}">
-        </div>
+      <div class="form-group">
+        <label>Phụ lục 03a — Bảng tính giá trị khối lượng</label>
+        <input type="text" id="f-pl03aNumber" value="${esc(pkg?.pl03aNumber || '')}" placeholder="Số / ký hiệu PL 03a">
+      </div>
+      <div class="form-group">
+        <label>Ngày PL 03a</label>
+        <input type="date" id="f-pl03aDate" value="${pkg?.pl03aDate || ''}">
       </div>
 
       <div class="form-section-title"><span class="material-symbols-rounded">receipt</span> Hóa đơn GTGT (NĐ 123/2020)</div>
@@ -3380,8 +3378,8 @@ function getPackageFormData() {
     acceptanceValue: Number(document.getElementById('f-acceptanceValue').value) || 0,
     acceptanceStatus: document.getElementById('f-acceptanceStatus').value,
     acceptanceDate: toIso(document.getElementById('f-acceptanceDate').value),
-    pl03aNumber: ['construction', 'mixed'].includes(pkgType) ? document.getElementById('f-pl03aNumber').value.trim() : '',
-    pl03aDate: ['construction', 'mixed'].includes(pkgType) ? toIso(document.getElementById('f-pl03aDate').value) : '',
+    pl03aNumber: document.getElementById('f-pl03aNumber').value.trim(),
+    pl03aDate: toIso(document.getElementById('f-pl03aDate').value),
     contractType: document.getElementById('f-contractType').value,
     contractSignDate: toIso(document.getElementById('f-contractSignDate').value),
     contractStartDate: toIso(document.getElementById('f-contractStartDate').value),
