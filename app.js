@@ -867,115 +867,33 @@ function renderBarChart() {
   const project = getCurrentProject();
   const cats = project ? getSortedCategories(project) : [];
 
-  const series = [
-    { label: 'Tổng dự toán', color: '#2563eb', fn: getCatInvestTotal },
-    { label: 'Dự toán', color: '#06b6d4', fn: getCatEstimateTotal },
-    { label: 'Giải ngân', color: '#16a34a', fn: getCatDisbursedTotal }
-  ];
-
-  const legend = `
-    <div class="cmp-legend">
-      ${series.map(s => `<span class="cmp-lbl"><i class="cmp-dot" style="background:${s.color}"></i>${s.label}</span>`).join('')}
-    </div>`;
-
   if (!cats.length) {
-    el.innerHTML = legend + '<div class="plot-empty">Chưa có dữ liệu</div>';
+    el.innerHTML = '<div class="plot-empty">Chưa có dữ liệu</div>';
     return;
   }
 
-  const maxVal = Math.max(...cats.flatMap(c => series.map(s => s.fn(c))));
-  if (!isFinite(maxVal) || maxVal <= 0) {
-    el.innerHTML = legend + '<div class="plot-empty">Chưa có dữ liệu</div>';
-    return;
-  }
-
-  el.innerHTML = legend + '<canvas id="chart-bar-canvas"></canvas>';
-  drawGroupedBarChart(document.getElementById('chart-bar-canvas'), cats, series, maxVal);
-}
-
-function drawGroupedBarChart(canvas, cats, series, maxVal) {
-  if (!canvas) return;
-  const dpr = window.devicePixelRatio || 1;
-  const width = Math.max(320, canvas.parentElement.clientWidth);
-  const height = 330;
-  canvas.style.width = width + 'px';
-  canvas.style.height = height + 'px';
-  canvas.width = width * dpr;
-  canvas.height = height * dpr;
-  const ctx = canvas.getContext('2d');
-  ctx.scale(dpr, dpr);
-  ctx.clearRect(0, 0, width, height);
-
-  const m = { top: 18, right: 16, bottom: 46, left: 78 };
-  const plotW = width - m.left - m.right;
-  const plotH = height - m.top - m.bottom;
-
-  // Y-axis gridlines + labels
-  const steps = 4;
-  ctx.font = '11px Inter, system-ui, sans-serif';
-  ctx.textAlign = 'right';
-  ctx.textBaseline = 'middle';
-  for (let i = 0; i <= steps; i++) {
-    const val = maxVal * i / steps;
-    const y = m.top + plotH - (plotH * i / steps);
-    ctx.strokeStyle = '#eef2f7';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(m.left, y);
-    ctx.lineTo(width - m.right, y);
-    ctx.stroke();
-    ctx.fillStyle = '#94a3b8';
-    ctx.fillText(formatCompactCurrency(val), m.left - 10, y);
-  }
-
-  // Bars (store rects for hover tooltip)
-  const rects = [];
-  const n = cats.length;
-  const groupW = plotW / n;
-  const barW = Math.max(6, Math.min(22, groupW * 0.22));
-  const gap = Math.max(2, barW * 0.16);
-  const totalW = series.length * barW + (series.length - 1) * gap;
-  const startX = groupW / 2 - totalW / 2;
-
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'top';
-  ctx.font = '11px Inter, system-ui, sans-serif';
-  cats.forEach((cat, i) => {
-    const gx = m.left + i * groupW;
-    series.forEach((s, j) => {
-      const v = s.fn(cat);
-      const bh = maxVal > 0 ? (v / maxVal) * plotH : 0;
-      const x = gx + startX + j * (barW + gap);
-      const y = m.top + plotH - bh;
-      ctx.fillStyle = s.color;
-      ctx.fillRect(x, y, barW, bh);
-      rects.push({ x, y, w: barW, h: bh, name: cat.name, code: cat.code, series: s.label, value: v, color: s.color });
-    });
-    ctx.fillStyle = '#64748b';
-    const code = String(cat.code || '').slice(0, 7);
-    ctx.fillText(code, gx + groupW / 2, m.top + plotH + 8);
+  const rows = cats.map(cat => {
+    const invest = getCatInvestTotal(cat);
+    const disbursed = getCatDisbursedTotal(cat);
+    const rate = invest > 0 ? (disbursed / invest) * 100 : 0;
+    const cls = rate >= 100 ? 'complete' : rate >= 60 ? 'high' : rate >= 30 ? 'medium' : 'low';
+    return `
+      <div class="prog-row">
+        <div class="prog-row-head">
+          <span class="prog-name"><span class="prog-code">${esc(cat.code)}</span> ${esc(cat.name)}</span>
+          <span class="prog-pct">${rate.toFixed(1)}%</span>
+        </div>
+        <div class="prog-track">
+          <span class="prog-fill ${cls}" style="width:${Math.min(100, rate).toFixed(1)}%"></span>
+        </div>
+        <div class="prog-row-meta">
+          <span>Đã giải ngân <b>${formatCurrency(disbursed, true)}</b></span>
+          <span>Tổng dự toán <b>${formatCurrency(invest, true)}</b></span>
+        </div>
+      </div>`;
   });
 
-  // Tooltip
-  let tip = canvas.parentElement.querySelector('.chart-tooltip');
-  if (!tip) {
-    tip = document.createElement('div');
-    tip.className = 'chart-tooltip';
-    canvas.parentElement.appendChild(tip);
-  }
-  canvas.onmousemove = (e) => {
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    const hit = rects.find(r => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + Math.max(r.h, 3));
-    if (!hit) { tip.style.display = 'none'; return; }
-    tip.style.display = 'block';
-    tip.innerHTML = `<strong>${esc(hit.code ? hit.code + '. ' : '')}${esc(hit.name)}</strong><br>${esc(hit.series)}: <b>${esc(formatCurrency(hit.value))}</b>`;
-    const cw = rect.width;
-    tip.style.left = Math.min(x + 12, cw - 160) + 'px';
-    tip.style.top = Math.max(y - 40, 0) + 'px';
-  };
-  canvas.onmouseleave = () => { tip.style.display = 'none'; };
+  el.innerHTML = rows.join('');
 }
 
 // ============================================================
@@ -1076,10 +994,8 @@ function renderDashboard() {
   renderAlertsPanel(project);
 
   const allPkgs = project.categories.flatMap(c => c.packages.map(p => ({ cat: c, pkg: p })));
-  const catCount = project.categories.length;
 
   const totalInvest = project.totalInvestment;
-  const totalEstimate = project.categories.reduce((s, c) => s + getCatEstimateTotal(c), 0);
   const totalBid = project.categories.reduce((s, c) => s + getCatBidTotal(c), 0);
   const totalDisbursed = project.categories.reduce((s, c) => s + getCatDisbursedTotal(c), 0);
   const totalCumulative = project.categories.reduce((s, c) => s + getCatCumulativeTotal(c), 0);
@@ -1120,14 +1036,6 @@ function renderDashboard() {
       </div>
       <div class="kpi-value">${formatCurrency(totalInvest, true)}</div>
       <div class="kpi-sub">KH vốn năm ${project.planYear || '—'}: ${formatCurrency(project.annualPlan, true)}</div>
-    </div>
-    <div class="kpi-card glass-card" data-color="blue">
-      <div class="kpi-header">
-        <span class="kpi-label">Tổng dự toán</span>
-        <div class="kpi-icon"><span class="material-symbols-rounded">request_quote</span></div>
-      </div>
-      <div class="kpi-value">${formatCurrency(totalEstimate, true)}</div>
-      <div class="kpi-sub">${catCount} danh mục · ${allPkgs.length} gói thầu</div>
     </div>
     <div class="kpi-card glass-card" data-color="purple">
       <div class="kpi-header">
