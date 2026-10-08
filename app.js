@@ -899,7 +899,7 @@ function drawCategoryNetwork(canvas, cats, container) {
   if (!canvas) return;
   const dpr = window.devicePixelRatio || 1;
   const width = Math.max(340, canvas.parentElement.clientWidth);
-  const height = 430;
+  const height = 440;
   canvas.style.width = width + 'px';
   canvas.style.height = height + 'px';
   canvas.width = width * dpr;
@@ -908,38 +908,47 @@ function drawCategoryNetwork(canvas, cats, container) {
   const maxVal = Math.max(...cats.map(c => getCatInvestTotal(c)), 1);
   const cx = width / 2;
   const cy = height / 2;
-  const R = Math.min(width, height) / 2 - 104;
 
   const totalInvest = cats.reduce((s, c) => s + getCatInvestTotal(c), 0);
   const totalDisbursed = cats.reduce((s, c) => s + getCatDisbursedTotal(c), 0);
   const totalRate = totalInvest > 0 ? (totalDisbursed / totalInvest) * 100 : 0;
 
+  const centerNode = { x: cx, y: cy, r: 40, color: '#38bdf8', fixed: true, vx: 0, vy: 0, cat: null, rate: totalRate, invest: totalInvest, disbursed: totalDisbursed };
+
+  // Vị trí khởi tạo gần vòng tròn + nhiễu -> force layout sẽ phân bố hữu cơ (không đều tăm tắp)
   const catNodes = cats.map((cat, i) => {
     const invest = getCatInvestTotal(cat);
     const disbursed = getCatDisbursedTotal(cat);
     const rate = invest > 0 ? (disbursed / invest) * 100 : 0;
     const ang = (i / cats.length) * Math.PI * 2 - Math.PI / 2;
+    const base = Math.min(width, height) / 2 - 96;
+    const jitter = base * 0.35;
     return {
       cat, invest, disbursed, rate,
-      x: cx + Math.cos(ang) * R,
-      y: cy + Math.sin(ang) * R,
+      x: cx + Math.cos(ang) * (base + (Math.random() - 0.5) * jitter),
+      y: cy + Math.sin(ang) * (base + (Math.random() - 0.5) * jitter),
       r: 15 + (invest / maxVal) * 24,
-      color: rateColor(rate), ang
+      color: rateColor(rate), vx: 0, vy: 0, fixed: false, grav: true
     };
   });
 
   const pkgNodes = [];
   catNodes.forEach(n => {
-    const pkgs = (n.cat.packages || []).slice(0, 5);
+    const pkgs = (n.cat.packages || []).slice(0, 6);
     pkgs.forEach((p, j) => {
-      const a = (j / Math.max(1, pkgs.length)) * Math.PI * 2 + n.ang;
-      const pr = n.r + 18 + (j % 2) * 8;
-      pkgNodes.push({ x: n.x + Math.cos(a) * pr, y: n.y + Math.sin(a) * pr, r: 2 + (j % 3), color: n.color, parent: n });
+      const a = (j / Math.max(1, pkgs.length)) * Math.PI * 2;
+      pkgNodes.push({ pkg: p, parent: n, x: n.x + Math.cos(a) * (n.r + 20), y: n.y + Math.sin(a) * (n.r + 20), r: 2.5 + (j % 3), color: n.color, vx: 0, vy: 0, fixed: false, grav: false });
     });
   });
 
-  const centerNode = { x: cx, y: cy, r: 42, color: '#38bdf8', cat: null, rate: totalRate, invest: totalInvest, disbursed: totalDisbursed };
-  const hitNodes = [centerNode, ...catNodes];
+  // Cạnh cho mô phỏng lực + vẽ
+  const edges = [];
+  catNodes.forEach(n => edges.push({ a: centerNode, b: n, len: 130, kind: 'cat' }));
+  for (let i = 0; i < catNodes.length; i++) edges.push({ a: catNodes[i], b: catNodes[(i + 1) % catNodes.length], len: 175, kind: 'ring' });
+  pkgNodes.forEach(p => edges.push({ a: p.parent, b: p, len: p.parent.r + 24, kind: 'pkg' }));
+
+  const allNodes = [centerNode, ...catNodes, ...pkgNodes];
+  settleForce(allNodes, edges, width, height, cx, cy);
 
   const stars = Array.from({ length: 60 }, () => ({
     x: Math.random() * width, y: Math.random() * height,
@@ -950,7 +959,6 @@ function drawCategoryNetwork(canvas, cats, container) {
   if (!tip) { tip = document.createElement('div'); tip.className = 'chart-tooltip'; container.appendChild(tip); }
 
   const maxDim = Math.max(width, height);
-
   let t = 0;
   function frame() {
     networkAnimFrame = requestAnimationFrame(frame);
@@ -958,7 +966,6 @@ function drawCategoryNetwork(canvas, cats, container) {
     const ctx = canvas.getContext('2d');
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    // Dark "knowledge engine" background
     const bg = ctx.createRadialGradient(cx, cy, 0, cx, cy, maxDim * 0.75);
     bg.addColorStop(0, '#1e293b');
     bg.addColorStop(0.5, '#0f172a');
@@ -966,7 +973,6 @@ function drawCategoryNetwork(canvas, cats, container) {
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, width, height);
 
-    // Stars (twinkling)
     stars.forEach(d => {
       const a = 0.25 + 0.35 * Math.sin(t * 2 + d.tw);
       ctx.globalAlpha = Math.max(0, a);
@@ -977,7 +983,6 @@ function drawCategoryNetwork(canvas, cats, container) {
     });
     ctx.globalAlpha = 1;
 
-    // Engine orbit rings (rotating ellipses around the core)
     for (let r = 0; r < 2; r++) {
       ctx.save();
       ctx.translate(cx, cy);
@@ -994,7 +999,7 @@ function drawCategoryNetwork(canvas, cats, container) {
       ctx.restore();
     }
 
-    // Ring mesh (category knowledge nodes linked)
+    // Ring mesh
     for (let i = 0; i < catNodes.length; i++) {
       const a = catNodes[i], b = catNodes[(i + 1) % catNodes.length];
       drawCurvedEdge(ctx, a, b, 'rgba(100,116,139,0.18)', 1);
@@ -1041,12 +1046,9 @@ function drawCategoryNetwork(canvas, cats, container) {
       ctx.fill();
     });
 
-    // Center core
     drawNetworkNode(ctx, centerNode.x, centerNode.y, centerNode.r, centerNode.color, Math.round(totalRate) + '%', 1, t);
-    // Category nodes
     catNodes.forEach((n, i) => drawNetworkNode(ctx, n.x, n.y, n.r, n.color, n.cat.code || '?', 0.85, t + i * 0.5));
 
-    // Category name labels (light on dark)
     ctx.font = '10px Inter, system-ui, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
@@ -1058,24 +1060,110 @@ function drawCategoryNetwork(canvas, cats, container) {
   }
   networkAnimFrame = requestAnimationFrame(frame);
 
+  // ---- Kéo nút + click để khoan sâu vào danh mục ----
+  const hit = (mx, my) => {
+    const inCat = catNodes.find(n => Math.hypot(mx - n.x, my - n.y) <= n.r + 6);
+    if (inCat) return inCat;
+    return pkgNodes.find(n => Math.hypot(mx - n.x, my - n.y) <= n.r + 5) || null;
+  };
+
+  let dragNode = null, dragOff = { x: 0, y: 0 }, downAt = null;
+
+  canvas.onmousedown = (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    downAt = { mx, my };
+    const n = hit(mx, my);
+    if (n) { dragNode = n; dragOff = { x: mx - n.x, y: my - n.y }; }
+  };
   canvas.onmousemove = (e) => {
     const rect = canvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
-    const hit = hitNodes.find(n => Math.hypot(mx - n.x, my - n.y) <= n.r + 4);
-    if (!hit) { tip.style.display = 'none'; canvas.style.cursor = 'default'; return; }
-    canvas.style.cursor = 'pointer';
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    if (dragNode) {
+      dragNode.x = Math.max(16, Math.min(width - 16, mx - dragOff.x));
+      dragNode.y = Math.max(16, Math.min(height - 16, my - dragOff.y));
+      tip.style.display = 'none';
+      return;
+    }
+    const n = hit(mx, my);
+    if (!n) { tip.style.display = 'none'; canvas.style.cursor = 'default'; return; }
+    canvas.style.cursor = 'grab';
     tip.style.display = 'block';
-    if (hit.cat) {
-      tip.innerHTML = `<strong>${esc(hit.cat.code ? hit.cat.code + '. ' : '')}${esc(hit.cat.name)}</strong><br>Tổng dự toán: <b>${esc(formatCurrency(hit.invest))}</b><br>Đã giải ngân: <b>${esc(formatCurrency(hit.disbursed))}</b> (${hit.rate.toFixed(1)}%)<br>Gói thầu: <b>${(hit.cat.packages || []).length}</b>`;
+    if (n.cat) {
+      tip.innerHTML = `<strong>${esc(n.cat.code ? n.cat.code + '. ' : '')}${esc(n.cat.name)}</strong><br>Tổng dự toán: <b>${esc(formatCurrency(n.invest))}</b><br>Đã giải ngân: <b>${esc(formatCurrency(n.disbursed))}</b> (${n.rate.toFixed(1)}%)<br>Gói thầu: <b>${(n.cat.packages || []).length}</b><br><small>Kéo để di chuyển · Bấm để xem gói thầu</small>`;
+    } else if (n.parent) {
+      tip.innerHTML = `<strong>${esc(n.pkg?.name || '')}</strong>`;
     } else {
-      tip.innerHTML = `<strong>Toàn dự án</strong><br>Tổng dự toán: <b>${esc(formatCurrency(hit.invest))}</b><br>Đã giải ngân: <b>${esc(formatCurrency(hit.disbursed))}</b> (${hit.rate.toFixed(1)}%)`;
+      tip.innerHTML = `<strong>Toàn dự án</strong><br>Tổng dự toán: <b>${esc(formatCurrency(n.invest))}</b><br>Đã giải ngân: <b>${esc(formatCurrency(n.disbursed))}</b> (${n.rate.toFixed(1)}%)`;
     }
     const cw = rect.width;
-    tip.style.left = Math.min(mx + 14, cw - 210) + 'px';
+    tip.style.left = Math.min(mx + 14, cw - 220) + 'px';
     tip.style.top = Math.max(my - 10, 0) + 'px';
   };
-  canvas.onmouseleave = () => { tip.style.display = 'none'; };
+  canvas.onmouseup = (e) => {
+    if (dragNode) {
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+      const moved = downAt ? Math.hypot(mx - downAt.mx, my - downAt.my) : 99;
+      if (moved < 5 && dragNode.cat) drillToCategory(dragNode.cat.id);
+      dragNode = null;
+    }
+  };
+  canvas.onmouseleave = () => { dragNode = null; tip.style.display = 'none'; };
+}
+
+// Mô phỏng lực (force-directed) — nút đẩy nhau, cạnh kéo theo chiều dài mục tiêu, hút nhẹ về tâm
+function settleForce(nodes, edges, width, height, cx, cy) {
+  const repulsion = 260, gravity = 0.05, spring = 0.03, damping = 0.8;
+  const iters = 320;
+  for (let it = 0; it < iters; it++) {
+    for (let i = 0; i < nodes.length; i++) {
+      const a = nodes[i];
+      for (let j = i + 1; j < nodes.length; j++) {
+        const b = nodes[j];
+        let dx = a.x - b.x, dy = a.y - b.y;
+        let d2 = dx * dx + dy * dy;
+        if (d2 < 1) { dx = Math.random() - 0.5; dy = Math.random() - 0.5; d2 = dx * dx + dy * dy; }
+        const f = repulsion / d2;
+        const d = Math.sqrt(d2);
+        const fx = dx / d * f, fy = dy / d * f;
+        if (!a.fixed) { a.vx += fx; a.vy += fy; }
+        if (!b.fixed) { b.vx -= fx; b.vy -= fy; }
+      }
+    }
+    edges.forEach(e => {
+      const a = e.a, b = e.b;
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const d = Math.sqrt(dx * dx + dy * dy) || 1;
+      const f = (d - e.len) * spring;
+      const fx = dx / d * f, fy = dy / d * f;
+      if (!a.fixed) { a.vx += fx; a.vy += fy; }
+      if (!b.fixed) { b.vx -= fx; b.vy -= fy; }
+    });
+    nodes.forEach(n => {
+      if (n.fixed || !n.grav) return;
+      n.vx += (cx - n.x) * gravity;
+      n.vy += (cy - n.y) * gravity;
+    });
+    nodes.forEach(n => {
+      if (n.fixed) return;
+      n.vx *= damping; n.vy *= damping;
+      n.x += n.vx; n.y += n.vy;
+      n.x = Math.max(16, Math.min(width - 16, n.x));
+      n.y = Math.max(16, Math.min(height - 16, n.y));
+    });
+  }
+}
+
+function drillToCategory(catId) {
+  switchView('packages');
+  setTimeout(() => {
+    const group = document.querySelector(`.category-group[data-cat-id="${catId}"]`);
+    if (group) {
+      group.classList.add('expanded');
+      group.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, 80);
 }
 
 function drawCurvedEdge(ctx, a, b, color, width) {
