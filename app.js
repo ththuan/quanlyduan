@@ -3137,7 +3137,7 @@ function getPackageFormHTML(pkg = null, catId = '') {
       </div>
       <div class="form-group">
         <label>Phụ lục 02a — Bảng thông tin hợp đồng</label>
-        <input type="text" id="f-pl02aNumber" value="${esc(pkg?.pl02aNumber || '')}" placeholder="Số / ký hiệu PL 02a">
+        <input type="date" id="f-pl02aDate" value="${pkg?.pl02aDate || ''}">
       </div>
       <div class="form-group">
         <label>Loại hợp đồng</label>
@@ -3228,8 +3228,8 @@ function getPackageFormHTML(pkg = null, catId = '') {
         <input type="date" id="f-acceptanceDate" value="${pkg?.acceptanceDate || ''}" ${pkg?.acceptances?.length ? 'readonly' : ''}>
       </div>
       <div class="form-group">
-        <label>Phụ lục 03a — Bảng tính giá trị khối lượng</label>
-        <input type="text" id="f-pl03aNumber" value="${esc(pkg?.pl03aNumber || '')}" placeholder="Số / ký hiệu PL 03a">
+        <label>Phụ lục 03a — Giá trị khối lượng (VNĐ)</label>
+        <input type="number" id="f-pl03aValue" value="${pkg?.pl03aValue || ''}">
       </div>
       <div class="form-group">
         <label>Ngày PL 03a</label>
@@ -3281,14 +3281,6 @@ function getPackageFormHTML(pkg = null, catId = '') {
 
       <div class="form-section-title"><span class="material-symbols-rounded">receipt_long</span> Quyết toán A-B / Thanh lý</div>
       <div class="form-group">
-        <label>Phụ lục 01.QTDA — Quyết toán A-B</label>
-        <input type="text" id="f-pl01qdaNumber" value="${esc(pkg?.pl01qdaNumber || '')}" placeholder="Số / ký hiệu PL 01.QTDA">
-      </div>
-      <div class="form-group">
-        <label>Ngày PL 01.QTDA</label>
-        <input type="date" id="f-pl01qdaDate" value="${pkg?.pl01qdaDate || ''}">
-      </div>
-      <div class="form-group">
         <label>Biên bản thanh lý hợp đồng</label>
         <input type="text" id="f-liquidationRecord" value="${esc(pkg?.liquidationRecord || '')}" placeholder="Số biên bản thanh lý">
       </div>
@@ -3299,6 +3291,14 @@ function getPackageFormHTML(pkg = null, catId = '') {
       <div class="form-group">
         <label>Giá trị thanh lý (VNĐ)</label>
         <input type="number" id="f-liquidationValue" value="${pkg?.liquidationValue || ''}">
+      </div>
+      <div class="form-group">
+        <label>Phụ lục 01.QTDA — Giá trị quyết toán (VNĐ)</label>
+        <input type="number" id="f-pl01qdaValue" value="${pkg?.pl01qdaValue || ''}">
+      </div>
+      <div class="form-group">
+        <label>Ngày PL 01.QTDA</label>
+        <input type="date" id="f-pl01qdaDate" value="${pkg?.pl01qdaDate || ''}">
       </div>
 
       <div class="form-group full-width">
@@ -3357,7 +3357,7 @@ function getPackageFormData() {
     contract: document.getElementById('f-contract').value.trim(),
     negotiationNumber: document.getElementById('f-negotiationNumber').value.trim(),
     negotiationDate: toIso(document.getElementById('f-negotiationDate').value),
-    pl02aNumber: document.getElementById('f-pl02aNumber').value.trim(),
+    pl02aDate: toIso(document.getElementById('f-pl02aDate').value),
     selectionMethod: document.getElementById('f-selectionMethod').value,
     contractor: document.getElementById('f-contractor').value.trim(),
     quoteNumber: hasQuote ? document.getElementById('f-quoteNumber').value.trim() : '',
@@ -3378,18 +3378,18 @@ function getPackageFormData() {
     acceptanceValue: Number(document.getElementById('f-acceptanceValue').value) || 0,
     acceptanceStatus: document.getElementById('f-acceptanceStatus').value,
     acceptanceDate: toIso(document.getElementById('f-acceptanceDate').value),
-    pl03aNumber: document.getElementById('f-pl03aNumber').value.trim(),
+    pl03aValue: Number(document.getElementById('f-pl03aValue').value) || 0,
     pl03aDate: toIso(document.getElementById('f-pl03aDate').value),
     contractType: document.getElementById('f-contractType').value,
     contractSignDate: toIso(document.getElementById('f-contractSignDate').value),
     contractStartDate: toIso(document.getElementById('f-contractStartDate').value),
     contractEndDate: toIso(document.getElementById('f-contractEndDate').value),
     contractExtension: document.getElementById('f-contractExtension').value.trim(),
-    pl01qdaNumber: document.getElementById('f-pl01qdaNumber').value.trim(),
-    pl01qdaDate: toIso(document.getElementById('f-pl01qdaDate').value),
     liquidationRecord: document.getElementById('f-liquidationRecord').value.trim(),
     liquidationDate: toIso(document.getElementById('f-liquidationDate').value),
     liquidationValue: Number(document.getElementById('f-liquidationValue').value) || 0,
+    pl01qdaValue: Number(document.getElementById('f-pl01qdaValue').value) || 0,
+    pl01qdaDate: toIso(document.getElementById('f-pl01qdaDate').value),
     invoiceNumber: document.getElementById('f-invoiceNumber').value.trim(),
     invoiceDate: toIso(document.getElementById('f-invoiceDate').value),
     invoiceValue: Number(document.getElementById('f-invoiceValue').value) || 0,
@@ -3641,10 +3641,10 @@ function viewPackageDetail(catId, pkgId) {
         <span class="detail-label">Hợp đồng</span>
         <span class="detail-value">${esc(pkg.contract || '—')}</span>
       </div>
-      ${pkg.pl02aNumber ? `
+      ${pkg.pl02aDate ? `
       <div class="detail-item">
         <span class="detail-label">Phụ lục 02a — Bảng thông tin hợp đồng</span>
-        <span class="detail-value">${esc(pkg.pl02aNumber)}</span>
+        <span class="detail-value">${formatDateVN(pkg.pl02aDate)}</span>
       </div>` : ''}
       <div class="detail-item">
         <span class="detail-label">Loại hợp đồng</span>
@@ -3740,8 +3740,8 @@ function viewPackageDetail(catId, pkgId) {
       <div class="detail-item"><span class="detail-label">Chênh lệch dự toán - trúng thầu</span><span class="detail-value money">${st.saving != null ? formatCurrency(st.saving) : '—'}</span></div>
       <div class="detail-item"><span class="detail-label">Trạng thái nghiệm thu</span><span class="detail-value"><span class="badge ${pkg.acceptanceStatus === 'Đã nghiệm thu' ? 'badge-success' : 'badge-warning'}">${pkg.acceptanceStatus || 'Chưa nghiệm thu'}</span></span></div>
       <div class="detail-item"><span class="detail-label">Ngày nghiệm thu gần nhất</span><span class="detail-value">${formatDateVN(pkg.acceptanceDate)}</span></div>
-      ${pkg.pl03aNumber || pkg.pl03aDate ? `
-      <div class="detail-item"><span class="detail-label">Phụ lục 03a — Bảng tính giá trị khối lượng</span><span class="detail-value">${esc(pkg.pl03aNumber || '—')}${pkg.pl03aDate ? ` — ${formatDateVN(pkg.pl03aDate)}` : ''}</span></div>` : ''}
+      ${pkg.pl03aValue || pkg.pl03aDate ? `
+      <div class="detail-item"><span class="detail-label">Phụ lục 03a — Giá trị khối lượng</span><span class="detail-value money">${pkg.pl03aValue ? formatCurrency(pkg.pl03aValue) : '—'}${pkg.pl03aDate ? ` — ${formatDateVN(pkg.pl03aDate)}` : ''}</span></div>` : ''}
 
       <div class="detail-section-title">Các đợt nghiệm thu
         <button type="button" class="btn btn-secondary btn-sm edit-only" style="margin-left:8px" onclick="openAcceptanceForm('${catId}','${pkgId}')"><span class="material-symbols-rounded">add</span> Thêm đợt</button>
@@ -3814,13 +3814,8 @@ function viewPackageDetail(catId, pkgId) {
       </div>` : ''}
       ` : ''}
 
-      ${pkg.pl01qdaNumber || pkg.pl01qdaDate || pkg.liquidationRecord || pkg.liquidationDate || pkg.liquidationValue ? `
+      ${pkg.liquidationRecord || pkg.liquidationDate || pkg.liquidationValue || pkg.pl01qdaValue || pkg.pl01qdaDate ? `
       <div class="detail-section-title">Quyết toán A-B / Thanh lý</div>
-      ${pkg.pl01qdaNumber || pkg.pl01qdaDate ? `
-      <div class="detail-item">
-        <span class="detail-label">Phụ lục 01.QTDA — Quyết toán A-B</span>
-        <span class="detail-value">${esc(pkg.pl01qdaNumber || '—')}${pkg.pl01qdaDate ? ` — ${formatDateVN(pkg.pl01qdaDate)}` : ''}</span>
-      </div>` : ''}
       ${pkg.liquidationRecord ? `
       <div class="detail-item">
         <span class="detail-label">Biên bản thanh lý hợp đồng</span>
@@ -3833,7 +3828,13 @@ function viewPackageDetail(catId, pkgId) {
       <div class="detail-item">
         <span class="detail-label">Giá trị thanh lý</span>
         <span class="detail-value money">${formatCurrency(pkg.liquidationValue)}</span>
+      </div>
+      ${pkg.pl01qdaValue || pkg.pl01qdaDate ? `
+      <div class="detail-item">
+        <span class="detail-label">Phụ lục 01.QTDA — Giá trị quyết toán</span>
+        <span class="detail-value money">${pkg.pl01qdaValue ? formatCurrency(pkg.pl01qdaValue) : '—'}${pkg.pl01qdaDate ? ` — ${formatDateVN(pkg.pl01qdaDate)}` : ''}</span>
       </div>` : ''}
+      ` : ''}
 
       ${pkg.notes ? `<div class="detail-item full-width"><span class="detail-label">Ghi chú</span><span class="detail-value">${esc(pkg.notes)}</span></div>` : ''}
 
