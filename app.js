@@ -3123,13 +3123,9 @@ function getPackageFormHTML(pkg = null, catId = '') {
           ${docOpts(resultDocs, pkg?.resultDocId)}
         </select>
       </div>
-      <div class="form-group">
-        <label>Biên bản thương thảo hợp đồng</label>
-        <input type="text" id="f-negotiationNumber" value="${esc(pkg?.negotiationNumber || '')}" placeholder="Số biên bản thương thảo">
-      </div>
-      <div class="form-group">
-        <label>Ngày thương thảo hợp đồng</label>
-        <input type="date" id="f-negotiationDate" value="${pkg?.negotiationDate || ''}">
+      <div class="form-group full-width">
+        <label>Biên bản thương thảo hợp đồng (số + ngày, hoặc chỉ ngày)</label>
+        <input type="text" id="f-negotiation" value="${esc(pkg?.negotiation || '')}" placeholder="VD: Số 05/BBTT ngày 12/03/2026 — nếu không có số chỉ điền ngày">
       </div>
       <div class="form-group">
         <label>Hợp đồng</label>
@@ -3355,8 +3351,7 @@ function getPackageFormData() {
     bidDecision: resultDoc ? (resultDoc.number || resultDoc.title) : '',
     resultApprovalDate: resultDoc?.date || '',
     contract: document.getElementById('f-contract').value.trim(),
-    negotiationNumber: document.getElementById('f-negotiationNumber').value.trim(),
-    negotiationDate: toIso(document.getElementById('f-negotiationDate').value),
+    negotiation: document.getElementById('f-negotiation').value.trim(),
     pl02aDate: toIso(document.getElementById('f-pl02aDate').value),
     selectionMethod: document.getElementById('f-selectionMethod').value,
     contractor: document.getElementById('f-contractor').value.trim(),
@@ -3632,10 +3627,10 @@ function viewPackageDetail(catId, pkgId) {
         <span class="detail-label">Quyết định phê duyệt kết quả</span>
         <span class="detail-value">${esc(pkg.bidDecision || '—')}${pkg.resultApprovalDate ? ` — ${formatDateVN(pkg.resultApprovalDate)}` : ''}</span>
       </div>
-      ${pkg.negotiationNumber || pkg.negotiationDate ? `
+      ${pkg.negotiation ? `
       <div class="detail-item">
         <span class="detail-label">Biên bản thương thảo hợp đồng</span>
-        <span class="detail-value">${esc(pkg.negotiationNumber || '—')}${pkg.negotiationDate ? ` — ${formatDateVN(pkg.negotiationDate)}` : ''}</span>
+        <span class="detail-value">${esc(pkg.negotiation)}</span>
       </div>` : ''}
       <div class="detail-item">
         <span class="detail-label">Hợp đồng</span>
