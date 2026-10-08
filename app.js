@@ -329,6 +329,7 @@ function applyConfig() {
   if (Array.isArray(c.lists?.acceptanceStatuses)) ACCEPTANCE_STATUSES = c.lists.acceptanceStatuses;
   if (Array.isArray(c.lists?.settlementStatuses)) SETTLEMENT_STATUSES = c.lists.settlementStatuses;
   if (Array.isArray(c.lists?.selectionMethods)) SELECTION_METHODS = c.lists.selectionMethods;
+  if (Array.isArray(c.lists?.legalDocTypes)) LEGAL_DOC_TYPES = c.lists.legalDocTypes;
   if (Array.isArray(c.agencies)) CHU_TRUONG_AGENCIES = c.agencies;
   if (Array.isArray(c.templates?.qtnd)) QTNĐ_TITLES = c.templates.qtnd;
   if (Array.isArray(c.templates?.qtda)) QTDA_TITLES = c.templates.qtda;
@@ -2392,7 +2393,26 @@ async function exportExcel(scope) {
 // Sở Xây dựng, UBND... liên quan đến dự án (phê duyệt dự án, dự toán, KHLCNT, phê duyệt kết quả...).
 // Dữ liệu lưu trong project.initiations: [{ id, type, title, agency, number, date, note, files:[{id,name,size}] }]
 let CHU_TRUONG_AGENCIES = ['Ủy ban nhân dân thành phố', 'Sở Tài chính', 'Sở Xây dựng', 'Cơ quan khác'];
-let LEGAL_DOC_TYPES = ['Phê duyệt dự án', 'Phê duyệt dự toán', 'Phê duyệt KHLCNT', 'Quyết định phê duyệt kết quả', 'Văn bản khác'];
+let LEGAL_DOC_TYPES = [
+  'Quyết định chủ trương đầu tư',
+  'Phê duyệt dự án',
+  'Quyết định phê duyệt BCKTKT',
+  'Quyết định phê duyệt BCNCKT',
+  'Quyết định phê duyệt tổng mức đầu tư',
+  'Quyết định phê duyệt thiết kế - dự toán',
+  'Phê duyệt dự toán',
+  'Quyết định điều chỉnh dự án / dự toán',
+  'Kế hoạch vốn / Quyết định giao vốn',
+  'Phê duyệt KHLCNT',
+  'Quyết định phê duyệt kết quả',
+  'Quyết định thành lập BQLDA / tổ công tác',
+  'Văn bản thẩm định / thẩm tra',
+  'Quyết định phê duyệt quyết toán',
+  'Báo cáo kiểm toán / kết luận thanh tra',
+  'Công văn / Tờ trình',
+  'Giấy phép / Chứng nhận',
+  'Văn bản khác'
+];
 
 let chuTruongEditId = null;
 let chuTruongFiles = []; // PDF đang chờ lưu của hồ sơ đang mở
@@ -4791,6 +4811,7 @@ function openSysConfigModal() {
         <div><label style="font-size:0.78rem;color:var(--text-muted)">Nghiệm thu</label><textarea id="cfg-list-acceptance" rows="2" style="width:100%">${esc(arrToText(lst.acceptanceStatuses))}</textarea></div>
         <div><label style="font-size:0.78rem;color:var(--text-muted)">Quyết toán</label><textarea id="cfg-list-settlement" rows="2" style="width:100%">${esc(arrToText(lst.settlementStatuses))}</textarea></div>
         <div><label style="font-size:0.78rem;color:var(--text-muted)">Hình thức lựa chọn nhà thầu</label><textarea id="cfg-list-selectionMethods" rows="6" style="width:100%">${esc(arrToText(lst.selectionMethods))}</textarea></div>
+        <div><label style="font-size:0.78rem;color:var(--text-muted)">Loại văn bản pháp lý</label><textarea id="cfg-list-legalDocTypes" rows="6" style="width:100%">${esc(arrToText(lst.legalDocTypes))}</textarea></div>
       </div>
     </div>
 
@@ -4852,7 +4873,8 @@ async function saveSysConfig() {
       feasibilityStatuses: textToArr('cfg-list-feasibility'),
       acceptanceStatuses: textToArr('cfg-list-acceptance'),
       settlementStatuses: textToArr('cfg-list-settlement'),
-      selectionMethods: textToArr('cfg-list-selectionMethods')
+      selectionMethods: textToArr('cfg-list-selectionMethods'),
+      legalDocTypes: textToArr('cfg-list-legalDocTypes')
     }
   };
   try {

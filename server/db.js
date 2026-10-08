@@ -317,6 +317,26 @@ const DEFAULT_CONFIG = {
       'Tự thực hiện',
       'Không áp dụng',
       'Khác'
+    ],
+    legalDocTypes: [
+      'Quyết định chủ trương đầu tư',
+      'Phê duyệt dự án',
+      'Quyết định phê duyệt BCKTKT',
+      'Quyết định phê duyệt BCNCKT',
+      'Quyết định phê duyệt tổng mức đầu tư',
+      'Quyết định phê duyệt thiết kế - dự toán',
+      'Phê duyệt dự toán',
+      'Quyết định điều chỉnh dự án / dự toán',
+      'Kế hoạch vốn / Quyết định giao vốn',
+      'Phê duyệt KHLCNT',
+      'Quyết định phê duyệt kết quả',
+      'Quyết định thành lập BQLDA / tổ công tác',
+      'Văn bản thẩm định / thẩm tra',
+      'Quyết định phê duyệt quyết toán',
+      'Báo cáo kiểm toán / kết luận thanh tra',
+      'Công văn / Tờ trình',
+      'Giấy phép / Chứng nhận',
+      'Văn bản khác'
     ]
   },
   // Danh mục văn bản pháp lý (để tra cứu + giải thích mốc thời gian hiệu lực)
