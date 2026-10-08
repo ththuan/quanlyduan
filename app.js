@@ -974,17 +974,14 @@ function renderAlertsPanel(project) {
 
 function renderDashboard() {
   const project = getCurrentProject();
-  const headerEl = document.getElementById('dashboard-header');
   const kpiEl = document.getElementById('kpi-cards');
   const statusEl = document.getElementById('status-overview');
   const timelineEl = document.getElementById('dashboard-timeline');
 
   if (!project) {
-    if (headerEl) headerEl.innerHTML = '';
     if (kpiEl) kpiEl.innerHTML = '';
     if (statusEl) statusEl.innerHTML = '';
     if (timelineEl) timelineEl.innerHTML = '';
-    document.getElementById('capital-summary').innerHTML = '';
     document.getElementById('alerts-panel').innerHTML = '';
     renderDonutChart();
     renderBarChart();
@@ -994,8 +991,10 @@ function renderDashboard() {
   renderAlertsPanel(project);
 
   const allPkgs = project.categories.flatMap(c => c.packages.map(p => ({ cat: c, pkg: p })));
+  const catCount = project.categories.length;
 
   const totalInvest = project.totalInvestment;
+  const totalEstimate = project.categories.reduce((s, c) => s + getCatEstimateTotal(c), 0);
   const totalBid = project.categories.reduce((s, c) => s + getCatBidTotal(c), 0);
   const totalDisbursed = project.categories.reduce((s, c) => s + getCatDisbursedTotal(c), 0);
   const totalCumulative = project.categories.reduce((s, c) => s + getCatCumulativeTotal(c), 0);
@@ -1003,29 +1002,6 @@ function renderDashboard() {
 
   const disbursedRate = totalInvest > 0 ? (totalDisbursed / totalInvest) * 100 : 0;
   const acceptRate = totalBid > 0 ? (totalAcceptance / totalBid) * 100 : 0;
-
-  // ---- Header (project overview) ----
-  if (headerEl) {
-    headerEl.innerHTML = `
-      <div class="dash-header">
-        <div class="dash-header-main">
-          <div class="dash-header-icon"><span class="material-symbols-rounded">domain</span></div>
-          <div>
-            <div class="dash-header-name">${esc(project.fullName || project.name || '—')}</div>
-            <div class="dash-header-meta">
-              <span><span class="material-symbols-rounded" style="font-size:15px">business</span> ${esc(project.owner || '—')}</span>
-              <span><span class="material-symbols-rounded" style="font-size:15px">calendar_month</span> ${project.startYear || '...'} – ${project.endYear || '...'}</span>
-              ${project.buildingGrade ? `<span><span class="material-symbols-rounded" style="font-size:15px">apartment</span> Cấp ${esc(project.buildingGrade)}</span>` : ''}
-              ${project.location ? `<span><span class="material-symbols-rounded" style="font-size:15px">location_on</span> ${esc(project.location)}</span>` : ''}
-            </div>
-          </div>
-        </div>
-        <div class="dash-header-progress">
-          <div class="dash-header-progress-label"><span>Tiến độ giải ngân</span><strong>${formatPercent(disbursedRate)}</strong></div>
-          <div class="progress-track"><span style="width:${Math.min(100, disbursedRate).toFixed(1)}%"></span></div>
-        </div>
-      </div>`;
-  }
 
   // ---- KPI cards ----
   kpiEl.innerHTML = `
@@ -1036,6 +1012,14 @@ function renderDashboard() {
       </div>
       <div class="kpi-value">${formatCurrency(totalInvest, true)}</div>
       <div class="kpi-sub">KH vốn năm ${project.planYear || '—'}: ${formatCurrency(project.annualPlan, true)}</div>
+    </div>
+    <div class="kpi-card glass-card" data-color="blue">
+      <div class="kpi-header">
+        <span class="kpi-label">Tổng dự toán</span>
+        <div class="kpi-icon"><span class="material-symbols-rounded">request_quote</span></div>
+      </div>
+      <div class="kpi-value">${formatCurrency(totalEstimate, true)}</div>
+      <div class="kpi-sub">${catCount} danh mục · ${allPkgs.length} gói thầu</div>
     </div>
     <div class="kpi-card glass-card" data-color="purple">
       <div class="kpi-header">
@@ -1141,88 +1125,8 @@ function renderDashboard() {
     }
   }
 
-  renderCapitalSummary();
   renderDonutChart();
   renderBarChart();
-}
-
-function renderCapitalSummary() {
-  const el = document.getElementById('capital-summary');
-  if (!el) return;
-
-  const projects = (state.projects || []).map(proj => {
-    const invest = proj.totalInvestment || 0;
-    const disbursed = proj.categories.reduce((s, c) => s + getCatDisbursedTotal(c), 0);
-    const cumulative = proj.categories.reduce((s, c) => s + getCatCumulativeTotal(c), 0);
-    const rate = invest > 0 ? (disbursed / invest) * 100 : 0;
-    return { proj, invest, disbursed, cumulative, rate };
-  });
-
-  const totalInvest = projects.reduce((s, r) => s + r.invest, 0);
-  const totalAnnual = projects.reduce((s, r) => s + (r.proj.annualPlan || 0), 0);
-  const totalCumulativePlan = projects.reduce((s, r) => s + (r.proj.cumulativePlan || 0), 0);
-  const totalDisbursed = projects.reduce((s, r) => s + r.disbursed, 0);
-  const totalCumulative = projects.reduce((s, r) => s + r.cumulative, 0);
-  const totalRate = totalInvest > 0 ? (totalDisbursed / totalInvest) * 100 : 0;
-  const planYears = [...new Set(projects.map(r => r.proj.planYear).filter(Boolean))];
-  const canTotalPlans = projects.length > 0 && projects.every(r => r.proj.planYear) && planYears.length === 1;
-
-  el.innerHTML = `
-    <details class="chart-card glass-card capital-summary-card" style="margin-bottom:24px">
-      <summary class="capital-summary-toggle">
-        <span><span class="material-symbols-rounded">account_balance_wallet</span> Tổng hợp kế hoạch vốn các dự án</span>
-        <span class="capital-summary-meta">${projects.length} dự án <span class="material-symbols-rounded capital-expand-icon">expand_more</span></span>
-      </summary>
-      <div class="capital-summary-note">
-        <strong>Kế hoạch vốn năm</strong> là số vốn được giao riêng trong năm kế hoạch của từng dự án.
-        <strong>Lũy kế vốn đã phân bổ</strong> là tổng số vốn đã giao từ khi bắt đầu dự án đến hết năm kế hoạch đó.
-        <span class="capital-summary-note-extra">Các tổng ở cuối bảng chỉ mang tính tổng hợp nhanh; khi các dự án khác năm, hãy đọc theo nhãn năm ở từng dòng.</span>
-      </div>
-      <div class="capital-table-wrapper">
-        <table class="report-table capital-table">
-          <thead>
-            <tr>
-              <th>TT</th>
-              <th>Dự án</th>
-              <th>Thời gian thực hiện</th>
-              <th class="text-right">Tổng mức đầu tư</th>
-              <th class="text-right">Kế hoạch vốn năm</th>
-              <th class="text-right">Lũy kế vốn đã phân bổ</th>
-              <th class="text-right">Lũy kế thực hiện</th>
-              <th class="text-right">Lũy kế giải ngân</th>
-              <th class="text-right">Tỷ lệ giải ngân</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${projects.map((r, i) => `
-              <tr class="${r.proj.id === state.currentProjectId ? 'row-current' : ''}" onclick="selectProject('${r.proj.id}')">
-                <td>${i + 1}</td>
-                <td class="pkg-name">${esc(r.proj.name)}</td>
-                <td>${r.proj.startYear || r.proj.endYear ? `${r.proj.startYear || '...'}–${r.proj.endYear || '...'}` : '—'}</td>
-                <td class="text-right">${formatCurrency(r.invest, true)}</td>
-                <td class="text-right"><small class="capital-year-label">Năm ${r.proj.planYear || '—'}</small>${formatCurrency(r.proj.annualPlan || 0, true)}</td>
-                <td class="text-right"><small class="capital-year-label">Đến hết ${r.proj.planYear || '—'}</small>${formatCurrency(r.proj.cumulativePlan || 0, true)}</td>
-                <td class="text-right">${formatCurrency(r.cumulative, true)}</td>
-                <td class="text-right">${formatCurrency(r.disbursed, true)}</td>
-                <td class="text-right"><span class="badge ${r.rate >= 60 ? 'badge-success' : r.rate >= 30 ? 'badge-warning' : 'badge-danger'}">${formatPercent(r.rate)}</span></td>
-              </tr>
-            `).join('')}
-          </tbody>
-          <tfoot>
-            <tr>
-              <td colspan="3"><strong>Tổng cộng (${projects.length} dự án)</strong></td>
-              <td class="text-right"><strong>${formatCurrency(totalInvest, true)}</strong></td>
-              <td class="text-right">${canTotalPlans ? `<small class="capital-year-label">Năm ${planYears[0]}</small><strong>${formatCurrency(totalAnnual, true)}</strong>` : '<span class="capital-not-totaled">Không cộng khác năm</span>'}</td>
-              <td class="text-right">${canTotalPlans ? `<small class="capital-year-label">Đến hết ${planYears[0]}</small><strong>${formatCurrency(totalCumulativePlan, true)}</strong>` : '<span class="capital-not-totaled">Không cộng khác năm</span>'}</td>
-              <td class="text-right"><strong>${formatCurrency(totalCumulative, true)}</strong></td>
-              <td class="text-right"><strong>${formatCurrency(totalDisbursed, true)}</strong></td>
-              <td class="text-right"><span class="badge badge-info">${formatPercent(totalRate)}</span></td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-    </details>
-  `;
 }
 
 function renderPackages(searchTerm = document.getElementById('search-packages')?.value || '') {
