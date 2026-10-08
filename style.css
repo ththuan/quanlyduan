@@ -1493,11 +1493,72 @@ canvas {
   display: none;
 }
 
+.doc-attach {
+  grid-column: 1 / -1;
+  margin: 2px 0;
+  padding: 8px 10px;
+  background: #f8fafc;
+  border: 1px dashed var(--border-glass);
+  border-radius: var(--radius-sm);
+}
+
+.doc-attach-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.doc-attach-bar > .material-symbols-rounded {
+  color: var(--text-muted);
+  font-size: 16px;
+}
+
+.doc-attach-count {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.doc-attach-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.doc-attach-list .pdf-item {
+  padding: 5px 10px;
+  font-size: 0.78rem;
+}
+
 .pdf-empty {
   color: var(--text-muted);
   font-size: 0.82rem;
   font-style: italic;
   padding: 8px 0;
+}
+
+.pdf-group {
+  margin-bottom: 10px;
+}
+
+.pdf-group-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding: 4px 0;
+}
+
+.pdf-group-title .material-symbols-rounded {
+  font-size: 16px;
+  color: var(--accent-cyan);
+}
+
+.pdf-group-title small {
+  color: var(--text-muted);
+  font-weight: 400;
 }
 
 /* ---- Construction Log Section ---- */

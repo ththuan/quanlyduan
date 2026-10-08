@@ -3034,6 +3034,7 @@ let tempPayments = [];
 // ---- Package CRUD ----
 function getPackageFormHTML(pkg = null, catId = '') {
   const methods = SELECTION_METHODS;
+  const pkgId = pkg?.id || '';
   const effectiveScope = pkg ? (pkg.pkgScope || 'project') : (getCurrentProject()?.projectScope || 'project');
   const legalDocs = getCurrentProject()?.initiations || [];
   const khlcntDocs = legalDocs.filter(d => d.type === 'Phê duyệt KHLCNT');
@@ -3145,18 +3146,22 @@ function getPackageFormHTML(pkg = null, catId = '') {
           ${docOpts(resultDocs, pkg?.resultDocId)}
         </select>
       </div>
+      ${docAttachBlock(catId, pkgId, pkg, 'Quyết định phê duyệt kết quả')}
       <div class="form-group full-width">
         <label>Biên bản thương thảo hợp đồng (số + ngày, hoặc chỉ ngày)</label>
         <input type="text" id="f-negotiation" value="${esc(pkg?.negotiation || '')}" placeholder="VD: Số 05/BBTT ngày 12/03/2026 — nếu không có số chỉ điền ngày">
       </div>
+      ${docAttachBlock(catId, pkgId, pkg, 'Biên bản thương thảo hợp đồng')}
       <div class="form-group">
         <label>Hợp đồng</label>
         <input type="text" id="f-contract" value="${esc(pkg?.contract || '')}">
       </div>
+      ${docAttachBlock(catId, pkgId, pkg, 'Hợp đồng')}
       <div class="form-group">
         <label>Phụ lục 02a — Bảng thông tin hợp đồng</label>
         <input type="date" id="f-pl02aDate" value="${pkg?.pl02aDate || ''}">
       </div>
+      ${docAttachBlock(catId, pkgId, pkg, 'Phụ lục 02a - Bảng thông tin hợp đồng')}
       <div class="form-group">
         <label>Loại hợp đồng</label>
         <select id="f-contractType">
@@ -3227,6 +3232,7 @@ function getPackageFormHTML(pkg = null, catId = '') {
             ${ACCEPTANCE_STATUSES.map(s => `<option value="${s}" ${(pkg?.docAcceptStatus || ACCEPTANCE_STATUSES[0]) === s ? 'selected' : ''}>${s}</option>`).join('')}
           </select>
         </div>
+        ${docAttachBlock(catId, pkgId, pkg, 'Biên bản nghiệm thu hồ sơ')}
       </div>
 
       <div class="form-section-title"><span class="material-symbols-rounded">tenancy</span> Nghiệm thu hoàn thành</div>
@@ -3245,6 +3251,7 @@ function getPackageFormHTML(pkg = null, catId = '') {
         <label>Ngày nghiệm thu hoàn thành</label>
         <input type="date" id="f-acceptanceDate" value="${pkg?.acceptanceDate || ''}" ${pkg?.acceptances?.length ? 'readonly' : ''}>
       </div>
+      ${docAttachBlock(catId, pkgId, pkg, 'Biên bản nghiệm thu hoàn thành')}
       <div class="form-group">
         <label>Phụ lục 03a — Giá trị khối lượng (VNĐ)</label>
         <input type="number" id="f-pl03aValue" value="${pkg?.pl03aValue || ''}">
@@ -3253,6 +3260,7 @@ function getPackageFormHTML(pkg = null, catId = '') {
         <label>Ngày PL 03a</label>
         <input type="date" id="f-pl03aDate" value="${pkg?.pl03aDate || ''}">
       </div>
+      ${docAttachBlock(catId, pkgId, pkg, 'Phụ lục 03a - Bảng tính giá trị khối lượng')}
 
       <div class="form-section-title"><span class="material-symbols-rounded">receipt</span> Hóa đơn GTGT (NĐ 123/2020)</div>
       <div class="form-group">
@@ -3272,6 +3280,7 @@ function getPackageFormHTML(pkg = null, catId = '') {
           <input type="checkbox" id="f-invoiceXml" ${pkg?.invoiceXml ? 'checked' : ''} style="width:auto"> HĐ điện tử XML (đồng bộ KBĐT)
         </label>
       </div>
+      ${docAttachBlock(catId, pkgId, pkg, 'Hóa đơn GTGT')}
 
       <div data-show="construction mixed goods" class="pkg-show">
         <div class="form-section-title"><span class="material-symbols-rounded">verified</span> Bàn giao & Bảo hành</div>
@@ -3295,6 +3304,7 @@ function getPackageFormHTML(pkg = null, catId = '') {
           <label>Giá trị bảo lãnh (VNĐ)</label>
           <input type="number" id="f-warrantyGuaranteeValue" value="${pkg?.warrantyGuaranteeValue || ''}">
         </div>
+        ${docAttachBlock(catId, pkgId, pkg, 'Chứng thư bảo lãnh bảo hành')}
       </div>
 
       <div class="form-section-title"><span class="material-symbols-rounded">receipt_long</span> Quyết toán A-B / Thanh lý</div>
@@ -3310,6 +3320,7 @@ function getPackageFormHTML(pkg = null, catId = '') {
         <label>Giá trị thanh lý (VNĐ)</label>
         <input type="number" id="f-liquidationValue" value="${pkg?.liquidationValue || ''}">
       </div>
+      ${docAttachBlock(catId, pkgId, pkg, 'Biên bản thanh lý hợp đồng')}
       <div class="form-group">
         <label>Phụ lục 01.QTDA — Giá trị quyết toán (VNĐ)</label>
         <input type="number" id="f-pl01qdaValue" value="${pkg?.pl01qdaValue || ''}">
@@ -3318,6 +3329,7 @@ function getPackageFormHTML(pkg = null, catId = '') {
         <label>Ngày PL 01.QTDA</label>
         <input type="date" id="f-pl01qdaDate" value="${pkg?.pl01qdaDate || ''}">
       </div>
+      ${docAttachBlock(catId, pkgId, pkg, 'Phụ lục 01.QTDA - Quyết toán A-B')}
 
       <div class="form-group full-width">
         <label>Ghi chú</label>
@@ -3589,16 +3601,25 @@ function viewPackageDetail(catId, pkgId) {
   const pkg = cat?.packages.find(p => p.id === pkgId);
   if (!pkg) return;
 
+  const pdfGroups = {};
+  (pkg.pdfs || []).forEach(pdf => {
+    const key = pdf.category || 'Hồ sơ khác';
+    (pdfGroups[key] = pdfGroups[key] || []).push(pdf);
+  });
   const pdfListHTML = (pkg.pdfs?.length)
-    ? pkg.pdfs.map(pdf => `
-        <div class="pdf-item">
-          <span class="material-symbols-rounded">attach_file</span>
-<span class="pdf-name" onclick="viewPDF('${pdf.id}')" title="Nhấn để xem">${esc(pdf.name)}</span>
-          <span class="pdf-size">${formatFileSize(pdf.size)}</span>
-          ${pdf.category ? `<span class="badge badge-neutral" style="font-size:0.65rem">${esc(pdf.category)}</span>` : ''}
-          <button class="btn-icon btn-sm edit-only" title="Xóa file" onclick="removePDF('${catId}','${pkgId}','${pdf.id}')">
-            <span class="material-symbols-rounded">close</span>
-          </button>
+    ? Object.keys(pdfGroups).map(cat => `
+        <div class="pdf-group">
+          <div class="pdf-group-title"><span class="material-symbols-rounded">folder</span>${esc(cat)} <small>(${pdfGroups[cat].length})</small></div>
+          ${pdfGroups[cat].map(pdf => `
+            <div class="pdf-item">
+              <span class="material-symbols-rounded">attach_file</span>
+              <span class="pdf-name" onclick="viewPDF('${pdf.id}')" title="Nhấn để xem">${esc(pdf.name)}</span>
+              <span class="pdf-size">${formatFileSize(pdf.size)}</span>
+              <button class="btn-icon btn-sm edit-only" title="Xóa file" onclick="removePDF('${catId}','${pkgId}','${pdf.id}')">
+                <span class="material-symbols-rounded">close</span>
+              </button>
+            </div>
+          `).join('')}
         </div>
       `).join('')
     : '<p class="pdf-empty">Chưa có file đính kèm</p>';
@@ -4416,10 +4437,12 @@ async function handlePDFUploadFromForm(catId, pkgId) {
         pkg.pdfs.push(pdfWithCategory);
         saveState();
         renderFormPDFList(catId, pkgId, pkg.pdfs);
+        refreshDocAttach(catId, pkgId);
       }
     } else {
       tempUploadedPDFs.push(pdfWithCategory);
       renderFormPDFList(catId, null, tempUploadedPDFs);
+      refreshDocAttach(catId, '');
     }
     showToast('Đã tải lên: ' + meta.name);
   } catch (err) {
@@ -4459,6 +4482,7 @@ async function removePDFFromForm(catId, pkgId, pdfId) {
       pkg.pdfs = (pkg.pdfs || []).filter(f => f.id !== pdfId);
       saveState();
       renderFormPDFList(catId, pkgId, pkg.pdfs);
+      refreshDocAttach(catId, pkgId);
       showToast('Đã xóa file đính kèm', 'info');
     }
   } catch (err) {
@@ -4471,6 +4495,91 @@ async function removeTempPDF(pdfId) {
     await apiDeletePDF(pdfId);
     tempUploadedPDFs = tempUploadedPDFs.filter(f => f.id !== pdfId);
     renderFormPDFList('', null, tempUploadedPDFs);
+    refreshDocAttach('', '');
+    showToast('Đã xóa file đính kèm', 'info');
+  } catch (err) {
+    showToast('Lỗi xóa file: ' + err.message, 'error');
+  }
+}
+
+// ---- Đính kèm file theo từng mục hồ sơ thanh toán ----
+function docAttachFileItem(f, category, catId, pkgId) {
+  return `
+    <div class="pdf-item">
+      <span class="material-symbols-rounded">attach_file</span>
+      <span class="pdf-name" onclick="viewPDF('${f.id}')" title="Nhấn để xem">${esc(f.name)}</span>
+      <span class="pdf-size">${formatFileSize(f.size)}</span>
+      <button type="button" class="btn-icon btn-sm" title="Xóa file" onclick="removeDocAttach('${f.id}','${esc(category)}','${esc(catId)}','${esc(pkgId)}')">
+        <span class="material-symbols-rounded">close</span>
+      </button>
+    </div>
+  `;
+}
+
+function docAttachBlock(catId, pkgId, pkg, category) {
+  const source = pkg ? (pkg.pdfs || []) : tempUploadedPDFs;
+  const files = source.filter(f => f.category === category);
+  return `
+    <div class="doc-attach" data-cat="${esc(category)}">
+      <div class="doc-attach-bar">
+        <span class="material-symbols-rounded">attach_file</span>
+        <input type="file" accept="${ALLOWED_UPLOAD_ACCEPT}" style="display:none" onchange="handleDocAttach(this,'${esc(category)}','${esc(catId)}','${esc(pkgId)}')">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="this.previousElementSibling.click()">
+          <span class="material-symbols-rounded">upload_file</span> Đính kèm file
+        </button>
+        ${files.length ? `<span class="doc-attach-count">${files.length} file</span>` : ''}
+      </div>
+      ${files.length ? `<div class="doc-attach-list">${files.map(f => docAttachFileItem(f, category, catId, pkgId)).join('')}</div>` : ''}
+    </div>
+  `;
+}
+
+function refreshDocAttach(catId, pkgId) {
+  const source = pkgId ? (findPackage(catId, pkgId).pkg?.pdfs || []) : tempUploadedPDFs;
+  document.querySelectorAll('.doc-attach').forEach(block => {
+    const cat = block.getAttribute('data-cat');
+    const files = source.filter(f => f.category === cat);
+    const list = block.querySelector('.doc-attach-list');
+    const count = block.querySelector('.doc-attach-count');
+    if (list) list.innerHTML = files.length ? files.map(f => docAttachFileItem(f, cat, catId, pkgId)).join('') : '';
+    if (count) count.textContent = files.length ? files.length + ' file' : '';
+  });
+}
+
+async function handleDocAttach(input, category, catId, pkgId) {
+  if (!requireEditPermission()) { input.value = ''; return; }
+  const file = input.files?.[0];
+  if (!file) return;
+  if (!isAllowedUpload(file)) { showToast('Định dạng file không được hỗ trợ', 'error'); input.value = ''; return; }
+  if (file.size > 50 * 1024 * 1024) { showToast('File quá lớn (tối đa 50MB)', 'error'); input.value = ''; return; }
+  try {
+    const meta = await apiUploadPDF(file);
+    const pdf = { ...meta, category };
+    if (pkgId) {
+      const { pkg } = findPackage(catId, pkgId);
+      if (pkg) { (pkg.pdfs = pkg.pdfs || []).push(pdf); saveState(); }
+    } else {
+      tempUploadedPDFs.push(pdf);
+    }
+    refreshDocAttach(catId, pkgId);
+    showToast('Đã đính kèm: ' + meta.name);
+  } catch (err) {
+    showToast('Lỗi tải file: ' + err.message, 'error');
+  }
+  input.value = '';
+}
+
+async function removeDocAttach(fileId, category, catId, pkgId) {
+  if (!requireEditPermission()) return;
+  try {
+    await apiDeletePDF(fileId);
+    if (pkgId) {
+      const { pkg } = findPackage(catId, pkgId);
+      if (pkg) { pkg.pdfs = (pkg.pdfs || []).filter(f => f.id !== fileId); saveState(); }
+    } else {
+      tempUploadedPDFs = tempUploadedPDFs.filter(f => f.id !== fileId);
+    }
+    refreshDocAttach(catId, pkgId);
     showToast('Đã xóa file đính kèm', 'info');
   } catch (err) {
     showToast('Lỗi xóa file: ' + err.message, 'error');
