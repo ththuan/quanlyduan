@@ -898,8 +898,8 @@ function renderBarChart() {
 function drawCategoryNetwork(canvas, cats, container) {
   if (!canvas) return;
   const dpr = window.devicePixelRatio || 1;
-  const width = Math.max(320, canvas.parentElement.clientWidth);
-  const height = 380;
+  const width = Math.max(340, canvas.parentElement.clientWidth);
+  const height = 430;
   canvas.style.width = width + 'px';
   canvas.style.height = height + 'px';
   canvas.width = width * dpr;
@@ -908,7 +908,7 @@ function drawCategoryNetwork(canvas, cats, container) {
   const maxVal = Math.max(...cats.map(c => getCatInvestTotal(c)), 1);
   const cx = width / 2;
   const cy = height / 2;
-  const R = Math.min(width, height) / 2 - 84;
+  const R = Math.min(width, height) / 2 - 104;
 
   const totalInvest = cats.reduce((s, c) => s + getCatInvestTotal(c), 0);
   const totalDisbursed = cats.reduce((s, c) => s + getCatDisbursedTotal(c), 0);
@@ -923,15 +923,31 @@ function drawCategoryNetwork(canvas, cats, container) {
       cat, invest, disbursed, rate,
       x: cx + Math.cos(ang) * R,
       y: cy + Math.sin(ang) * R,
-      r: 13 + (invest / maxVal) * 25,
-      color: rateColor(rate)
+      r: 15 + (invest / maxVal) * 24,
+      color: rateColor(rate), ang
     };
   });
 
-  const centerNode = { x: cx, y: cy, r: 38, color: '#2563eb', cat: null, rate: totalRate, invest: totalInvest, disbursed: totalDisbursed };
+  // Package sub-nodes (orbiting each category) — tạo cảm giác mạng nhiều tầng
+  const pkgNodes = [];
+  catNodes.forEach(n => {
+    const pkgs = (n.cat.packages || []).slice(0, 5);
+    pkgs.forEach((p, j) => {
+      const a = (j / Math.max(1, pkgs.length)) * Math.PI * 2 + n.ang;
+      const pr = n.r + 17 + (j % 2) * 7;
+      pkgNodes.push({ x: n.x + Math.cos(a) * pr, y: n.y + Math.sin(a) * pr, r: 2.5 + (j % 3), color: n.color, parent: n });
+    });
+  });
+
+  const centerNode = { x: cx, y: cy, r: 42, color: '#2563eb', cat: null, rate: totalRate, invest: totalInvest, disbursed: totalDisbursed };
   const hitNodes = [centerNode, ...catNodes];
 
-  // Tooltip
+  // Ambient background particles (trôi nhẹ)
+  const ambient = Array.from({ length: 46 }, () => ({
+    x: Math.random() * width, y: Math.random() * height,
+    r: Math.random() * 1.4 + 0.4, s: Math.random() * 0.5 + 0.1
+  }));
+
   let tip = container.querySelector('.chart-tooltip');
   if (!tip) { tip = document.createElement('div'); tip.className = 'chart-tooltip'; container.appendChild(tip); }
 
@@ -943,44 +959,76 @@ function drawCategoryNetwork(canvas, cats, container) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, width, height);
 
-    // Edges + traveling signals
-    catNodes.forEach((n, i) => {
-      const grad = ctx.createLinearGradient(cx, cy, n.x, n.y);
-      grad.addColorStop(0, 'rgba(37,99,235,0.06)');
-      grad.addColorStop(1, hexAlpha(n.color, 0.22));
-      ctx.strokeStyle = grad;
-      ctx.lineWidth = 1.4;
+    // Ambient particles
+    ambient.forEach(d => {
+      const ay = (d.y + t * 9 * d.s) % height;
+      ctx.globalAlpha = 0.16;
+      ctx.fillStyle = '#94a3b8';
       ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.lineTo(n.x, n.y);
-      ctx.stroke();
-
-      const s = (t * (0.4 + n.rate / 100) + i * 0.37) % 1;
-      const sx = cx + (n.x - cx) * s;
-      const sy = cy + (n.y - cy) * s;
-      ctx.fillStyle = hexAlpha(n.color, 0.35);
-      ctx.beginPath();
-      ctx.arc(sx, sy, 5, 0, Math.PI * 2);
+      ctx.arc(d.x, ay, d.r, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = n.color;
+    });
+    ctx.globalAlpha = 1;
+
+    // Ring mesh (danh mục liên kết vòng với nhau)
+    for (let i = 0; i < catNodes.length; i++) {
+      const a = catNodes[i], b = catNodes[(i + 1) % catNodes.length];
+      drawCurvedEdge(ctx, a, b, 'rgba(148,163,184,0.15)', 1);
+    }
+
+    // Center -> category edges + particle streams
+    catNodes.forEach((n, i) => {
+      drawCurvedEdge(ctx, centerNode, n, hexAlpha(n.color, 0.30), 1.6);
+      for (let k = 0; k < 3; k++) {
+        const s = (t * (0.35 + n.rate / 120) + i * 0.21 + k * 0.33) % 1;
+        const px = centerNode.x + (n.x - centerNode.x) * s;
+        const py = centerNode.y + (n.y - centerNode.y) * s;
+        const s2 = Math.max(0, s - 0.07);
+        const px2 = centerNode.x + (n.x - centerNode.x) * s2;
+        const py2 = centerNode.y + (n.y - centerNode.y) * s2;
+        const grad = ctx.createLinearGradient(px2, py2, px, py);
+        grad.addColorStop(0, hexAlpha(n.color, 0));
+        grad.addColorStop(1, hexAlpha(n.color, 0.9));
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(px2, py2);
+        ctx.lineTo(px, py);
+        ctx.stroke();
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(px, py, 2.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    });
+
+    // Category -> package edges + dots
+    pkgNodes.forEach(p => {
+      ctx.strokeStyle = hexAlpha(p.color, 0.28);
+      ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.arc(sx, sy, 2.6, 0, Math.PI * 2);
+      ctx.moveTo(p.parent.x, p.parent.y);
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+      ctx.fillStyle = hexAlpha(p.color, 0.9);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
       ctx.fill();
     });
 
     // Center node
-    drawNetworkNode(ctx, cx, cy, centerNode.r, centerNode.color, (Math.round(totalRate) + '%'), 0.9);
-
+    drawNetworkNode(ctx, centerNode.x, centerNode.y, centerNode.r, centerNode.color, Math.round(totalRate) + '%', 1, t);
     // Category nodes
-    catNodes.forEach(n => drawNetworkNode(ctx, n.x, n.y, n.r, n.color, n.cat.code || '?', 0.7));
+    catNodes.forEach((n, i) => drawNetworkNode(ctx, n.x, n.y, n.r, n.color, n.cat.code || '?', 0.8, t + i * 0.5));
 
-    // Category labels (name) below nodes
-    ctx.font = '11px Inter, system-ui, sans-serif';
+    // Category name labels
+    ctx.font = '10px Inter, system-ui, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
     ctx.fillStyle = '#475569';
     catNodes.forEach(n => {
-      const short = String(n.cat.name || '').length > 22 ? n.cat.name.slice(0, 22) + '…' : (n.cat.name || '');
+      const short = String(n.cat.name || '').length > 20 ? n.cat.name.slice(0, 20) + '…' : (n.cat.name || '');
       ctx.fillText(short, n.x, n.y + n.r + 6);
     });
   }
@@ -995,34 +1043,62 @@ function drawCategoryNetwork(canvas, cats, container) {
     canvas.style.cursor = 'pointer';
     tip.style.display = 'block';
     if (hit.cat) {
-      tip.innerHTML = `<strong>${esc(hit.cat.code ? hit.cat.code + '. ' : '')}${esc(hit.cat.name)}</strong><br>Tổng dự toán: <b>${esc(formatCurrency(hit.invest))}</b><br>Đã giải ngân: <b>${esc(formatCurrency(hit.disbursed))}</b> (${hit.rate.toFixed(1)}%)`;
+      tip.innerHTML = `<strong>${esc(hit.cat.code ? hit.cat.code + '. ' : '')}${esc(hit.cat.name)}</strong><br>Tổng dự toán: <b>${esc(formatCurrency(hit.invest))}</b><br>Đã giải ngân: <b>${esc(formatCurrency(hit.disbursed))}</b> (${hit.rate.toFixed(1)}%)<br>Gói thầu: <b>${(hit.cat.packages || []).length}</b>`;
     } else {
       tip.innerHTML = `<strong>Toàn dự án</strong><br>Tổng dự toán: <b>${esc(formatCurrency(hit.invest))}</b><br>Đã giải ngân: <b>${esc(formatCurrency(hit.disbursed))}</b> (${hit.rate.toFixed(1)}%)`;
     }
     const cw = rect.width;
-    tip.style.left = Math.min(mx + 14, cw - 200) + 'px';
+    tip.style.left = Math.min(mx + 14, cw - 210) + 'px';
     tip.style.top = Math.max(my - 10, 0) + 'px';
   };
   canvas.onmouseleave = () => { tip.style.display = 'none'; };
 }
 
-function drawNetworkNode(ctx, x, y, r, color, label, pulse = 0.7) {
+function drawCurvedEdge(ctx, a, b, color, width) {
+  const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const len = Math.hypot(dx, dy) || 1;
+  const bow = len * 0.07;
+  const cpx = mx - dy / len * bow, cpy = my + dx / len * bow;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  ctx.lineCap = 'round';
   ctx.beginPath();
-  ctx.arc(x, y, r + 7, 0, Math.PI * 2);
-  ctx.fillStyle = hexAlpha(color, 0.14);
+  ctx.moveTo(a.x, a.y);
+  ctx.quadraticCurveTo(cpx, cpy, b.x, b.y);
+  ctx.stroke();
+}
+
+function drawNetworkNode(ctx, x, y, r, color, label, glow = 0.7, phase = 0) {
+  const breathe = 1 + Math.sin(phase * 1.4) * 0.05;
+  const R = r * breathe;
+
+  // Halo (breathing glow)
+  const halo = ctx.createRadialGradient(x, y, R * 0.5, x, y, R * 2.4);
+  halo.addColorStop(0, hexAlpha(color, 0.4 * glow));
+  halo.addColorStop(1, hexAlpha(color, 0));
+  ctx.fillStyle = halo;
+  ctx.beginPath();
+  ctx.arc(x, y, R * 2.4, 0, Math.PI * 2);
   ctx.fill();
 
+  // Glossy body (radial gradient)
+  const body = ctx.createRadialGradient(x - R * 0.35, y - R * 0.4, R * 0.1, x, y, R);
+  body.addColorStop(0, lighten(color, 0.45));
+  body.addColorStop(0.55, color);
+  body.addColorStop(1, darken(color, 0.2));
+  ctx.fillStyle = body;
   ctx.beginPath();
-  ctx.arc(x, y, r, 0, Math.PI * 2);
-  ctx.fillStyle = color;
+  ctx.arc(x, y, R, 0, Math.PI * 2);
   ctx.fill();
-  ctx.lineWidth = 2.5;
-  ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = 'rgba(255,255,255,0.8)';
   ctx.stroke();
 
   if (label) {
     ctx.fillStyle = '#fff';
-    ctx.font = `bold ${Math.max(10, Math.round(r * 0.52))}px Inter, system-ui, sans-serif`;
+    ctx.font = `bold ${Math.max(10, Math.round(R * 0.5))}px Inter, system-ui, sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(label, x, y + 1);
@@ -1035,6 +1111,23 @@ function hexAlpha(hex, alpha) {
   const num = parseInt(full, 16);
   const r = (num >> 16) & 255, g = (num >> 8) & 255, b = num & 255;
   return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function lighten(hex, amt) {
+  const c = hexToRgb(hex);
+  return `rgb(${Math.round(c.r + (255 - c.r) * amt)},${Math.round(c.g + (255 - c.g) * amt)},${Math.round(c.b + (255 - c.b) * amt)})`;
+}
+
+function darken(hex, amt) {
+  const c = hexToRgb(hex);
+  return `rgb(${Math.round(c.r * (1 - amt))},${Math.round(c.g * (1 - amt))},${Math.round(c.b * (1 - amt))})`;
+}
+
+function hexToRgb(hex) {
+  const h = hex.replace('#', '');
+  const full = h.length === 3 ? h.split('').map(c => c + c).join('') : h;
+  const num = parseInt(full, 16);
+  return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
 }
 
 // ============================================================
