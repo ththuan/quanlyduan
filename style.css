@@ -1246,7 +1246,7 @@ canvas {
 }
 
 #modal.modal-lg {
-  width: min(96%, 1180px);
+  width: min(96%, 760px);
 }
 
 @keyframes modalSlideIn {
@@ -1298,6 +1298,12 @@ canvas {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
+}
+
+.form-grid.form-single {
+  grid-template-columns: 1fr;
+  max-width: 720px;
+  margin: 0 auto;
 }
 
 .form-group {

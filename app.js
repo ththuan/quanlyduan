@@ -3054,7 +3054,7 @@ function getPackageFormHTML(pkg = null, catId = '') {
     </div>
   `).join('') : '<p class="pdf-empty">Chưa có file đính kèm</p>';
   return `
-    <div class="form-grid">
+    <div class="form-grid form-single">
       <div class="form-group full-width">
         <label>Tên gói thầu *</label>
         <input type="text" id="f-name" value="${esc(pkg?.name || '')}" required>
