@@ -863,10 +863,10 @@ function renderDonutChart() {
 let networkAnimFrame = null;
 
 function rateColor(rate) {
-  if (rate >= 100) return '#16a34a';
-  if (rate >= 60) return '#0891b2';
-  if (rate >= 30) return '#d97706';
-  return '#dc2626';
+  if (rate >= 100) return '#34d399';
+  if (rate >= 60) return '#22d3ee';
+  if (rate >= 30) return '#fbbf24';
+  return '#f87171';
 }
 
 function renderBarChart() {
@@ -884,10 +884,10 @@ function renderBarChart() {
 
   const legend = `
     <div class="cmp-legend">
-      <span class="cmp-lbl"><i class="cmp-dot" style="background:#16a34a"></i>Hoàn thành</span>
-      <span class="cmp-lbl"><i class="cmp-dot" style="background:#0891b2"></i>&ge; 60%</span>
-      <span class="cmp-lbl"><i class="cmp-dot" style="background:#d97706"></i>&ge; 30%</span>
-      <span class="cmp-lbl"><i class="cmp-dot" style="background:#dc2626"></i>&lt; 30%</span>
+      <span class="cmp-lbl"><i class="cmp-dot" style="background:#34d399"></i>Hoàn thành</span>
+      <span class="cmp-lbl"><i class="cmp-dot" style="background:#22d3ee"></i>&ge; 60%</span>
+      <span class="cmp-lbl"><i class="cmp-dot" style="background:#fbbf24"></i>&ge; 30%</span>
+      <span class="cmp-lbl"><i class="cmp-dot" style="background:#f87171"></i>&lt; 30%</span>
     </div>
     <p class="network-hint">Kích thước nút = Tổng dự toán &nbsp;&middot;&nbsp; Màu nút = Tiến độ giải ngân</p>`;
 
@@ -928,28 +928,28 @@ function drawCategoryNetwork(canvas, cats, container) {
     };
   });
 
-  // Package sub-nodes (orbiting each category) — tạo cảm giác mạng nhiều tầng
   const pkgNodes = [];
   catNodes.forEach(n => {
     const pkgs = (n.cat.packages || []).slice(0, 5);
     pkgs.forEach((p, j) => {
       const a = (j / Math.max(1, pkgs.length)) * Math.PI * 2 + n.ang;
-      const pr = n.r + 17 + (j % 2) * 7;
-      pkgNodes.push({ x: n.x + Math.cos(a) * pr, y: n.y + Math.sin(a) * pr, r: 2.5 + (j % 3), color: n.color, parent: n });
+      const pr = n.r + 18 + (j % 2) * 8;
+      pkgNodes.push({ x: n.x + Math.cos(a) * pr, y: n.y + Math.sin(a) * pr, r: 2 + (j % 3), color: n.color, parent: n });
     });
   });
 
-  const centerNode = { x: cx, y: cy, r: 42, color: '#2563eb', cat: null, rate: totalRate, invest: totalInvest, disbursed: totalDisbursed };
+  const centerNode = { x: cx, y: cy, r: 42, color: '#38bdf8', cat: null, rate: totalRate, invest: totalInvest, disbursed: totalDisbursed };
   const hitNodes = [centerNode, ...catNodes];
 
-  // Ambient background particles (trôi nhẹ)
-  const ambient = Array.from({ length: 46 }, () => ({
+  const stars = Array.from({ length: 60 }, () => ({
     x: Math.random() * width, y: Math.random() * height,
-    r: Math.random() * 1.4 + 0.4, s: Math.random() * 0.5 + 0.1
+    r: Math.random() * 1.2 + 0.3, s: Math.random() * 0.4 + 0.05, tw: Math.random() * Math.PI * 2
   }));
 
   let tip = container.querySelector('.chart-tooltip');
   if (!tip) { tip = document.createElement('div'); tip.className = 'chart-tooltip'; container.appendChild(tip); }
+
+  const maxDim = Math.max(width, height);
 
   let t = 0;
   function frame() {
@@ -957,28 +957,52 @@ function drawCategoryNetwork(canvas, cats, container) {
     t += 0.016;
     const ctx = canvas.getContext('2d');
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, width, height);
 
-    // Ambient particles
-    ambient.forEach(d => {
-      const ay = (d.y + t * 9 * d.s) % height;
-      ctx.globalAlpha = 0.16;
+    // Dark "knowledge engine" background
+    const bg = ctx.createRadialGradient(cx, cy, 0, cx, cy, maxDim * 0.75);
+    bg.addColorStop(0, '#1e293b');
+    bg.addColorStop(0.5, '#0f172a');
+    bg.addColorStop(1, '#020617');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, width, height);
+
+    // Stars (twinkling)
+    stars.forEach(d => {
+      const a = 0.25 + 0.35 * Math.sin(t * 2 + d.tw);
+      ctx.globalAlpha = Math.max(0, a);
       ctx.fillStyle = '#94a3b8';
       ctx.beginPath();
-      ctx.arc(d.x, ay, d.r, 0, Math.PI * 2);
+      ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
       ctx.fill();
     });
     ctx.globalAlpha = 1;
 
-    // Ring mesh (danh mục liên kết vòng với nhau)
-    for (let i = 0; i < catNodes.length; i++) {
-      const a = catNodes[i], b = catNodes[(i + 1) % catNodes.length];
-      drawCurvedEdge(ctx, a, b, 'rgba(148,163,184,0.15)', 1);
+    // Engine orbit rings (rotating ellipses around the core)
+    for (let r = 0; r < 2; r++) {
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(t * 0.4 * (r ? -1 : 1));
+      ctx.strokeStyle = 'rgba(56,189,248,0.16)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, centerNode.r * 1.9 + r * 22, centerNode.r * 0.55 + r * 8, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(125,211,252,0.6)';
+      ctx.beginPath();
+      ctx.arc(centerNode.r * 1.9 + r * 22, 0, 2.4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
     }
 
-    // Center -> category edges + particle streams
+    // Ring mesh (category knowledge nodes linked)
+    for (let i = 0; i < catNodes.length; i++) {
+      const a = catNodes[i], b = catNodes[(i + 1) % catNodes.length];
+      drawCurvedEdge(ctx, a, b, 'rgba(100,116,139,0.18)', 1);
+    }
+
+    // Center -> category edges + energy streams
     catNodes.forEach((n, i) => {
-      drawCurvedEdge(ctx, centerNode, n, hexAlpha(n.color, 0.30), 1.6);
+      drawCurvedEdge(ctx, centerNode, n, hexAlpha(n.color, 0.32), 1.6);
       for (let k = 0; k < 3; k++) {
         const s = (t * (0.35 + n.rate / 120) + i * 0.21 + k * 0.33) % 1;
         const px = centerNode.x + (n.x - centerNode.x) * s;
@@ -988,7 +1012,7 @@ function drawCategoryNetwork(canvas, cats, container) {
         const py2 = centerNode.y + (n.y - centerNode.y) * s2;
         const grad = ctx.createLinearGradient(px2, py2, px, py);
         grad.addColorStop(0, hexAlpha(n.color, 0));
-        grad.addColorStop(1, hexAlpha(n.color, 0.9));
+        grad.addColorStop(1, hexAlpha(n.color, 0.95));
         ctx.strokeStyle = grad;
         ctx.lineWidth = 3;
         ctx.lineCap = 'round';
@@ -1005,28 +1029,28 @@ function drawCategoryNetwork(canvas, cats, container) {
 
     // Category -> package edges + dots
     pkgNodes.forEach(p => {
-      ctx.strokeStyle = hexAlpha(p.color, 0.28);
+      ctx.strokeStyle = hexAlpha(p.color, 0.3);
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(p.parent.x, p.parent.y);
       ctx.lineTo(p.x, p.y);
       ctx.stroke();
-      ctx.fillStyle = hexAlpha(p.color, 0.9);
+      ctx.fillStyle = hexAlpha(p.color, 0.95);
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
       ctx.fill();
     });
 
-    // Center node
+    // Center core
     drawNetworkNode(ctx, centerNode.x, centerNode.y, centerNode.r, centerNode.color, Math.round(totalRate) + '%', 1, t);
     // Category nodes
-    catNodes.forEach((n, i) => drawNetworkNode(ctx, n.x, n.y, n.r, n.color, n.cat.code || '?', 0.8, t + i * 0.5));
+    catNodes.forEach((n, i) => drawNetworkNode(ctx, n.x, n.y, n.r, n.color, n.cat.code || '?', 0.85, t + i * 0.5));
 
-    // Category name labels
+    // Category name labels (light on dark)
     ctx.font = '10px Inter, system-ui, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
-    ctx.fillStyle = '#475569';
+    ctx.fillStyle = '#94a3b8';
     catNodes.forEach(n => {
       const short = String(n.cat.name || '').length > 20 ? n.cat.name.slice(0, 20) + '…' : (n.cat.name || '');
       ctx.fillText(short, n.x, n.y + n.r + 6);
@@ -4924,6 +4948,7 @@ function switchView(viewName) {
   else if (viewName === 'initiation') renderInitiationView();
   else if (viewName === 'qtda') renderQtdaView();
   else if (viewName === 'legal') renderLegalLibrary();
+  else if (viewName === 'wiki') renderWikiView();
   else if (viewName === 'reports') renderReports();
 }
 
@@ -4934,6 +4959,7 @@ function renderAll() {
   else if (state.currentView === 'initiation') renderInitiationView();
   else if (state.currentView === 'qtda') renderQtdaView();
   else if (state.currentView === 'legal') renderLegalLibrary();
+  else if (state.currentView === 'wiki') renderWikiView();
   else if (state.currentView === 'reports') renderReports();
 }
 
@@ -5546,6 +5572,14 @@ async function aiSend(msg) {
     if (res.ok) {
       botDiv.innerHTML = renderMarkdown(data.reply);
       if (typeof aiRenderSources === 'function') aiRenderSources(botDiv, data.sources);
+      if (typeof wikiLearn === 'function') {
+        const saveBtn = document.createElement('button');
+        saveBtn.className = 'btn btn-secondary btn-sm ai-save-wiki';
+        saveBtn.style.marginTop = '8px';
+        saveBtn.innerHTML = '<span class="material-symbols-rounded" style="font-size:15px">hub</span> Lưu vào kho tri thức';
+        saveBtn.onclick = () => wikiLearn(text, data.reply);
+        botDiv.appendChild(saveBtn);
+      }
       aiHistory.push({ role: 'user', text: text }, { role: 'model', text: data.reply });
     } else {
       botDiv.textContent = data.error || 'Lỗi kết nối';

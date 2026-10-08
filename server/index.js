@@ -12,6 +12,7 @@ const multer = require('multer');
 const XLSX = require('xlsx');
 const db = require('./db');
 const legal = require('./legal');
+const wiki = require('./legal-wiki');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -94,6 +95,7 @@ app.get('/index.html', (req, res) => res.sendFile(path.join(ROOT_DIR, 'index.htm
 app.get('/login.html', (req, res) => res.sendFile(path.join(ROOT_DIR, 'login.html'), { headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' } }));
 app.get('/app.js', (req, res) => res.sendFile(path.join(ROOT_DIR, 'app.js'), { headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' } }));
 app.get('/legal-ui.js', (req, res) => res.sendFile(path.join(ROOT_DIR, 'legal-ui.js'), { headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' } }));
+app.get('/wiki-ui.js', (req, res) => res.sendFile(path.join(ROOT_DIR, 'wiki-ui.js'), { headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' } }));
 app.get('/login.js', (req, res) => res.sendFile(path.join(ROOT_DIR, 'login.js'), { headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' } }));
 app.get('/style.css', (req, res) => res.sendFile(path.join(ROOT_DIR, 'style.css'), { headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' } }));
 app.get('/logoCTEC.png', (req, res) => res.sendFile(path.join(ROOT_DIR, 'logoCTEC.png'), { headers: { 'Cache-Control': 'public, max-age=31536000' } }));
@@ -637,11 +639,119 @@ app.get('/api/legal/search', requireAuth, (req, res) => {
   res.json(legal.search(q, { limit, docs }));
 });
 
+// ---- Kho tri thức pháp luật tự học (wiki) ----
+app.get('/api/wiki/entries', requireAuth, (req, res) => {
+  const status = req.query.status || '';
+  res.json(wiki.list(status));
+});
+
+app.get('/api/wiki/stats', requireAuth, (req, res) => {
+  res.json(wiki.countByStatus());
+});
+
+app.get('/api/wiki/graph', requireAuth, (req, res) => {
+  res.json(wiki.graph());
+});
+
+app.post('/api/wiki/entries/:id/approve', requireAuth, (req, res) => {
+  const e = wiki.approve(req.params.id);
+  if (!e) return res.status(404).json({ error: 'Không tìm thấy mục' });
+  res.json(e);
+});
+
+app.delete('/api/wiki/entries/:id', requireAuth, (req, res) => {
+  wiki.reject(req.params.id);
+  res.json({ ok: true });
+});
+
+function parseJsonObject(text) {
+  if (!text) return null;
+  let s = String(text).trim();
+  const fence = s.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fence) s = fence[1].trim();
+  const start = s.indexOf('{');
+  const end = s.lastIndexOf('}');
+  if (start >= 0 && end > start) s = s.slice(start, end + 1);
+  try {
+    return JSON.parse(s);
+  } catch (e) {
+    return null;
+  }
+}
+
 // ---- AI Assistant (Gemini) ----
 const GEMINI_KEY = process.env.GEMINI_API_KEY || '';
 // Model đổi được qua env GEMINI_MODEL (không cần sửa code khi Google deprecate model)
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+
+async function callGemini(systemText, userText, { maxTokens = 2000, temperature = 0.3 } = {}) {
+  const res = await fetch(GEMINI_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_KEY },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: systemText }] },
+      contents: [{ role: 'user', parts: [{ text: userText }] }],
+      generationConfig: { temperature, maxOutputTokens: maxTokens, topP: 0.9 }
+    })
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error?.message || 'Lỗi API Gemini');
+  const cand = data.candidates?.[0];
+  const text = (cand?.content?.parts || []).map(p => p.text || '').join('');
+  if (!text) throw new Error('Không có phản hồi từ AI');
+  return text;
+}
+
+// Lưu một cặp hỏi-đáp vào kho tri thức (AI chắt lọc thành mục khái niệm -> chờ duyệt)
+app.post('/api/wiki/learn', requireAuth, async (req, res) => {
+  if (!GEMINI_KEY) return res.status(503).json({ error: 'Chưa cấu hình GEMINI_API_KEY' });
+  const { question, answer } = req.body || {};
+  if (!question || !answer) return res.status(400).json({ error: 'Thiếu câu hỏi hoặc câu trả lời' });
+  try {
+    const system = 'Bạn là bộ trích xuất tri thức pháp luật. Từ cặp hỏi-đáp, tạo một mục wiki ngắn gọn dạng JSON thuần, ĐÚNG một đối tượng: {"title": "...", "content": "...", "sources": [{"doc":"Mã văn bản","article":"Số điều"}]}. content tối đa 400 từ, chỉ ghi nội dung đã có trong câu trả lời, giữ nguyên số điều/khoản/hạn mức nếu có, không bịa. Nếu câu trả lời không chứa kiến thức pháp luật cần lưu, trả về {"skip": true}.';
+    const text = await callGemini(system, `Hỏi: ${question}\nĐáp: ${answer}`, { maxTokens: 900 });
+    const parsed = parseJsonObject(text);
+    if (!parsed) throw new Error('AI trả về định dạng không hợp lệ');
+    if (parsed.skip) return res.json({ skipped: true });
+    if (!parsed.title) throw new Error('AI không tạo được mục wiki hợp lệ');
+    const entry = wiki.add({
+      type: 'concept',
+      title: parsed.title,
+      content: parsed.content || '',
+      sources: Array.isArray(parsed.sources) ? parsed.sources.filter(s => s && s.doc) : []
+    });
+    res.json({ entry });
+  } catch (err) {
+    res.status(500).json({ error: 'Lỗi tạo mục kho tri thức: ' + err.message });
+  }
+});
+
+// Ingest: tóm tắt các văn bản pháp luật chưa có trong kho (chỉ chạy một lần cho mỗi văn bản)
+app.post('/api/wiki/ingest', requireAuth, async (req, res) => {
+  if (!GEMINI_KEY) return res.status(503).json({ error: 'Chưa cấu hình GEMINI_API_KEY' });
+  try {
+    const docs = legal.getDocuments();
+    const ingested = wiki.getIngestedDocs();
+    const created = [];
+    for (const d of docs) {
+      if (ingested[d.id]) continue;
+      const outline = legal.getOutline(d.id);
+      if (!outline.length) continue;
+      const titles = outline.slice(0, 40).map(a => (a.article ? a.article + (a.heading ? ' - ' + a.heading : '') : '')).filter(Boolean).join('; ');
+      const system = 'Bạn tóm tắt một văn bản pháp luật thành mục wiki JSON thuần, ĐÚNG một đối tượng: {"title": "...", "content": "...", "sources": [{"doc":"ID"}]}. content là tóm tắt ngắn gọn phạm vi điều chỉnh và các điểm chính (tối đa 300 từ). Chỉ dùng thông tin được cung cấp, không bịa.';
+      const text = await callGemini(system, `Văn bản: ${d.short || d.title || d.id} (${d.number || ''}). Danh mục điều/khoản: ${titles}`, { maxTokens: 900 });
+      const parsed = parseJsonObject(text);
+      if (!parsed || !parsed.title) continue;
+      wiki.add({ type: 'source-summary', title: parsed.title, content: parsed.content || '', sources: [{ doc: d.id }] });
+      wiki.markIngested(d.id, d.id);
+      created.push(parsed.title);
+    }
+    res.json({ created });
+  } catch (err) {
+    res.status(500).json({ error: 'Lỗi ingest: ' + err.message });
+  }
+});
 
 app.post('/api/ai/chat', requireAuth, async (req, res) => {
   if (!GEMINI_KEY) return res.status(503).json({ error: 'Chưa cấu hình GEMINI_API_KEY' });
@@ -654,6 +764,7 @@ app.post('/api/ai/chat', requireAuth, async (req, res) => {
       .map(h => ({ role: h.role, parts: [{ text: h.text.slice(0, 2000) }] }));
     const lastUser = [...prior].reverse().find(h => h.role === 'user')?.parts[0].text || '';
     const legalCtx = legal.buildContext(`${message} ${lastUser.slice(0, 300)}`);
+    const wikiCtx = wiki.context(`${message} ${lastUser.slice(0, 300)}`);
 
     // Build context from current project data
     const state = db.getState();
@@ -732,6 +843,9 @@ QUY TẮC TRẢ LỜI PHÁP LUẬT:
 
 CĂN CỨ PHÁP LUẬT TRÍCH TỪ KHO VĂN BẢN (theo câu hỏi hiện tại):
 ${legalCtx.text || '(Không tìm thấy đoạn văn bản liên quan trong kho)'}
+
+TRI THỨC ĐÃ LƯU (kho tri thức tự học, nếu có):
+${wikiCtx.text || '(Chưa có)'}
 
 DỮ LIỆU DỰ ÁN HIỆN TẠI:\n${context}`;
 

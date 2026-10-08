@@ -9,7 +9,7 @@ COPY server/package.json server/package-lock.json ./server/
 RUN cd server && npm ci --omit=dev
 
 # Copy the rest of the app (frontend files + backend source)
-COPY index.html style.css app.js legal-ui.js login.html login.js logoCTEC.png manifest.json sw.js ./
+COPY index.html style.css app.js legal-ui.js wiki-ui.js login.html login.js logoCTEC.png manifest.json sw.js ./
 COPY assets ./assets
 COPY server/*.js ./server/
 COPY server/knowledge ./server/knowledge

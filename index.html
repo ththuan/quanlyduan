@@ -60,6 +60,10 @@
           <span class="material-symbols-rounded">menu_book</span>
           <span>Tra cứu luật</span>
         </button>
+        <button class="nav-tab" data-view="wiki">
+          <span class="material-symbols-rounded">hub</span>
+          <span>Kho tri thức</span>
+        </button>
         <button class="nav-tab" data-view="reports">
           <span class="material-symbols-rounded">bar_chart</span>
           <span>Báo cáo</span>
@@ -197,6 +201,19 @@
       <div id="legal-container"></div>
     </section>
 
+    <!-- Knowledge Wiki View -->
+    <section id="view-wiki" class="view">
+      <div class="section-header">
+        <h2><span class="material-symbols-rounded">hub</span> Kho tri thức pháp luật</h2>
+        <div class="header-actions">
+          <button class="btn btn-secondary" onclick="wikiSetView('list')">Danh sách</button>
+          <button class="btn btn-secondary" onclick="wikiSetView('graph')">Đồ thị</button>
+          <button class="btn btn-primary" onclick="wikiIngest()"><span class="material-symbols-rounded">auto_awesome</span> Ingest văn bản mới</button>
+        </div>
+      </div>
+      <div id="wiki-container"></div>
+    </section>
+
     <!-- Reports View -->
     <section id="view-reports" class="view">
       <div class="section-header">
@@ -272,5 +289,6 @@
   <script src="assets/pdf.min.js"></script>
   <script src="app.js"></script>
   <script src="legal-ui.js"></script>
+  <script src="wiki-ui.js"></script>
 </body>
 </html>

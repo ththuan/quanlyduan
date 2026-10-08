@@ -2921,3 +2921,70 @@ canvas {
 .ai-source { display: inline-block; padding: 1px 8px; border-radius: 10px; background: #e0f2fe; color: #0369a1; text-decoration: none; font-size: 0.72rem; }
 .ai-source:hover { background: #bae6fd; }
 .ai-source.repealed { background: #fee2e2; color: #b91c1c; text-decoration: line-through; }
+
+.ai-save-wiki { display: inline-flex; align-items: center; gap: 4px; }
+
+/* ---- Kho tri thức (wiki) ---- */
+.wiki-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.wiki-stats .kpi-card { padding: 14px 16px; margin: 0; }
+.wiki-stats .kpi-value { font-size: 1.3rem; }
+
+.wiki-section { margin-bottom: 20px; }
+
+.wiki-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
+.wiki-section-title .material-symbols-rounded { color: var(--accent-cyan); font-size: 20px; }
+
+.wiki-item {
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+}
+
+.wiki-item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.wiki-item-title {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.wiki-item-content {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+.wiki-item-sources {
+  margin-top: 8px;
+  font-size: 0.72rem;
+  color: var(--accent-cyan);
+}
+
+.wiki-item-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
