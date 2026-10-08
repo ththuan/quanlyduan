@@ -798,6 +798,29 @@ body.read-only .edit-only { display: none !important; }
   max-width: 100%;
 }
 
+#chart-bar {
+  position: relative;
+}
+
+.chart-tooltip {
+  position: absolute;
+  z-index: 10;
+  display: none;
+  pointer-events: none;
+  background: #0f172a;
+  color: #f8fafc;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  padding: 8px 10px;
+  border-radius: 8px;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.28);
+  max-width: 220px;
+}
+
+.chart-tooltip b {
+  color: #7dd3fc;
+}
+
 /* Comparison horizontal bar list */
 .cmp-legend {
   display: flex;
@@ -2595,6 +2618,9 @@ canvas {
     flex-direction: column;
     width: 100%;
   }
+  .dash-lower-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 900px) {
@@ -2643,6 +2669,16 @@ canvas {
 
   .kpi-grid {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .dash-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .dash-header-progress {
+    flex: 1 1 100%;
+    min-width: 0;
   }
 
   .section-header {

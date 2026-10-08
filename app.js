@@ -867,12 +867,15 @@ function renderBarChart() {
   const project = getCurrentProject();
   const cats = project ? getSortedCategories(project) : [];
 
-  // Legend
+  const series = [
+    { label: 'Tổng dự toán', color: '#2563eb', fn: getCatInvestTotal },
+    { label: 'Dự toán', color: '#06b6d4', fn: getCatEstimateTotal },
+    { label: 'Giải ngân', color: '#16a34a', fn: getCatDisbursedTotal }
+  ];
+
   const legend = `
     <div class="cmp-legend">
-      <span class="cmp-lbl"><i class="cmp-dot" style="background:#2563eb"></i>Tổng dự toán</span>
-      <span class="cmp-lbl"><i class="cmp-dot" style="background:#06b6d4"></i>Dự toán</span>
-      <span class="cmp-lbl"><i class="cmp-dot" style="background:#16a34a"></i>Giải ngân</span>
+      ${series.map(s => `<span class="cmp-lbl"><i class="cmp-dot" style="background:${s.color}"></i>${s.label}</span>`).join('')}
     </div>`;
 
   if (!cats.length) {
@@ -880,37 +883,99 @@ function renderBarChart() {
     return;
   }
 
-  const maxVal = Math.max(...cats.flatMap(c => [getCatInvestTotal(c), getCatEstimateTotal(c), getCatDisbursedTotal(c)]));
+  const maxVal = Math.max(...cats.flatMap(c => series.map(s => s.fn(c))));
   if (!isFinite(maxVal) || maxVal <= 0) {
     el.innerHTML = legend + '<div class="plot-empty">Chưa có dữ liệu</div>';
     return;
   }
 
-  const mkRow = (cat) => {
-    const vals = [getCatInvestTotal(cat), getCatEstimateTotal(cat), getCatDisbursedTotal(cat)];
-    const colors = ['#2563eb', '#06b6d4', '#16a34a'];
-    const bars = vals.map((v, j) => {
-      const pct = maxVal > 0 ? Math.round(v / maxVal * 100) : 0;
-      return `
-        <div class="cmp-bar-row">
-          <div class="cmp-track" title="${esc(formatCurrency(v))}">
-            <span class="cmp-fill" style="width:${pct}%;background:${colors[j]}"></span>
-          </div>
-          <span class="cmp-val" title="${esc(formatCurrency(v))}">${formatCompactCurrency(v)}</span>
-        </div>`;
-    }).join('');
+  el.innerHTML = legend + '<canvas id="chart-bar-canvas"></canvas>';
+  drawGroupedBarChart(document.getElementById('chart-bar-canvas'), cats, series, maxVal);
+}
 
-    return `
-      <div class="cmp-line">
-        <div class="cmp-name">
-          <span class="cmp-code">${esc(cat.code)}</span>
-          <span class="cmp-title">${esc(cat.name)}</span>
-        </div>
-        <div class="cmp-bars">${bars}</div>
-      </div>`;
+function drawGroupedBarChart(canvas, cats, series, maxVal) {
+  if (!canvas) return;
+  const dpr = window.devicePixelRatio || 1;
+  const width = Math.max(320, canvas.parentElement.clientWidth);
+  const height = 330;
+  canvas.style.width = width + 'px';
+  canvas.style.height = height + 'px';
+  canvas.width = width * dpr;
+  canvas.height = height * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, width, height);
+
+  const m = { top: 18, right: 16, bottom: 46, left: 78 };
+  const plotW = width - m.left - m.right;
+  const plotH = height - m.top - m.bottom;
+
+  // Y-axis gridlines + labels
+  const steps = 4;
+  ctx.font = '11px Inter, system-ui, sans-serif';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  for (let i = 0; i <= steps; i++) {
+    const val = maxVal * i / steps;
+    const y = m.top + plotH - (plotH * i / steps);
+    ctx.strokeStyle = '#eef2f7';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(m.left, y);
+    ctx.lineTo(width - m.right, y);
+    ctx.stroke();
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillText(formatCompactCurrency(val), m.left - 10, y);
+  }
+
+  // Bars (store rects for hover tooltip)
+  const rects = [];
+  const n = cats.length;
+  const groupW = plotW / n;
+  const barW = Math.max(6, Math.min(22, groupW * 0.22));
+  const gap = Math.max(2, barW * 0.16);
+  const totalW = series.length * barW + (series.length - 1) * gap;
+  const startX = groupW / 2 - totalW / 2;
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.font = '11px Inter, system-ui, sans-serif';
+  cats.forEach((cat, i) => {
+    const gx = m.left + i * groupW;
+    series.forEach((s, j) => {
+      const v = s.fn(cat);
+      const bh = maxVal > 0 ? (v / maxVal) * plotH : 0;
+      const x = gx + startX + j * (barW + gap);
+      const y = m.top + plotH - bh;
+      ctx.fillStyle = s.color;
+      ctx.fillRect(x, y, barW, bh);
+      rects.push({ x, y, w: barW, h: bh, name: cat.name, code: cat.code, series: s.label, value: v, color: s.color });
+    });
+    ctx.fillStyle = '#64748b';
+    const code = String(cat.code || '').slice(0, 7);
+    ctx.fillText(code, gx + groupW / 2, m.top + plotH + 8);
+  });
+
+  // Tooltip
+  let tip = canvas.parentElement.querySelector('.chart-tooltip');
+  if (!tip) {
+    tip = document.createElement('div');
+    tip.className = 'chart-tooltip';
+    canvas.parentElement.appendChild(tip);
+  }
+  canvas.onmousemove = (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const hit = rects.find(r => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + Math.max(r.h, 3));
+    if (!hit) { tip.style.display = 'none'; return; }
+    tip.style.display = 'block';
+    tip.innerHTML = `<strong>${esc(hit.code ? hit.code + '. ' : '')}${esc(hit.name)}</strong><br>${esc(hit.series)}: <b>${esc(formatCurrency(hit.value))}</b>`;
+    const cw = rect.width;
+    tip.style.left = Math.min(x + 12, cw - 160) + 'px';
+    tip.style.top = Math.max(y - 40, 0) + 'px';
   };
-
-  el.innerHTML = legend + cats.map(mkRow).join('');
+  canvas.onmouseleave = () => { tip.style.display = 'none'; };
 }
 
 // ============================================================
@@ -991,8 +1056,16 @@ function renderAlertsPanel(project) {
 
 function renderDashboard() {
   const project = getCurrentProject();
+  const headerEl = document.getElementById('dashboard-header');
+  const kpiEl = document.getElementById('kpi-cards');
+  const statusEl = document.getElementById('status-overview');
+  const timelineEl = document.getElementById('dashboard-timeline');
+
   if (!project) {
-    document.getElementById('kpi-cards').innerHTML = '';
+    if (headerEl) headerEl.innerHTML = '';
+    if (kpiEl) kpiEl.innerHTML = '';
+    if (statusEl) statusEl.innerHTML = '';
+    if (timelineEl) timelineEl.innerHTML = '';
     document.getElementById('capital-summary').innerHTML = '';
     document.getElementById('alerts-panel').innerHTML = '';
     renderDonutChart();
@@ -1003,15 +1076,42 @@ function renderDashboard() {
   renderAlertsPanel(project);
 
   const allPkgs = project.categories.flatMap(c => c.packages.map(p => ({ cat: c, pkg: p })));
+  const catCount = project.categories.length;
 
   const totalInvest = project.totalInvestment;
+  const totalEstimate = project.categories.reduce((s, c) => s + getCatEstimateTotal(c), 0);
   const totalBid = project.categories.reduce((s, c) => s + getCatBidTotal(c), 0);
   const totalDisbursed = project.categories.reduce((s, c) => s + getCatDisbursedTotal(c), 0);
   const totalCumulative = project.categories.reduce((s, c) => s + getCatCumulativeTotal(c), 0);
+  const totalAcceptance = allPkgs.reduce((s, x) => s + (x.pkg.acceptanceValue || 0), 0);
 
   const disbursedRate = totalInvest > 0 ? (totalDisbursed / totalInvest) * 100 : 0;
+  const acceptRate = totalBid > 0 ? (totalAcceptance / totalBid) * 100 : 0;
 
-  const kpiEl = document.getElementById('kpi-cards');
+  // ---- Header (project overview) ----
+  if (headerEl) {
+    headerEl.innerHTML = `
+      <div class="dash-header">
+        <div class="dash-header-main">
+          <div class="dash-header-icon"><span class="material-symbols-rounded">domain</span></div>
+          <div>
+            <div class="dash-header-name">${esc(project.fullName || project.name || '—')}</div>
+            <div class="dash-header-meta">
+              <span><span class="material-symbols-rounded" style="font-size:15px">business</span> ${esc(project.owner || '—')}</span>
+              <span><span class="material-symbols-rounded" style="font-size:15px">calendar_month</span> ${project.startYear || '...'} – ${project.endYear || '...'}</span>
+              ${project.buildingGrade ? `<span><span class="material-symbols-rounded" style="font-size:15px">apartment</span> Cấp ${esc(project.buildingGrade)}</span>` : ''}
+              ${project.location ? `<span><span class="material-symbols-rounded" style="font-size:15px">location_on</span> ${esc(project.location)}</span>` : ''}
+            </div>
+          </div>
+        </div>
+        <div class="dash-header-progress">
+          <div class="dash-header-progress-label"><span>Tiến độ giải ngân</span><strong>${formatPercent(disbursedRate)}</strong></div>
+          <div class="progress-track"><span style="width:${Math.min(100, disbursedRate).toFixed(1)}%"></span></div>
+        </div>
+      </div>`;
+  }
+
+  // ---- KPI cards ----
   kpiEl.innerHTML = `
     <div class="kpi-card glass-card" data-color="cyan">
       <div class="kpi-header">
@@ -1020,6 +1120,14 @@ function renderDashboard() {
       </div>
       <div class="kpi-value">${formatCurrency(totalInvest, true)}</div>
       <div class="kpi-sub">KH vốn năm ${project.planYear || '—'}: ${formatCurrency(project.annualPlan, true)}</div>
+    </div>
+    <div class="kpi-card glass-card" data-color="blue">
+      <div class="kpi-header">
+        <span class="kpi-label">Tổng dự toán</span>
+        <div class="kpi-icon"><span class="material-symbols-rounded">request_quote</span></div>
+      </div>
+      <div class="kpi-value">${formatCurrency(totalEstimate, true)}</div>
+      <div class="kpi-sub">${catCount} danh mục · ${allPkgs.length} gói thầu</div>
     </div>
     <div class="kpi-card glass-card" data-color="purple">
       <div class="kpi-header">
@@ -1037,6 +1145,15 @@ function renderDashboard() {
       <div class="kpi-value">${formatCurrency(totalDisbursed, true)}</div>
       <div class="kpi-sub">Còn lại: ${formatCurrency(totalInvest - totalDisbursed, true)}</div>
     </div>
+    <div class="kpi-card glass-card" data-color="pink">
+      <div class="kpi-header">
+        <span class="kpi-label">Giá trị nghiệm thu</span>
+        <div class="kpi-icon"><span class="material-symbols-rounded">verified</span></div>
+      </div>
+      <div class="kpi-value">${formatCurrency(totalAcceptance, true)}</div>
+      <div class="kpi-sub">${formatPercent(acceptRate)} / hợp đồng</div>
+      <div class="kpi-progress"><span style="width:${Math.min(100, acceptRate).toFixed(1)}%"></span></div>
+    </div>
     <div class="kpi-card glass-card" data-color="amber">
       <div class="kpi-header">
         <span class="kpi-label">Tỷ lệ giải ngân</span>
@@ -1044,12 +1161,28 @@ function renderDashboard() {
       </div>
       <div class="kpi-value">${formatPercent(disbursedRate)}</div>
       <div class="kpi-sub">/ Tổng mức đầu tư</div>
+      <div class="kpi-progress"><span style="width:${Math.min(100, disbursedRate).toFixed(1)}%;background:var(--accent-amber)"></span></div>
     </div>
   `;
 
-  // Timeline alerts (Feature 3)
+  // ---- Status overview ----
+  const statusCounts = {};
+  allPkgs.forEach(x => { const s = getPackageStatus(x.pkg); statusCounts[s] = (statusCounts[s] || 0) + 1; });
+  const statusOrder = ['notStarted', 'selecting', 'signed', 'executing', 'accepted', 'handedOver'];
+  if (statusEl) {
+    statusEl.innerHTML = `
+      <div class="status-overview">
+        ${statusOrder.map(k => `
+          <div class="status-chip" data-status="${k}">
+            <span class="status-chip-count">${statusCounts[k] || 0}</span>
+            <span class="status-chip-label">${PKG_STATUSES[k].label}</span>
+          </div>`).join('')}
+      </div>`;
+  }
+
+  // ---- Timeline ----
   const timelineItems = [];
-  allPkgs.forEach(({ cat, pkg }) => {
+  allPkgs.forEach(({ pkg }) => {
     if (pkg.contractEndDate) {
       const d = daysUntil(pkg.contractEndDate);
       if (d != null && d >= 0 && d <= 30) {
@@ -1081,38 +1214,26 @@ function renderDashboard() {
   });
   timelineItems.sort((a, b) => a.date.localeCompare(b.date));
 
-  renderCapitalSummary();
-
-  const kpiContainer = kpiEl.parentElement;
-  let timelineEl = document.getElementById('dashboard-timeline');
-  if (!timelineEl) {
-    timelineEl = document.createElement('div');
-    timelineEl.id = 'dashboard-timeline';
-    if (kpiContainer) kpiContainer.appendChild(timelineEl);
-  }
-  if (timelineItems.length > 0) {
-    timelineEl.innerHTML = `
-      <div style="display:flex;align-items:center;gap:6px;margin:12px 0 4px 0">
-        <span class="material-symbols-rounded" style="font-size:18px;color:var(--accent-cyan)">event</span>
-        <span style="font-weight:700;font-size:0.85rem">Các mốc sắp đến</span>
-        <span style="font-size:0.75rem;color:var(--text-muted)">(${timelineItems.length})</span>
-      </div>
-      <div class="timeline-list">
-        ${timelineItems.map(item => `
-          <div class="timeline-item ${item.urgent ? 'urgent' : ''}">
-            <span class="timeline-dot"></span>
-            <div class="timeline-content">
-              <strong>${esc(item.name)}</strong> &mdash; ${esc(item.event)}
-              <small>${formatDateVN(item.date)} (còn ${item.days} ngày)</small>
+  if (timelineEl) {
+    if (timelineItems.length > 0) {
+      timelineEl.innerHTML = `
+        <div class="timeline-list">
+          ${timelineItems.map(item => `
+            <div class="timeline-item ${item.urgent ? 'urgent' : ''}">
+              <span class="timeline-dot"></span>
+              <div class="timeline-content">
+                <strong>${esc(item.name)}</strong> &mdash; ${esc(item.event)}
+                <small>${formatDateVN(item.date)} (còn ${item.days} ngày)</small>
+              </div>
             </div>
-          </div>
-        `).join('')}
-      </div>
-    `;
-  } else {
-    timelineEl.innerHTML = '';
+          `).join('')}
+        </div>`;
+    } else {
+      timelineEl.innerHTML = '<p class="pdf-empty">Không có mốc sắp đến trong 60 ngày tới.</p>';
+    }
   }
 
+  renderCapitalSummary();
   renderDonutChart();
   renderBarChart();
 }
