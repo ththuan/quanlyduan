@@ -3197,9 +3197,10 @@ function getPackageFormHTML(pkg = null, catId = '') {
         <input type="date" id="f-contractEndDate" value="${pkg?.contractEndDate || ''}">
       </div>
       <div class="form-group">
-        <label>Số PL gia hạn (nếu có)</label>
+        <label>Phụ lục hợp đồng (nếu có)</label>
         <input type="text" id="f-contractExtension" value="${esc(pkg?.contractExtension || '')}" placeholder="VD: PL01/HĐ ngày ...">
       </div>
+      ${docAttachBlock(catId, pkgId, pkg, 'Phụ lục hợp đồng')}
       <div class="form-group">
         <label>Hình thức lựa chọn nhà thầu</label>
         <select id="f-selectionMethod">
@@ -3718,7 +3719,7 @@ function viewPackageDetail(catId, pkgId) {
         <span class="detail-value"><span class="badge ${(() => { const r = getContractRoute(pkg); return r.code === 'ktkt' ? 'badge-warning' : (r.code === 'bcnckt' ? 'badge-info' : (r.code === 'competitive' ? 'badge-info' : (r.code === 'directPurchase' ? 'badge-success' : 'badge-neutral'))); })()}">${getContractRoute(pkg).name}</span> <small class="detail-sub">${getContractRoute(pkg).hint}</small></span>
       </div>
       <div class="detail-item ${pkg.contractExtension ? '' : 'full-width'}">
-        <span class="detail-label">PL gia hạn</span>
+        <span class="detail-label">Phụ lục hợp đồng</span>
         <span class="detail-value">${esc(pkg.contractExtension || 'Không có')}</span>
       </div>
       <div class="detail-item">
