@@ -16,6 +16,7 @@ services:
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       - GEMINI_MODEL=${GEMINI_MODEL:-gemini-3.5-flash-lite}
       - BACKUP_INTERVAL_HOURS=${BACKUP_INTERVAL_HOURS:-6}
+      - MONITOR_SECRET=${MONITOR_SECRET:-qlda-internal-monitor}
     volumes:
       - qlda_data:/app/server/data
       - qlda_uploads:/app/server/uploads
@@ -31,6 +32,8 @@ services:
       - AI_OFFICE_PORT=8765
       - AI_OFFICE_HOST=0.0.0.0
       - AI_OFFICE_NO_OPEN=1
+      - QLDA_URL=http://qlda:3000
+      - MONITOR_SECRET=${MONITOR_SECRET:-qlda-internal-monitor}
     volumes:
       - van_phong_dossiers:/app/HO-SO-AI
       - van_phong_kb:/app/KHO-TRI-THUC

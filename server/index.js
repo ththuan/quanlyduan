@@ -150,6 +150,48 @@ app.get('/assets/pdf.worker.min.js', (req, res) => res.sendFile(path.join(ROOT_D
 
 // ---- Văn phòng AI (proxy tới service van-phong-ai, nội bộ docker network) ----
 const VANPHONG_URL = process.env.VANPHONG_URL || 'http://van-phong-ai:8765';
+const MONITOR_SECRET = process.env.MONITOR_SECRET || '';
+
+function hasMonitorValue(v) {
+  const s = String(v ?? '').trim();
+  return s !== '' && s !== '-';
+}
+
+function monitorStatus(pkg) {
+  if (!pkg) return 'notStarted';
+  if (pkg.handoverDate) return 'handedOver';
+  if (pkg.acceptanceStatus === 'Đã nghiệm thu' && (pkg.acceptanceValue || 0) > 0) return 'accepted';
+  if (hasMonitorValue(pkg.contract) || pkg.contractSignDate) {
+    const active = (pkg.acceptances || []).length || (pkg.progress || 0) > 0 || (pkg.acceptanceValue || 0) > 0;
+    return active ? 'executing' : 'signed';
+  }
+  if (hasMonitorValue(pkg.khlcntNumber) || hasMonitorValue(pkg.hsmtNumber) || pkg.hsmtDate || pkg.bidOpenDate || pkg.bidCloseDate || hasMonitorValue(pkg.contractor)) return 'selecting';
+  return 'notStarted';
+}
+
+// Dữ liệu dự án/gói thầu cho Văn phòng AI giám sát (bảo vệ bằng secret nội bộ)
+app.get('/api/projects/monitor', (req, res) => {
+  if (MONITOR_SECRET && req.headers['x-monitor-secret'] !== MONITOR_SECRET) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  const state = db.getState();
+  const projects = (state.projects || []).map(p => ({
+    id: p.id, name: p.name, fullName: p.fullName, owner: p.owner,
+    totalInvestment: p.totalInvestment, projectScope: p.projectScope, buildingGrade: p.buildingGrade,
+    packages: (p.categories || []).flatMap(c => (c.packages || []).map(pkg => ({
+      id: pkg.id, name: pkg.name, catCode: c.code, catName: c.name,
+      pkgType: pkg.pkgType, pkgScope: pkg.pkgScope,
+      selectionMethod: pkg.selectionMethod, contractor: pkg.contractor,
+      contract: pkg.contract, contractEndDate: pkg.contractEndDate, contractSignDate: pkg.contractSignDate,
+      progress: pkg.progress || 0, bidValue: pkg.bidValue, cumulativeDisbursed: pkg.cumulativeDisbursed || 0,
+      acceptanceStatus: pkg.acceptanceStatus || '', acceptanceValue: pkg.acceptanceValue || 0, acceptanceDate: pkg.acceptanceDate,
+      handoverDate: pkg.handoverDate, liquidationDate: pkg.liquidationDate,
+      invoiceNumber: pkg.invoiceNumber, invoiceDate: pkg.invoiceDate,
+      status: monitorStatus(pkg)
+    })))
+  }));
+  res.json({ projects, generatedAt: new Date().toISOString() });
+});
 
 app.get('/api/vanphong/status', requireAuth, async (req, res) => {
   try {

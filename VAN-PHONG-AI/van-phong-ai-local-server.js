@@ -2135,6 +2135,15 @@ async function handleApi(request, response, requestUrl) {
     return true;
   }
 
+  if (pathname === '/api/qlda/monitor' && request.method === 'GET') {
+    try {
+      sendJson(response, 200, await buildQldaMonitor());
+    } catch (err) {
+      sendError(response, 502, 'Không lấy được dữ liệu QLDA: ' + err.message);
+    }
+    return true;
+  }
+
   if (pathname === '/api/reminders') {
     if (request.method === 'GET') {
       sendJson(response, 200, {
@@ -2499,6 +2508,78 @@ function serveForm(request, response, pathname) {
     response.writeHead(200, { 'Content-Type': CONTENT_TYPES[extension], 'Content-Length': content.length });
     response.end();
   } else sendDownload(response, fileName, content, CONTENT_TYPES[extension]);
+}
+
+// ---- Cầu nối QLDA: lấy dự án/gói thầu + tự gán nhân viên AI theo trạng thái ----
+const QLDA_URL = process.env.QLDA_URL || 'http://qlda:3000';
+const MONITOR_SECRET = process.env.MONITOR_SECRET || '';
+
+const AGENT_BY_STATUS = {
+  notStarted: 'HẢI',
+  selecting: 'HẢI',
+  signed: 'LÂM',
+  executing: 'LÂM',
+  accepted: 'LONG',
+  handedOver: 'NAM'
+};
+const AGENT_TITLES = {
+  'AN': 'Trưởng nhóm AI',
+  'HẢI': 'Tiếp nhận & điều phối',
+  'LONG': 'Tài chính & số liệu',
+  'MINH': 'Biểu mẫu & tổng hợp',
+  'NAM': 'Lưu trữ & hệ thống',
+  'LÂM': 'Khảo sát & thực hiện',
+  'PHÚC': 'Kiểm soát & tuân thủ'
+};
+
+function daysUntilIso(iso) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  d.setHours(0, 0, 0, 0);
+  return Math.round((d - today) / 86400000);
+}
+
+async function buildQldaMonitor() {
+  const headers = {};
+  if (MONITOR_SECRET) headers['x-monitor-secret'] = MONITOR_SECRET;
+  const res = await fetch(QLDA_URL + '/api/projects/monitor', { headers, signal: AbortSignal.timeout(10000) });
+  if (!res.ok) throw new Error('QLDA trả về ' + res.status);
+  const data = await res.json();
+  const projects = (data.projects || []).map(function (p) {
+    const packages = (p.packages || []).map(function (pkg) {
+      const agent = AGENT_BY_STATUS[pkg.status] || 'AN';
+      const days = daysUntilIso(pkg.contractEndDate);
+      const alerts = [];
+      if (pkg.contractEndDate && pkg.status !== 'handedOver' && pkg.status !== 'accepted') {
+        if (days != null && days < 0) alerts.push({ level: 'danger', text: 'Quá hạn hợp đồng ' + Math.abs(days) + ' ngày' });
+        else if (days != null && days <= 30) alerts.push({ level: 'warn', text: 'Sắp hết hạn HĐ còn ' + days + ' ngày' });
+      }
+      if (pkg.status === 'accepted' && !pkg.invoiceNumber) alerts.push({ level: 'warn', text: 'Đã nghiệm thu nhưng chưa có hóa đơn' });
+      if ((pkg.progress || 0) > 0 && !pkg.contract) alerts.push({ level: 'warn', text: 'Đang thực hiện nhưng chưa có hợp đồng' });
+      return {
+        id: pkg.id, name: pkg.name, catCode: pkg.catCode, catName: pkg.catName,
+        pkgType: pkg.pkgType, selectionMethod: pkg.selectionMethod, contractor: pkg.contractor,
+        contractEndDate: pkg.contractEndDate, progress: pkg.progress,
+        bidValue: pkg.bidValue, cumulativeDisbursed: pkg.cumulativeDisbursed,
+        acceptanceStatus: pkg.acceptanceStatus, status: pkg.status,
+        agent: agent, agentTitle: AGENT_TITLES[agent] || agent, alerts: alerts
+      };
+    });
+    const summary = {
+      total: packages.length,
+      byAgent: {},
+      alerts: 0
+    };
+    packages.forEach(function (pkg) {
+      summary.byAgent[pkg.agent] = (summary.byAgent[pkg.agent] || 0) + 1;
+      summary.alerts += pkg.alerts.length;
+    });
+    return { id: p.id, name: p.name, fullName: p.fullName, owner: p.owner, totalInvestment: p.totalInvestment, packages: packages, summary: summary };
+  });
+  return { projects: projects, generatedAt: new Date().toISOString() };
 }
 
 const server = http.createServer(async (request, response) => {

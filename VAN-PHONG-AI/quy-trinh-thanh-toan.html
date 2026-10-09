@@ -2795,6 +2795,124 @@
       display: block
     }
 
+    .project-monitor-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px
+    }
+
+    .project-monitor-head h3 {
+      margin: 0 0 4px
+    }
+
+    .project-monitor-head p {
+      margin: 0;
+      font-size: .8rem;
+      color: #64748b
+    }
+
+    .project-monitor-body {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      max-height: calc(100vh - 180px);
+      overflow-y: auto;
+      padding-right: 4px
+    }
+
+    .pm-project {
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      overflow: hidden;
+      background: #fff
+    }
+
+    .pm-project-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: #f1f5f9;
+      font-size: .88rem
+    }
+
+    .pm-project-head span {
+      color: #64748b;
+      font-size: .76rem
+    }
+
+    .pm-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .8rem
+    }
+
+    .pm-table th {
+      text-align: left;
+      padding: 8px 14px;
+      background: #f8fafc;
+      color: #475569;
+      font-weight: 600;
+      border-bottom: 1px solid #e2e8f0
+    }
+
+    .pm-table td {
+      padding: 9px 14px;
+      border-bottom: 1px solid #f1f5f9;
+      vertical-align: top
+    }
+
+    .pm-name small {
+      display: block;
+      color: #94a3b8;
+      font-size: .7rem
+    }
+
+    .pm-status {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      background: #eef2ff;
+      color: #4f46e5;
+      font-size: .72rem;
+      white-space: nowrap
+    }
+
+    .pm-agent b {
+      display: block;
+      color: #0f172a
+    }
+
+    .pm-agent span {
+      color: #64748b;
+      font-size: .7rem
+    }
+
+    .pm-alert {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: .7rem;
+      margin: 1px 2px
+    }
+
+    .pm-alert-danger {
+      background: #fee2e2;
+      color: #b91c1c
+    }
+
+    .pm-alert-warn {
+      background: #fef3c7;
+      color: #92400e
+    }
+
+    .pm-ok {
+      color: #16a34a;
+      font-size: .74rem
+    }
+
     .ai-memory-composer {
       display: grid;
       gap: 6px;
@@ -9315,6 +9433,10 @@
                   aria-label="Mở Tủ tri thức và hỏi dữ liệu">
                   <span class="knowledge-cabinet-label">TRI THỨC</span><i></i><i></i><i></i>
                 </button>
+                <button type="button" class="office-cabinet office-file-cabinet" id="projectCabinet"
+                  aria-label="Mở tủ dự án và giám sát gói thầu">
+                  <span class="cabinet-label">DỰ ÁN</span><i></i><i></i><i></i>
+                </button>
                 <div class="office-sofa" aria-label="Ghế sofa khu chờ"><strong>GHẾ SOFA · KHU CHỜ</strong><span></span></div>
                 <div class="office-rug" aria-hidden="true"></div>
 
@@ -9352,6 +9474,7 @@
                 <button type="button" class="ai-panel-tab" data-ai-panel="story">Câu chuyện</button>
                 <button type="button" class="ai-panel-tab" data-ai-panel="reminders">Lịch nhắc</button>
                 <button type="button" class="ai-panel-tab" data-ai-panel="chat">Hỏi dữ liệu</button>
+          <button type="button" class="ai-panel-tab" data-ai-panel="projects">Dự án</button>
               </div>
 
               <div class="ai-panel-view active" data-ai-view="request">
@@ -9557,6 +9680,19 @@
                       </div>
                     </div>
                   </aside>
+                </div>
+              </div>
+
+              <div class="ai-panel-view" data-ai-view="projects">
+                <div class="project-monitor-head">
+                  <div>
+                    <h3>Dự án & gói thầu đang giám sát</h3>
+                    <p>Đồng bộ từ phần mềm QLDA — mỗi gói thầu được gán cho một nhân viên AI theo trạng thái.</p>
+                  </div>
+                  <button type="button" class="ai-secondary-btn" id="projectMonitorRefreshBtn">Làm mới</button>
+                </div>
+                <div id="projectMonitorBody" class="project-monitor-body">
+                  <div class="ai-empty">Đang tải dữ liệu dự án từ QLDA...</div>
                 </div>
               </div>
             </aside>
@@ -11793,6 +11929,47 @@
         if (name === 'chat') loadKnowledgeWorkspace();
         if (name === 'story') renderNarrativePanel();
         if (name === 'reminders') window.dispatchEvent(new CustomEvent('office-reminders-refresh'));
+        if (name === 'projects') renderProjectMonitor();
+      }
+
+      const STATUS_LABEL = {
+        notStarted: 'Chưa triển khai', selecting: 'Đang lựa chọn nhà thầu', signed: 'Đã ký hợp đồng',
+        executing: 'Đang thực hiện', accepted: 'Đã nghiệm thu', handedOver: 'Đã bàn giao'
+      };
+
+      async function renderProjectMonitor() {
+        const body = document.getElementById('projectMonitorBody');
+        if (!body) return;
+        body.innerHTML = '<div class="ai-empty">Đang tải dữ liệu dự án từ QLDA...</div>';
+        try {
+          const res = await fetch('/api/qlda/monitor', { cache: 'no-store' });
+          if (!res.ok) throw new Error('Không tải được (' + res.status + ')');
+          const data = await res.json();
+          const projects = Array.isArray(data.projects) ? data.projects : [];
+          if (!projects.length) {
+            body.innerHTML = '<div class="ai-empty">Chưa có dự án nào trong QLDA.</div>';
+            return;
+          }
+          body.innerHTML = projects.map(function (p) {
+            const pkgRows = (p.packages || []).map(function (pkg) {
+              const alerts = (pkg.alerts || []).map(function (a) {
+                return '<span class="pm-alert pm-alert-' + (a.level === 'danger' ? 'danger' : 'warn') + '">' + escapeHtml(a.text) + '</span>';
+              }).join(' ');
+              return '<tr>' +
+                '<td class="pm-name">' + escapeHtml(pkg.name) + '<small>' + escapeHtml(pkg.catCode || '') + '</small></td>' +
+                '<td><span class="pm-status">' + escapeHtml(STATUS_LABEL[pkg.status] || pkg.status) + '</span></td>' +
+                '<td class="pm-agent"><b>' + escapeHtml(pkg.agent) + '</b> <span>' + escapeHtml(pkg.agentTitle || '') + '</span></td>' +
+                '<td class="pm-alerts">' + (alerts || '<span class="pm-ok">Ổn định</span>') + '</td>' +
+              '</tr>';
+            }).join('');
+            return '<div class="pm-project">' +
+              '<div class="pm-project-head"><strong>' + escapeHtml(p.fullName || p.name) + '</strong><span>' + p.packages.length + ' gói thầu</span></div>' +
+              '<table class="pm-table"><thead><tr><th>Gói thầu</th><th>Trạng thái</th><th>Phụ trách</th><th>Cảnh báo</th></tr></thead><tbody>' + pkgRows + '</tbody></table>' +
+            '</div>';
+          }).join('');
+        } catch (err) {
+          body.innerHTML = '<div class="ai-empty">Không kết nối được QLDA: ' + escapeHtml(err.message) + '</div>';
+        }
       }
 
       function syncOverlayLock() {
@@ -11816,7 +11993,8 @@
           record: { eyebrow: 'TỦ HỒ SƠ', title: 'Kho bộ hồ sơ đã hoàn tất' },
           story: { eyebrow: 'NHỊP VĂN PHÒNG', title: 'Câu chuyện và tình huống' },
           reminders: { eyebrow: 'TRỢ LÝ CHỦ ĐỘNG', title: 'Lịch và nhắc việc của bạn' },
-          chat: { eyebrow: 'TỦ TRI THỨC', title: 'Chatbot hỏi đáp dữ liệu' }
+          chat: { eyebrow: 'TỦ TRI THỨC', title: 'Chatbot hỏi đáp dữ liệu' },
+          projects: { eyebrow: 'TỦ DỰ ÁN', title: 'Dự án & gói thầu đang giám sát' }
         }[panel || 'request'];
         if (drawerCopy) {
           ui.drawerEyebrow.textContent = drawerCopy.eyebrow;
@@ -15327,6 +15505,10 @@
       });
       ui.recordCabinet.addEventListener('click', function () { openWorkDrawer('record'); });
       ui.knowledgeCabinet.addEventListener('click', function () { openWorkDrawer('chat'); ui.bubble.textContent = 'Bạn có thể hỏi tôi về tài liệu, biểu mẫu và các hồ sơ đã đồng bộ.'; });
+      var projectCabinet = document.getElementById('projectCabinet');
+      if (projectCabinet) projectCabinet.addEventListener('click', function () { openWorkDrawer('projects'); });
+      var projectRefreshBtn = document.getElementById('projectMonitorRefreshBtn');
+      if (projectRefreshBtn) projectRefreshBtn.addEventListener('click', function () { renderProjectMonitor(); });
       ui.taskBoard.addEventListener('click', function () { openWorkDrawer(officeNarrativeState.pendingChoice ? 'story' : 'checklist'); });
 
       ui.knowledgeSend.addEventListener('click', submitKnowledgeQuestion);
