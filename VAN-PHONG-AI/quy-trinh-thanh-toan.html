@@ -11595,12 +11595,12 @@
         const tasks = [
           { id: 'intake', station: 'intake', owner: 'ai', title: 'AI tiếp nhận và bóc tách yêu cầu đấu thầu', detail: 'Xác định hình thức ' + method + ', giá trị gói thầu, đơn vị và dữ liệu còn thiếu.' },
           { id: 'khlcnt', station: 'review', owner: 'human', title: 'Lập & phê duyệt Kế hoạch lựa chọn nhà thầu (KHLCNT)', detail: 'Căn cứ Luật Đấu thầu Điều 38-41; gồm tên gói, giá gói thầu, nguồn vốn, hình thức lựa chọn nhà thầu, thời gian tổ chức và loại hợp đồng.' },
-          { id: 'hsmt', station: 'forms', owner: 'ai', title: 'Lập Hồ sơ mời thầu (HSMT) / Hồ sơ yêu cầu (HSYC)', detail: 'Theo hình thức đã chọn; gồm tiêu chí kỹ thuật, tài chính, mẫu hợp đồng và tiêu chuẩn đánh giá.' },
-          { id: 'publish', station: 'review', owner: 'human', title: 'Đăng tải thông tin / phát hành HSMT', detail: 'Đăng tải trên Hệ thống mạng đấu thầu quốc gia theo thời gian tối thiểu quy định (TT 79/2025).' },
-          { id: 'opening', station: 'review', owner: 'human', title: 'Mở thầu / tiếp nhận Hồ sơ dự thầu (HSDT)', detail: 'Lập biên bản mở thầu, bảo quản và quản lý HSDT nộp đúng hạn.' },
+          { id: 'hsmt', station: 'forms', owner: 'ai', title: 'Lập Hồ sơ mời thầu (HSMT) / Hồ sơ yêu cầu (HSYC)', detail: 'Đấu thầu rộng rãi/hạn chế dùng mẫu E-HSMT theo TT 79/2025; chỉ định thầu, chào hàng cạnh tranh, báo giá dùng mẫu HSYC theo TT 134/2026 (đã có trong Tủ tri thức).' },
+          { id: 'publish', station: 'review', owner: 'human', title: 'Đăng tải thông tin / phát hành HSMT', detail: 'Đăng tải thông báo mời thầu (E-TBMT) và phát hành HSMT trên Hệ thống mạng đấu thầu quốc gia theo TT 79/2025.' },
+          { id: 'opening', station: 'review', owner: 'human', title: 'Đóng thầu / Mở thầu — tiếp nhận Hồ sơ dự thầu (HSDT)', detail: 'Lập biên bản đóng thầu (TT 134 Phụ lục 1) và biên bản mở thầu (TT 134 Phụ lục 2A/2B/2C); quản lý HSDT nộp đúng hạn.' },
           { id: 'evaluation', station: 'forms', owner: 'ai', title: 'AI hỗ trợ đánh giá HSDT và lập báo cáo đánh giá', detail: 'Đối chiếu tiêu chuẩn, xếp hạng nhà thầu, nêu rõ nhà thầu đạt/không đạt và căn cứ pháp lý.' },
           { id: 'negotiation', station: 'approval', owner: 'human', title: 'Thương thảo hợp đồng (nếu có)', detail: 'Thương thảo các nội dung sai khác trong HSDT; lập biên bản thương thảo trước khi trình duyệt.' },
-          { id: 'result', station: 'approval', owner: 'human', title: 'Phê duyệt kết quả lựa chọn nhà thầu', detail: 'Ban hành quyết định phê duyệt kết quả, công khai kết quả theo quy định.' },
+          { id: 'result', station: 'approval', owner: 'human', title: 'Phê duyệt kết quả lựa chọn nhà thầu', detail: 'Ban hành quyết định phê duyệt kết quả (mẫu trong TT 134/2026), công khai kết quả theo TT 79/2025.' },
           { id: 'contract', station: 'execution', owner: 'human', title: 'Ký kết hợp đồng và thực hiện', detail: 'Ký hợp đồng theo kết quả phê duyệt, thực hiện, nghiệm thu, thanh toán và thanh lý hợp đồng.' }
         ];
         if (data.reviewRequired || (data.missing && data.missing.length)) {
