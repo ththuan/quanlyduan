@@ -53,7 +53,7 @@ app.use((req, res, next) => {
   // CSP: chỉ cho phép tài nguyên cùng nguồn và inline style cần thiết cho SPA
   res.setHeader('Content-Security-Policy',
     "default-src 'self'; " +
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com; " +
     "style-src 'self' 'unsafe-inline'; " +
     "font-src 'self'; " +
     "img-src 'self' data: blob:; " +
@@ -176,11 +176,18 @@ app.use('/van-phong-ai', requireAuthWeb, (req, res) => {
     proxyRes.pipe(res);
   });
   proxyReq.on('error', (err) => {
-    if (!res.headersSent) res.status(502).json({ error: 'Văn phòng AI không khả dụng: ' + err.message });
-    else res.destroy();
+    if (!res.headersSent) {
+      res.status(502);
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.end('<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="font-family:sans-serif;padding:24px;color:#333"><h2>Văn phòng AI chưa sẵn sàng</h2><p>Không kết nối được service <code>' + escHtml(VANPHONG_URL) + '</code>.</p><p>Chi tiết: ' + escHtml(err.message) + '</p><p>Trên server hãy chạy:</p><pre>docker compose build van-phong-ai\ndocker compose up -d van-phong-ai</pre></body></html>');
+    } else res.destroy();
   });
   req.pipe(proxyReq);
 });
+
+function escHtml(s) {
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
 
 // ---- Auth API ----
 // Rate limiter đơn giản theo IP (in-memory)
