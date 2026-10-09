@@ -11451,7 +11451,23 @@
       function analyzeByRules(request) {
         const folded = foldText(request);
         let kind = 'purchase';
-        if (folded.indexOf('tam ung') !== -1) kind = 'advance';
+        let selectionMethod = '';
+        // Đấu thầu / lựa chọn nhà thầu (Luật Đấu thầu, NĐ 214/2025) — nhận diện trước mua sắm thông thường
+        const isBidding = folded.indexOf('dau thau') !== -1 || folded.indexOf('khlcnt') !== -1 ||
+          folded.indexOf('hsmt') !== -1 || folded.indexOf('hsdt') !== -1 || folded.indexOf('moi thau') !== -1 ||
+          folded.indexOf('du thau') !== -1 || folded.indexOf('chi dinh thau') !== -1 ||
+          folded.indexOf('chao hang canh tranh') !== -1 || folded.indexOf('mua sam truc tiep') !== -1 ||
+          folded.indexOf('lua chon nha thau') !== -1 || folded.indexOf('mo thau') !== -1;
+        if (isBidding) {
+          kind = 'bidding';
+          if (folded.indexOf('rong rai') !== -1) selectionMethod = 'Đấu thầu rộng rãi';
+          else if (folded.indexOf('han che') !== -1) selectionMethod = 'Đấu thầu hạn chế';
+          else if (folded.indexOf('chi dinh thau') !== -1) selectionMethod = 'Chỉ định thầu';
+          else if (folded.indexOf('chao hang canh tranh') !== -1) selectionMethod = 'Chào hàng cạnh tranh';
+          else if (folded.indexOf('mua sam truc tiep') !== -1) selectionMethod = 'Mua sắm trực tiếp';
+          else if (folded.indexOf('tu thuc hien') !== -1) selectionMethod = 'Tự thực hiện';
+          else selectionMethod = 'Lựa chọn nhà thầu';
+        } else if (folded.indexOf('tam ung') !== -1) kind = 'advance';
         else if (folded.indexOf('sua chua') !== -1 || folded.indexOf('sua may') !== -1) kind = 'repair';
         else if (folded.indexOf('thanh toan') !== -1 && folded.indexOf('mua') === -1) kind = 'payment';
 
@@ -11463,17 +11479,19 @@
         if (!amount) missing.push('Giá trị dự toán hoặc số tiền đề nghị');
         if (!unit) missing.push('Đơn vị/phòng/khoa đề nghị');
         if ((kind === 'purchase' || kind === 'repair') && !quantity) missing.push('Số lượng và thông số chính');
+        if (kind === 'bidding' && !selectionMethod) missing.push('Hình thức lựa chọn nhà thầu');
         if (folded.indexOf('nguon') === -1 && folded.indexOf('kinh phi') === -1) missing.push('Nguồn kinh phí');
 
         const fieldEvidence = [
           { field: 'kind', value: kind, source: 'rule', confidence: .72, note: 'Nhận diện từ từ khóa nghiệp vụ trong yêu cầu.' },
+          { field: 'selectionMethod', value: selectionMethod, source: 'rule', confidence: .6, note: 'Hình thức lựa chọn nhà thầu nhận diện từ yêu cầu.' },
           { field: 'amount', value: amount ? String(amount) : '', source: amount ? 'request' : 'assumption', confidence: amount ? .8 : 0, note: amount ? 'Trích trực tiếp từ yêu cầu.' : 'Chưa tìm thấy số tiền.' },
           { field: 'quantity', value: quantity ? String(quantity) : '', source: quantity ? 'request' : 'assumption', confidence: quantity ? .78 : 0, note: quantity ? 'Trích trực tiếp từ yêu cầu.' : 'Chưa tìm thấy số lượng.' },
           { field: 'unit', value: unit || '', source: unit ? 'request' : 'assumption', confidence: unit ? .72 : 0, note: unit ? 'Trích trực tiếp từ yêu cầu.' : 'Chưa xác định đơn vị đề nghị.' }
         ];
 
         return {
-          title: shortTitle(request), kind: kind, amount: amount, quantity: quantity, invoiceCount: invoiceCount,
+          title: shortTitle(request), kind: kind, selectionMethod: selectionMethod, amount: amount, quantity: quantity, invoiceCount: invoiceCount,
           unit: unit, missing: missing,
           noThreeQuotes: folded.indexOf('khong du 3 bao gia') !== -1 || folded.indexOf('khong co 3 bao gia') !== -1,
           noTreasuryControl: folded.indexOf('khong kiem soat chi qua kho bac') !== -1,
@@ -11500,6 +11518,7 @@
         }
         if (data.kind === 'advance') { forms.add('14'); forms.add('15'); }
         if (data.kind === 'payment') forms.add('15');
+        // Đấu thầu: bộ hồ sơ lựa chọn nhà thầu (KHLCNT, HSMT/HSYC, kết quả LCNT) nêu trong quy trình — không dùng mẫu QT.MSSC.
         if (data.noThreeQuotes) forms.add('03');
         if (data.noTreasuryControl) forms.add('13');
         if (data.invoiceCount >= 2) forms.add('16');
@@ -11508,7 +11527,7 @@
       }
 
       function kindLabel(kind) {
-        return { purchase: 'Mua sắm', repair: 'Sửa chữa', advance: 'Tạm ứng', payment: 'Thanh toán' }[kind] || 'Hồ sơ nghiệp vụ';
+        return { purchase: 'Mua sắm', repair: 'Sửa chữa', advance: 'Tạm ứng', payment: 'Thanh toán', bidding: 'Đấu thầu' }[kind] || 'Hồ sơ nghiệp vụ';
       }
 
       function buildTasksLegacy(data, forms) {
@@ -11540,6 +11559,7 @@
       }
 
       function buildTasks(data, forms) {
+        if (data.kind === 'bidding') return buildBiddingTasks(data, forms);
         const amount = Number(data.amount) || 0;
         const tier = amount ? computeTier(amount) : null;
         const tasks = [
@@ -11565,6 +11585,28 @@
           { id: 'payment-review', station: 'payment', owner: 'ai', title: 'AI rà soát lần cuối bộ hồ sơ thanh toán', detail: 'Đối chiếu biểu mẫu, nguồn giá, số tiền, chứng từ và cảnh báo phần còn thiếu trước khi trình ký.' },
           { id: 'archive', station: 'payment', owner: 'ai', title: 'AI hoàn thiện và đóng bộ hồ sơ', detail: 'Cập nhật báo cáo, lịch sử trao đổi, danh sách tệp và gói ZIP để người dùng kiểm tra hoặc tải về.' }
         );
+        return tasks.map(function (task, index) { return Object.assign({ number: index + 1, status: 'pending' }, task); });
+      }
+
+      // Quy trình đấu thầu / lựa chọn nhà thầu (Luật Đấu thầu 22/2023, NĐ 214/2025, TT 79/2025)
+      function buildBiddingTasks(data, forms) {
+        const amount = Number(data.amount) || 0;
+        const method = data.selectionMethod || 'Lựa chọn nhà thầu';
+        const tasks = [
+          { id: 'intake', station: 'intake', owner: 'ai', title: 'AI tiếp nhận và bóc tách yêu cầu đấu thầu', detail: 'Xác định hình thức ' + method + ', giá trị gói thầu, đơn vị và dữ liệu còn thiếu.' },
+          { id: 'khlcnt', station: 'review', owner: 'human', title: 'Lập & phê duyệt Kế hoạch lựa chọn nhà thầu (KHLCNT)', detail: 'Căn cứ Luật Đấu thầu Điều 38-41; gồm tên gói, giá gói thầu, nguồn vốn, hình thức lựa chọn nhà thầu, thời gian tổ chức và loại hợp đồng.' },
+          { id: 'hsmt', station: 'forms', owner: 'ai', title: 'Lập Hồ sơ mời thầu (HSMT) / Hồ sơ yêu cầu (HSYC)', detail: 'Theo hình thức đã chọn; gồm tiêu chí kỹ thuật, tài chính, mẫu hợp đồng và tiêu chuẩn đánh giá.' },
+          { id: 'publish', station: 'review', owner: 'human', title: 'Đăng tải thông tin / phát hành HSMT', detail: 'Đăng tải trên Hệ thống mạng đấu thầu quốc gia theo thời gian tối thiểu quy định (TT 79/2025).' },
+          { id: 'opening', station: 'review', owner: 'human', title: 'Mở thầu / tiếp nhận Hồ sơ dự thầu (HSDT)', detail: 'Lập biên bản mở thầu, bảo quản và quản lý HSDT nộp đúng hạn.' },
+          { id: 'evaluation', station: 'forms', owner: 'ai', title: 'AI hỗ trợ đánh giá HSDT và lập báo cáo đánh giá', detail: 'Đối chiếu tiêu chuẩn, xếp hạng nhà thầu, nêu rõ nhà thầu đạt/không đạt và căn cứ pháp lý.' },
+          { id: 'negotiation', station: 'approval', owner: 'human', title: 'Thương thảo hợp đồng (nếu có)', detail: 'Thương thảo các nội dung sai khác trong HSDT; lập biên bản thương thảo trước khi trình duyệt.' },
+          { id: 'result', station: 'approval', owner: 'human', title: 'Phê duyệt kết quả lựa chọn nhà thầu', detail: 'Ban hành quyết định phê duyệt kết quả, công khai kết quả theo quy định.' },
+          { id: 'contract', station: 'execution', owner: 'human', title: 'Ký kết hợp đồng và thực hiện', detail: 'Ký hợp đồng theo kết quả phê duyệt, thực hiện, nghiệm thu, thanh toán và thanh lý hợp đồng.' }
+        ];
+        if (data.reviewRequired || (data.missing && data.missing.length)) {
+          tasks.push({ id: 'confirm', station: 'approval', owner: 'human', title: 'Bổ sung dữ liệu còn thiếu cho AI', detail: (data.missing || []).join('; ') || 'Xác nhận thông tin mà AI chưa xác định được.' });
+        }
+        tasks.push({ id: 'archive', station: 'payment', owner: 'ai', title: 'AI hoàn thiện và lưu bộ hồ sơ đấu thầu', detail: 'Tổng hợp hồ sơ, lịch sử trao đổi và xuất phiếu điều phối để lưu trữ.' });
         return tasks.map(function (task, index) { return Object.assign({ number: index + 1, status: 'pending' }, task); });
       }
 
