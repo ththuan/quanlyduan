@@ -2542,6 +2542,13 @@ function daysUntilIso(iso) {
   return Math.round((d - today) / 86400000);
 }
 
+function fmtShort(n) {
+  const v = Number(n) || 0;
+  if (v >= 1e9) return (v / 1e9).toFixed(1) + ' tỷ';
+  if (v >= 1e6) return (v / 1e6).toFixed(0) + ' tr';
+  return String(Math.round(v));
+}
+
 async function buildQldaMonitor() {
   const headers = {};
   if (MONITOR_SECRET) headers['x-monitor-secret'] = MONITOR_SECRET;
@@ -2559,13 +2566,28 @@ async function buildQldaMonitor() {
       }
       if (pkg.status === 'accepted' && !pkg.invoiceNumber) alerts.push({ level: 'warn', text: 'Đã nghiệm thu nhưng chưa có hóa đơn' });
       if ((pkg.progress || 0) > 0 && !pkg.contract) alerts.push({ level: 'warn', text: 'Đang thực hiện nhưng chưa có hợp đồng' });
+
+      // Đánh giá rủi ro + đề xuất hành động
+      const risks = [];
+      const bid = Number(pkg.bidValue) || 0;
+      const est = Number(pkg.estimateValue) || 0;
+      const disbursed = Number(pkg.cumulativeDisbursed) || 0;
+      const done = Number(pkg.cumulativeValue) || 0;
+      if (bid && est && bid > est) risks.push({ level: 'medium', text: 'Trúng thầu cao hơn dự toán ' + fmtShort(bid - est), action: 'Rà soát giá gói thầu và căn cứ phê duyệt.' });
+      if (bid && disbursed > bid) risks.push({ level: 'high', text: 'Đã giải ngân vượt giá trị trúng thầu ' + fmtShort(disbursed - bid), action: 'Dừng chi, kiểm tra phát sinh và xin điều chỉnh hợp đồng.' });
+      else if (bid && done > bid) risks.push({ level: 'medium', text: 'Giá trị thực hiện vượt trúng thầu ' + fmtShort(done - bid), action: 'Rà soát khối lượng phát sinh và phụ lục hợp đồng.' });
+      if (pkg.status === 'executing' && (pkg.progress || 0) <= 0) risks.push({ level: 'medium', text: 'Đang thực hiện nhưng chưa cập nhật tiến độ', action: 'Yêu cầu nhà thầu/nhân viên phụ trách cập nhật tiến độ %.' });
+      if (pkg.status === 'accepted' && !pkg.liquidationDate) risks.push({ level: 'low', text: 'Đã nghiệm thu nhưng chưa thanh lý hợp đồng', action: 'Lập biên bản thanh lý hợp đồng theo quy định.' });
+      const riskLevel = risks.some(function (r) { return r.level === 'high'; }) ? 'high' : (risks.some(function (r) { return r.level === 'medium'; }) ? 'medium' : (risks.length ? 'low' : 'none'));
+
       return {
         id: pkg.id, name: pkg.name, catCode: pkg.catCode, catName: pkg.catName,
         pkgType: pkg.pkgType, selectionMethod: pkg.selectionMethod, contractor: pkg.contractor,
         contractEndDate: pkg.contractEndDate, progress: pkg.progress,
-        bidValue: pkg.bidValue, cumulativeDisbursed: pkg.cumulativeDisbursed,
+        bidValue: pkg.bidValue, estimateValue: pkg.estimateValue,
+        cumulativeValue: pkg.cumulativeValue, cumulativeDisbursed: pkg.cumulativeDisbursed,
         acceptanceStatus: pkg.acceptanceStatus, status: pkg.status,
-        agent: agent, agentTitle: AGENT_TITLES[agent] || agent, alerts: alerts
+        agent: agent, agentTitle: AGENT_TITLES[agent] || agent, alerts: alerts, riskLevel: riskLevel, risks: risks
       };
     });
     const summary = {

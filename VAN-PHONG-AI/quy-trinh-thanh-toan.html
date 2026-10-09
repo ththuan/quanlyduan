@@ -2997,6 +2997,44 @@
       justify-content: flex-end
     }
 
+    .pm-link {
+      color: #1d4ed8;
+      text-decoration: none;
+      font-weight: 600
+    }
+
+    .pm-link:hover {
+      text-decoration: underline
+    }
+
+    .pm-risk {
+      display: inline-block;
+      margin-left: 6px;
+      padding: 1px 7px;
+      border-radius: 10px;
+      font-size: .68rem;
+      font-weight: 600;
+      vertical-align: middle
+    }
+
+    .pm-risk-high { background: #fee2e2; color: #b91c1c }
+    .pm-risk-medium { background: #fef3c7; color: #92400e }
+    .pm-risk-low { background: #e0f2fe; color: #0369a1 }
+
+    .pm-risk-tip {
+      display: block;
+      color: #94a3b8;
+      font-size: .68rem;
+      white-space: pre-line;
+      margin-top: 2px
+    }
+
+    .pm-ask-btn {
+      flex: 0 0 auto;
+      font-size: .7rem;
+      padding: 2px 8px
+    }
+
     .ai-memory-composer {
       display: grid;
       gap: 6px;
@@ -12061,16 +12099,22 @@
 
           const dist = '<div class="pm-dist">' + agentList.map(function (a) {
             const pct = totalPkgs ? Math.round(a.count / totalPkgs * 100) : 0;
-            return '<div class="pm-dist-row"><span class="pm-dist-name"><b>' + escapeHtml(a.agent) + '</b> ' + escapeHtml(a.title) + '</span><div class="pm-dist-track"><span style="width:' + pct + '%"></span></div><span class="pm-dist-count">' + a.count + '</span></div>';
+            return '<div class="pm-dist-row"><span class="pm-dist-name"><b>' + escapeHtml(a.agent) + '</b> ' + escapeHtml(a.title) + '</span><div class="pm-dist-track"><span style="width:' + pct + '%"></span></div><span class="pm-dist-count">' + a.count + '</span><button type="button" class="ai-secondary-btn pm-ask-btn" data-agent="' + escapeHtml(a.agent) + '" data-agent-title="' + escapeHtml(a.title) + '">Hỏi</button></div>';
           }).join('') + '</div>';
 
+          const pkgMap = {};
           const projectTables = projects.map(function (p) {
             const pkgRows = (p.packages || []).map(function (pkg) {
+              pkgMap[pkg.id] = pkg;
               const alerts = (pkg.alerts || []).map(function (a) {
                 return '<span class="pm-alert pm-alert-' + (a.level === 'danger' ? 'danger' : 'warn') + '">' + escapeHtml(a.text) + '</span>';
               }).join(' ');
+              const riskBadge = pkg.riskLevel && pkg.riskLevel !== 'none'
+                ? '<span class="pm-risk pm-risk-' + pkg.riskLevel + '">' + (pkg.riskLevel === 'high' ? 'Rủi ro cao' : pkg.riskLevel === 'medium' ? 'Rủi ro TB' : 'Rủi ro thấp') + '</span>'
+                : '';
+              const riskTip = (pkg.risks || []).map(function (r) { return r.text + ' → ' + r.action; }).join('\n');
               return '<tr>' +
-                '<td class="pm-name">' + escapeHtml(pkg.name) + '<small>' + escapeHtml(pkg.catCode || '') + '</small></td>' +
+                '<td class="pm-name"><a href="#" class="pm-link" data-pkg="' + escapeHtml(pkg.id) + '" title="Bấm để giao hồ sơ cho nhân viên AI">' + escapeHtml(pkg.name) + '</a>' + riskBadge + '<small>' + escapeHtml(pkg.catCode || '') + '</small><small class="pm-risk-tip">' + escapeHtml(riskTip) + '</small></td>' +
                 '<td><span class="pm-status">' + escapeHtml(STATUS_LABEL[pkg.status] || pkg.status) + '</span></td>' +
                 '<td class="pm-agent"><b>' + escapeHtml(pkg.agent) + '</b> <span>' + escapeHtml(pkg.agentTitle || '') + '</span></td>' +
                 '<td class="pm-alerts">' + (alerts || '<span class="pm-ok">Ổn định</span>') + '</td>' +
@@ -12082,9 +12126,22 @@
             '</div>';
           }).join('');
 
-          body.innerHTML = stats + dist + '<div class="pm-actions"><button type="button" class="ai-secondary-btn" id="pmRemindBtn">Tạo nhắc việc cho gói sắp hết hạn</button></div>' + projectTables;
+          body.innerHTML = stats + dist + '<div class="pm-actions"><button type="button" class="ai-secondary-btn" id="pmReportBtn">Báo cáo tổng hợp</button><button type="button" class="ai-secondary-btn" id="pmRemindBtn">Tạo nhắc việc cho gói sắp hết hạn</button></div>' + projectTables;
+
           var remindBtn = document.getElementById('pmRemindBtn');
           if (remindBtn) remindBtn.addEventListener('click', createProjectReminders);
+          var reportBtn = document.getElementById('pmReportBtn');
+          if (reportBtn) reportBtn.addEventListener('click', generateMonitorReport);
+          document.querySelectorAll('.pm-ask-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () { askAgentToChat(btn.dataset.agent, btn.dataset.agentTitle); });
+          });
+          document.querySelectorAll('.pm-link').forEach(function (link) {
+            link.addEventListener('click', function (e) {
+              e.preventDefault();
+              var pkg = pkgMap[link.dataset.pkg];
+              if (pkg) assignPackageToAi(pkg);
+            });
+          });
         } catch (err) {
           body.innerHTML = '<div class="ai-empty">Không kết nối được QLDA: ' + escapeHtml(err.message) + '</div>';
         }
@@ -12111,6 +12168,50 @@
         }
         addActivity('nhắc việc', 'Đã tạo ' + due.length + ' lịch nhắc cho gói thầu sắp hết hạn.');
         if (ui.connection) ui.connection.textContent = 'Đã tạo ' + due.length + ' lịch nhắc cho gói thầu sắp hết hạn.';
+      }
+
+      // (a) Giao một gói thầu cho nhân viên AI xử lý hồ sơ
+      function assignPackageToAi(pkg) {
+        const input = document.getElementById('aiRequestInput');
+        const method = pkg.selectionMethod || 'chưa rõ hình thức';
+        const riskText = (pkg.risks && pkg.risks.length) ? ' Rủi ro: ' + pkg.risks.map(function (r) { return r.text; }).join('; ') + '.' : '';
+        const request = 'Xử lý hồ sơ cho gói thầu "' + pkg.name + '" (danh mục ' + (pkg.catName || pkg.catCode || '') + ', hình thức ' + method + ').' +
+          ' Hiện trạng: ' + (STATUS_LABEL[pkg.status] || pkg.status) + ', tiến độ ' + (pkg.progress || 0) + '%.' + riskText +
+          ' Nhân viên phụ trách: ' + pkg.agent + '.';
+        if (input) input.value = request;
+        openWorkDrawer('request');
+      }
+
+      // (b) Mở chat và đặt câu hỏi dưới góc nhìn của một nhân viên cụ thể
+      function askAgentToChat(agent, title) {
+        const input = document.getElementById('aiKnowledgeInput');
+        if (input) input.value = 'Với vai trò ' + (title || agent) + ' (' + agent + '), hãy đánh giá các công việc bạn đang phụ trách và nêu việc cần ưu tiên.';
+        openWorkDrawer('chat');
+      }
+
+      // (c) Xuất báo cáo tổng hợp (Word)
+      function generateMonitorReport() {
+        if (!lastMonitor) return;
+        const rows = [];
+        rows.push(['Thời điểm báo cáo', new Date().toLocaleString('vi-VN')]);
+        lastMonitor.projects.forEach(function (p) {
+          rows.push(['Dự án', (p.fullName || p.name) + (p.owner ? ' — ' + p.owner : '')]);
+          (p.packages || []).forEach(function (pkg) {
+            const risks = (pkg.risks || []).map(function (r) { return r.text + ' → ' + r.action; }).join('; ') || 'Không có rủi ro đáng kể';
+            rows.push(['Gói thầu', pkg.name + ' [' + (STATUS_LABEL[pkg.status] || pkg.status) + '] — Phụ trách ' + pkg.agent + ' (' + pkg.agentTitle + ')']);
+            rows.push(['Đánh giá rủi ro', risks]);
+          });
+        });
+        const head = '<h1>BÁO CÁO GIÁM SÁT DỰ ÁN & GÓI THẦU</h1>';
+        const table = '<table>' + rows.map(function (r) { return '<tr><td style="width:30%;font-weight:bold">' + escapeHtml(r[0]) + '</td><td>' + escapeHtml(r[1]) + '</td></tr>'; }).join('') + '</table>';
+        const note = '<p><b>Lưu ý:</b> Báo cáo do Văn phòng AI tổng hợp tự động từ dữ liệu QLDA; chỉ mang tính hỗ trợ giám sát, không thay thế báo cáo chính thức.</p>';
+        const blob = new Blob(['\ufeff', head, table, note], { type: 'application/msword' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url; link.download = 'bao-cao-giam-sat-du-an.doc';
+        document.body.appendChild(link); link.click(); link.remove();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 1500);
+        addActivity('báo cáo', 'Đã xuất báo cáo giám sát dự án.');
       }
 
       function syncOverlayLock() {

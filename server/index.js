@@ -183,7 +183,7 @@ app.get('/api/projects/monitor', (req, res) => {
       pkgType: pkg.pkgType, pkgScope: pkg.pkgScope,
       selectionMethod: pkg.selectionMethod, contractor: pkg.contractor,
       contract: pkg.contract, contractEndDate: pkg.contractEndDate, contractSignDate: pkg.contractSignDate,
-      progress: pkg.progress || 0, bidValue: pkg.bidValue, cumulativeDisbursed: pkg.cumulativeDisbursed || 0,
+      progress: pkg.progress || 0, estimateValue: pkg.estimateValue || 0, bidValue: pkg.bidValue, cumulativeValue: pkg.cumulativeValue || 0, cumulativeDisbursed: pkg.cumulativeDisbursed || 0,
       acceptanceStatus: pkg.acceptanceStatus || '', acceptanceValue: pkg.acceptanceValue || 0, acceptanceDate: pkg.acceptanceDate,
       handoverDate: pkg.handoverDate, liquidationDate: pkg.liquidationDate,
       invoiceNumber: pkg.invoiceNumber, invoiceDate: pkg.invoiceDate,
