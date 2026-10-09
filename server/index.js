@@ -74,6 +74,8 @@ function requireAuth(req, res, next) {
   const user = db.getUserById(session.user_id);
   if (!user) return res.status(401).json({ error: 'Chưa đăng nhập' });
   req.sessionId = session.id;
+  // Đồng bộ cookie cho iframe Văn phòng AI (cả phiên cũ chưa đăng nhập lại)
+  setSessionCookie(res, session.id);
   req.user = { id: user.id, username: user.username, role: user.role, mustChangePassword: !!user.must_change_password };
   // Ép đổi mật khẩu: chặn mọi API trừ logout, đổi mật khẩu, /api/me
   if (req.user.mustChangePassword) {
@@ -148,6 +150,17 @@ app.get('/assets/pdf.worker.min.js', (req, res) => res.sendFile(path.join(ROOT_D
 
 // ---- Văn phòng AI (proxy tới service van-phong-ai, nội bộ docker network) ----
 const VANPHONG_URL = process.env.VANPHONG_URL || 'http://van-phong-ai:8765';
+
+app.get('/api/vanphong/status', requireAuth, async (req, res) => {
+  try {
+    const r = await fetch(VANPHONG_URL + '/api/status', { signal: AbortSignal.timeout(5000) });
+    const data = await r.json().catch(() => ({}));
+    res.json({ ok: r.ok, status: r.status, url: VANPHONG_URL, data });
+  } catch (err) {
+    res.json({ ok: false, url: VANPHONG_URL, error: err.message });
+  }
+});
+
 app.use('/van-phong-ai', requireAuthWeb, (req, res) => {
   const targetPath = req.url || '/';
   const target = VANPHONG_URL + targetPath;

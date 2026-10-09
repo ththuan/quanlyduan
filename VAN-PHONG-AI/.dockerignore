@@ -5,16 +5,11 @@ ai-config.local.json
 *.cmd
 *.txt
 .edge-*
-.edge-layout-check
-.edge-narrative-check
-.edge-pixel-check
-.edge-test-profile
 claude-skills
 openwork
 test-ai-agent-contract.js
 Dockerfile
 .dockerignore
-entrypoint.sh
 README.md
 .git
 .gitignore
