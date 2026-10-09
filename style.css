@@ -694,7 +694,9 @@ body.read-only .edit-only { display: none !important; }
 
 .vanphong-embed #vanphong-frame {
   flex: 1;
-  min-height: 520px;
+  width: 100%;
+  height: calc(100vh - 300px);
+  min-height: 560px;
 }
 
 .chart-card {
@@ -2642,6 +2644,10 @@ canvas {
   .dash-lower-row {
     grid-template-columns: 1fr;
   }
+  .vanphong-embed #vanphong-frame {
+    height: 70vh;
+    min-height: 520px;
+  }
 }
 
 @media (max-width: 900px) {
@@ -2692,6 +2698,11 @@ canvas {
     grid-template-columns: 1fr 1fr;
   }
 
+  .vanphong-embed #vanphong-frame {
+    height: 62vh;
+    min-height: 440px;
+  }
+
   .section-header {
     flex-direction: column;
     align-items: flex-start;
@@ -2739,6 +2750,11 @@ canvas {
   .kpi-grid { grid-template-columns: 1fr; }
   .kpi-card .kpi-value { font-size: 1.2rem; }
   .nav-tab { padding: 8px 10px; font-size: 0.78rem; }
+
+  .vanphong-embed #vanphong-frame {
+    height: 58vh;
+    min-height: 400px;
+  }
 
   .report-summary-grid { grid-template-columns: 1fr; }
   .report-table thead th { font-size: 0.65rem; padding: 6px 4px; }
