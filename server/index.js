@@ -35,24 +35,32 @@ if (HTTPS_PFX && fs.existsSync(HTTPS_PFX)) {
 const IS_HTTPS = !!tlsOptions;
 
 app.disable('x-powered-by');
-app.use(express.json({ limit: '10mb' }));
+// Không parse body JSON cho luồng proxy Văn phòng AI (để chuyển tiếp nguyên vẹn)
+app.use((req, res, next) => {
+  if (req.path.startsWith('/van-phong-ai')) return next();
+  express.json({ limit: '10mb' })(req, res, next);
+});
 
 // ---- Security headers (không cần helmet) ----
 app.use((req, res, next) => {
+  const isVanPhong = req.path.startsWith('/van-phong-ai');
   res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'DENY');
+  // Văn phòng AI được nhúng trong iframe cùng nguồn; phần còn lại vẫn chặn nhúng.
+  res.setHeader('X-Frame-Options', isVanPhong ? 'SAMEORIGIN' : 'DENY');
   res.setHeader('Referrer-Policy', 'same-origin');
   res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
   // CSP: chỉ cho phép tài nguyên cùng nguồn và inline style cần thiết cho SPA
   res.setHeader('Content-Security-Policy',
     "default-src 'self'; " +
-    "script-src 'self' 'unsafe-inline'; " +
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
     "style-src 'self' 'unsafe-inline'; " +
     "font-src 'self'; " +
     "img-src 'self' data: blob:; " +
     "connect-src 'self'; " +
-    "object-src 'none'; base-uri 'self'; frame-ancestors 'none'; frame-src 'self' blob: data:"
+    "object-src 'none'; base-uri 'self'; " +
+    (isVanPhong ? "frame-ancestors 'self'; " : "frame-ancestors 'none'; ") +
+    "frame-src 'self' blob: data:"
   );
   next();
 });
