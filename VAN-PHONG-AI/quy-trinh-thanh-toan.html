@@ -2913,6 +2913,90 @@
       font-size: .74rem
     }
 
+    .pm-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 10px
+    }
+
+    .pm-stat {
+      padding: 12px 14px;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      background: #fff;
+      text-align: center
+    }
+
+    .pm-stat span {
+      display: block;
+      color: #64748b;
+      font-size: .72rem;
+      margin-bottom: 4px
+    }
+
+    .pm-stat b {
+      font-size: 1.3rem;
+      color: #0f172a
+    }
+
+    .pm-stat-danger { color: #dc2626 !important }
+    .pm-stat-ok { color: #16a34a !important }
+
+    .pm-dist {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 12px 14px;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      background: #fff
+    }
+
+    .pm-dist-row {
+      display: flex;
+      align-items: center;
+      gap: 10px
+    }
+
+    .pm-dist-name {
+      flex: 0 0 200px;
+      font-size: .78rem;
+      color: #334155
+    }
+
+    .pm-dist-name b {
+      color: #0f172a
+    }
+
+    .pm-dist-track {
+      flex: 1;
+      height: 8px;
+      border-radius: 999px;
+      background: #eef2f7;
+      overflow: hidden
+    }
+
+    .pm-dist-track span {
+      display: block;
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #2563eb, #0891b2)
+    }
+
+    .pm-dist-count {
+      flex: 0 0 32px;
+      text-align: right;
+      font-weight: 700;
+      font-size: .8rem;
+      color: #0f172a
+    }
+
+    .pm-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end
+    }
+
     .ai-memory-composer {
       display: grid;
       gap: 6px;
@@ -11937,6 +12021,15 @@
         executing: 'Đang thực hiện', accepted: 'Đã nghiệm thu', handedOver: 'Đã bàn giao'
       };
 
+      let lastMonitor = null;
+
+      function clientDaysUntil(iso) {
+        if (!iso) return null;
+        const d = new Date(iso); if (isNaN(d.getTime())) return null;
+        const t = new Date(); t.setHours(0, 0, 0, 0); d.setHours(0, 0, 0, 0);
+        return Math.round((d - t) / 86400000);
+      }
+
       async function renderProjectMonitor() {
         const body = document.getElementById('projectMonitorBody');
         if (!body) return;
@@ -11950,7 +12043,28 @@
             body.innerHTML = '<div class="ai-empty">Chưa có dự án nào trong QLDA.</div>';
             return;
           }
-          body.innerHTML = projects.map(function (p) {
+          lastMonitor = { projects: projects };
+          const allPkgs = projects.flatMap(function (p) { return (p.packages || []).map(function (x) { return Object.assign({}, x, { project: p.name }); }); });
+          const totalPkgs = allPkgs.length;
+          const totalAlerts = allPkgs.reduce(function (s, x) { return s + (x.alerts || []).length; }, 0);
+          const byAgent = {};
+          allPkgs.forEach(function (x) { byAgent[x.agent] = (byAgent[x.agent] || 0) + 1; });
+          const agentList = Object.keys(byAgent).map(function (a) { return { agent: a, title: (allPkgs.find(function (x) { return x.agent === a; }) || {}).agentTitle || a, count: byAgent[a] }; }).sort(function (a, b) { return b.count - a.count; });
+          const busyAgent = agentList.length ? agentList[0].agent : '—';
+
+          const stats = '<div class="pm-stats">' +
+            '<div class="pm-stat"><span>Dự án</span><b>' + projects.length + '</b></div>' +
+            '<div class="pm-stat"><span>Gói thầu</span><b>' + totalPkgs + '</b></div>' +
+            '<div class="pm-stat"><span>Cảnh báo</span><b class="' + (totalAlerts ? 'pm-stat-danger' : 'pm-stat-ok') + '">' + totalAlerts + '</b></div>' +
+            '<div class="pm-stat"><span>Nhân viên bận nhất</span><b>' + escapeHtml(busyAgent) + '</b></div>' +
+          '</div>';
+
+          const dist = '<div class="pm-dist">' + agentList.map(function (a) {
+            const pct = totalPkgs ? Math.round(a.count / totalPkgs * 100) : 0;
+            return '<div class="pm-dist-row"><span class="pm-dist-name"><b>' + escapeHtml(a.agent) + '</b> ' + escapeHtml(a.title) + '</span><div class="pm-dist-track"><span style="width:' + pct + '%"></span></div><span class="pm-dist-count">' + a.count + '</span></div>';
+          }).join('') + '</div>';
+
+          const projectTables = projects.map(function (p) {
             const pkgRows = (p.packages || []).map(function (pkg) {
               const alerts = (pkg.alerts || []).map(function (a) {
                 return '<span class="pm-alert pm-alert-' + (a.level === 'danger' ? 'danger' : 'warn') + '">' + escapeHtml(a.text) + '</span>';
@@ -11967,9 +12081,36 @@
               '<table class="pm-table"><thead><tr><th>Gói thầu</th><th>Trạng thái</th><th>Phụ trách</th><th>Cảnh báo</th></tr></thead><tbody>' + pkgRows + '</tbody></table>' +
             '</div>';
           }).join('');
+
+          body.innerHTML = stats + dist + '<div class="pm-actions"><button type="button" class="ai-secondary-btn" id="pmRemindBtn">Tạo nhắc việc cho gói sắp hết hạn</button></div>' + projectTables;
+          var remindBtn = document.getElementById('pmRemindBtn');
+          if (remindBtn) remindBtn.addEventListener('click', createProjectReminders);
         } catch (err) {
           body.innerHTML = '<div class="ai-empty">Không kết nối được QLDA: ' + escapeHtml(err.message) + '</div>';
         }
+      }
+
+      async function createProjectReminders() {
+        if (!lastMonitor) return;
+        const due = [];
+        lastMonitor.projects.forEach(function (p) {
+          (p.packages || []).forEach(function (pkg) {
+            if (pkg.contractEndDate && pkg.status !== 'handedOver' && pkg.status !== 'accepted') {
+              const d = clientDaysUntil(pkg.contractEndDate);
+              if (d != null && d <= 30) due.push(pkg);
+            }
+          });
+        });
+        if (!due.length) { addActivity('nhắc việc', 'Không có gói thầu sắp hết hạn hợp đồng.'); if (ui.connection) ui.connection.textContent = 'Không có gói thầu sắp hết hạn.'; return; }
+        for (var i = 0; i < due.length; i++) {
+          var pkg = due[i];
+          await fetch('/api/reminders', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title: 'Hết hạn HĐ: ' + pkg.name, details: 'Gói thầu "' + pkg.name + '" hết hạn hợp đồng ' + pkg.contractEndDate + '. Phụ trách: ' + pkg.agent, dueAt: pkg.contractEndDate, priority: 'high', character: pkg.agent, source: 'qlda-monitor' })
+          });
+        }
+        addActivity('nhắc việc', 'Đã tạo ' + due.length + ' lịch nhắc cho gói thầu sắp hết hạn.');
+        if (ui.connection) ui.connection.textContent = 'Đã tạo ' + due.length + ' lịch nhắc cho gói thầu sắp hết hạn.';
       }
 
       function syncOverlayLock() {
