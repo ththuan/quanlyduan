@@ -56,10 +56,6 @@
           <span class="material-symbols-rounded">account_balance</span>
           <span>Quyết toán</span>
         </button>
-        <button class="nav-tab" data-view="vanphong">
-          <span class="material-symbols-rounded">hub</span>
-          <span>Văn phòng AI</span>
-        </button>
         <button class="nav-tab" data-view="reports">
           <span class="material-symbols-rounded">bar_chart</span>
           <span>Báo cáo</span>
@@ -105,20 +101,17 @@
     <section id="view-dashboard" class="view active">
       <div id="kpi-cards" class="kpi-grid"></div>
       <div class="charts-row">
-        <div class="chart-card glass-card">
-          <h3><span class="material-symbols-rounded">donut_large</span> Phân bổ chi phí theo danh mục</h3>
+        <div class="chart-card glass-card donut-card">
+          <h3><span class="material-symbols-rounded">donut_large</span> Phân bổ chi phí</h3>
           <div class="chart-wrapper">
             <canvas id="chart-donut" width="380" height="380"></canvas>
             <div id="donut-legend" class="chart-legend"></div>
           </div>
         </div>
-        <div class="chart-card glass-card" id="vanphong-card" onclick="switchView('vanphong')" style="cursor:pointer">
+        <div class="chart-card glass-card vanphong-embed">
           <h3><span class="material-symbols-rounded">hub</span> Văn phòng AI Agent</h3>
-          <div class="vanphong-promo">
-            <div class="vanphong-promo-icon"><span class="material-symbols-rounded">smart_toy</span></div>
-            <p>Trợ lý AI xử lý hồ sơ mua sắm, sửa chữa, thanh toán — tra cứu luật, tủ tri thức, nhắc việc và quy trình biểu mẫu.</p>
-            <button class="btn btn-primary">Mở Văn phòng AI</button>
-          </div>
+          <div id="vanphong-status" style="padding:16px;color:var(--text-muted);text-align:center">Đang tải Văn phòng AI...</div>
+          <iframe id="vanphong-frame" title="Văn phòng AI" style="width:100%;height:520px;border:none;border-radius:8px;background:#fff;display:none"></iframe>
         </div>
       </div>
       <div class="dash-lower-row">
@@ -189,12 +182,6 @@
         <h2><span class="material-symbols-rounded">account_balance</span> Hồ sơ quyết toán dự án hoàn thành (TT 73/2026/TT-BTC)</h2>
       </div>
       <div id="qtda-container"></div>
-    </section>
-
-    <!-- Văn phòng AI (iframe) -->
-    <section id="view-vanphong" class="view">
-      <div id="vanphong-status" style="padding:24px;color:var(--text-muted);text-align:center">Đang tải Văn phòng AI...</div>
-      <iframe id="vanphong-frame" title="Văn phòng AI" style="width:100%;height:calc(100vh - 130px);border:none;border-radius:12px;background:#fff;display:none"></iframe>
     </section>
 
     <!-- Reports View -->

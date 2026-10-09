@@ -669,9 +669,32 @@ body.read-only .edit-only { display: none !important; }
    ============================================================ */
 .charts-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  grid-template-columns: 260px minmax(0, 1fr);
   gap: 16px;
   margin-bottom: 24px;
+}
+
+.donut-card .chart-wrapper {
+  flex-direction: column;
+  gap: 10px;
+}
+
+.donut-card .chart-legend {
+  flex-direction: column;
+  width: 100%;
+  gap: 6px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.vanphong-embed {
+  display: flex;
+  flex-direction: column;
+}
+
+.vanphong-embed #vanphong-frame {
+  flex: 1;
+  min-height: 520px;
 }
 
 .chart-card {

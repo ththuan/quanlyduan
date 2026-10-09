@@ -5036,7 +5036,6 @@ function switchView(viewName) {
   else if (viewName === 'initiation') renderInitiationView();
   else if (viewName === 'qtda') renderQtdaView();
   else if (viewName === 'reports') renderReports();
-  else if (viewName === 'vanphong') loadVanPhongFrame();
 }
 
 // Nạp iframe Văn phòng AI sau khi cookie qlda_sid đã được đồng bộ (tránh tải sớm bị 401)
