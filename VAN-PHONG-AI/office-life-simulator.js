@@ -7,8 +7,7 @@
   const MAX_EVENTS = 220;
   const MAX_MEMORIES = 240;
   const MAX_HOOKS = 50;
-  // Làm việc 24/24: không có giờ vào/ca trưa/giờ về — nhân viên luôn hiện diện và xử lý công việc.
-  const WORKDAY = { arrival: 0, workStart: 0, lunchStart: 1440, lunchEnd: 1440, regularEnd: 1440, overtimeDecision: 1440, latestEnd: 1440 };
+  const WORKDAY = { arrival: 420, workStart: 480, lunchStart: 660, lunchEnd: 780, regularEnd: 1080, overtimeDecision: 1050, latestEnd: 1260 };
   const ARRIVAL_OFFSETS = [8, 0, 18, 12, 5, 24, 16];
   const LUNCH_PLANS = ['coffee', 'nap', 'coffee', 'nap', 'social', 'nap', 'quiet'];
 
@@ -53,14 +52,14 @@
   }
 
   function phaseForMinute(minute) {
-    if (minute < WORKDAY.arrival) return 'closed';
+    if (minute < WORKDAY.arrival) return 'night';
     if (minute < WORKDAY.workStart) return 'earlyMorning';
     if (minute < WORKDAY.lunchStart) return 'morning';
     if (minute < WORKDAY.lunchEnd) return 'lunch';
     if (minute < 1020) return 'afternoon';
     if (minute < WORKDAY.regularEnd) return 'lateAfternoon';
     if (minute < WORKDAY.latestEnd) return 'overtime';
-    return 'closed';
+    return 'night';
   }
 
   function formatMinute(value) {
@@ -314,16 +313,11 @@
         person.arrivalMinute = WORKDAY.arrival + ARRIVAL_OFFSETS[index];
         person.departureMinute = person.overtimeUntil || WORKDAY.regularEnd;
       }
-      const departure = person.overtimeUntil || person.departureMinute || WORKDAY.regularEnd;
-      const present = minute >= person.arrivalMinute && minute < departure && minute < WORKDAY.latestEnd;
-      let status = 'off-duty';
-      if (present) {
-        if (minute < WORKDAY.workStart) status = 'breakfast';
-        else if (minute < WORKDAY.lunchStart) status = 'working';
-        else if (minute < WORKDAY.lunchEnd) status = lunchStatus(person, minute);
-        else if (minute < WORKDAY.regularEnd) status = 'working';
-        else status = 'overtime';
-      }
+      const present = true; // luôn hiện diện 24/24
+      let status = 'working';
+      if (phase === 'earlyMorning') status = 'breakfast';
+      else if (phase === 'lunch') status = lunchStatus(person, minute);
+      else if (phase === 'overtime' || phase === 'night') status = 'overtime';
       if (person.present !== present || person.attendanceStatus !== status) changed.push({ name: name, wasPresent: person.present, present: present, status: status });
       if (person.present !== present) {
         if (present && (!initial || minute < WORKDAY.workStart)) {
@@ -813,7 +807,7 @@
     const hooksRoot = document.getElementById('lifeHooks');
     if (!status || !peopleRoot || !relationsRoot || !memoriesRoot || !hooksRoot) return;
     const presentCount = names.filter(function (name) { return state.people[name].present; }).length;
-    const phaseLabels = { closed: 'VĂN PHÒNG ĐÃ ĐÓNG CỬA', earlyMorning: '07:00-08:00 · VÀO CA & ĂN SÁNG', morning: '08:00-11:00 · CA SÁNG', lunch: '11:00-13:00 · NGHỈ TRƯA', afternoon: '13:00-17:00 · CA CHIỀU', lateAfternoon: '17:00-18:00 · BÀN GIAO', overtime: '18:00-21:00 · TĂNG CA' };
+    const phaseLabels = { night: 'CA ĐÊM · VẪN TRỰC 24/24', earlyMorning: '07:00-08:00 · VÀO CA & ĂN SÁNG', morning: '08:00-11:00 · CA SÁNG', lunch: '11:00-13:00 · NGHỈ TRƯA', afternoon: '13:00-17:00 · CA CHIỀU', lateAfternoon: '17:00-18:00 · BÀN GIAO', overtime: '18:00-21:00 · TĂNG CA' };
     status.textContent = (phaseLabels[state.daily.phase] || 'MÔ PHỎNG ĐANG CHẠY') + ' · ' + presentCount + '/' + names.length + ' CÓ MẶT' + (storyGenerationRunning ? ' · ĐANG KẾT CẤU CÂU CHUYỆN' : '');
     peopleRoot.innerHTML = names.map(function (name) {
       const person = state.people[name];
