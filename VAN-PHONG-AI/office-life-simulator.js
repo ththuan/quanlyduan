@@ -7,7 +7,8 @@
   const MAX_EVENTS = 220;
   const MAX_MEMORIES = 240;
   const MAX_HOOKS = 50;
-  const WORKDAY = { arrival: 420, workStart: 480, lunchStart: 660, lunchEnd: 780, regularEnd: 1080, overtimeDecision: 1050, latestEnd: 1260 };
+  // Làm việc 24/24: không có giờ vào/ca trưa/giờ về — nhân viên luôn hiện diện và xử lý công việc.
+  const WORKDAY = { arrival: 0, workStart: 0, lunchStart: 1440, lunchEnd: 1440, regularEnd: 1440, overtimeDecision: 1440, latestEnd: 1440 };
   const ARRIVAL_OFFSETS = [8, 0, 18, 12, 5, 24, 16];
   const LUNCH_PLANS = ['coffee', 'nap', 'coffee', 'nap', 'social', 'nap', 'quiet'];
 
