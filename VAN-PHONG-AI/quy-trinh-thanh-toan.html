@@ -11869,6 +11869,7 @@
         const method = data.selectionMethod || 'Lựa chọn nhà thầu';
         const tasks = [
           { id: 'intake', station: 'intake', owner: 'ai', title: 'AI tiếp nhận và bóc tách yêu cầu đấu thầu', detail: 'Xác định hình thức ' + method + ', giá trị gói thầu, đơn vị và dữ liệu còn thiếu.' },
+          { id: 'limits', station: 'review', owner: 'ai', title: 'Đối chiếu ngưỡng chỉ định thầu (NĐ 349/2026 sửa đổi, bổ sung NĐ 214/2025)', detail: 'Khoản 4 Điều 78: chỉ định thầu gói thuộc dự toán mua sắm không hình thành dự án ≤ 1 tỷ đồng; gói tư vấn thuộc dự án ≤ 3 tỷ đồng; gói phi tư vấn, hàng hóa, xây lắp, hỗn hợp thuộc dự án ≤ 5 tỷ đồng. Gói/nội dung mua sắm ≤ 100 triệu đồng do Thủ trưởng quyết định và tự chịu trách nhiệm (Khoản 4 Điều 80).' },
           { id: 'khlcnt', station: 'review', owner: 'ai', title: 'Lập & phê duyệt Kế hoạch lựa chọn nhà thầu (KHLCNT)', detail: 'Căn cứ Luật Đấu thầu Điều 38-41; gồm tên gói, giá gói thầu, nguồn vốn, hình thức lựa chọn nhà thầu, thời gian tổ chức và loại hợp đồng.' },
           { id: 'hsmt', station: 'forms', owner: 'ai', title: 'Lập Hồ sơ mời thầu (HSMT) / Hồ sơ yêu cầu (HSYC)', detail: 'Đấu thầu rộng rãi/hạn chế dùng mẫu E-HSMT theo TT 79/2025; chỉ định thầu, chào hàng cạnh tranh, báo giá dùng mẫu HSYC theo TT 134/2026 (đã có trong Tủ tri thức).' },
           { id: 'publish', station: 'review', owner: 'ai', title: 'Đăng tải thông tin / phát hành HSMT', detail: 'Đăng tải thông báo mời thầu (E-TBMT) và phát hành HSMT trên Hệ thống mạng đấu thầu quốc gia theo TT 79/2025.' },
