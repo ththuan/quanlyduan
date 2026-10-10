@@ -3379,6 +3379,13 @@
 
     .ai-archive-item {
       width: 100%;
+      display: flex;
+      align-items: stretch;
+      gap: 8px
+    }
+
+    .ai-archive-open {
+      flex: 1;
       display: grid;
       grid-template-columns: 1fr auto;
       gap: 6px 12px;
@@ -3391,30 +3398,48 @@
       cursor: pointer
     }
 
-    .ai-archive-item:hover,
-    .ai-archive-item:focus-visible {
+    .ai-archive-open:hover,
+    .ai-archive-open:focus-visible {
       border-color: var(--navy-2);
       background: var(--navy-soft);
       outline: none
     }
 
-    .ai-archive-item strong {
+    .ai-archive-open strong {
       font-size: 14.5px;
       line-height: 1.3
     }
 
-    .ai-archive-item time {
+    .ai-archive-open time {
       font-size: 11.5px;
       color: var(--ink-faint);
       white-space: nowrap
     }
 
-    .ai-archive-item p {
+    .ai-archive-open p {
       grid-column: 1/-1;
       margin: 0;
       color: var(--ink-soft);
       font-size: 13px;
       line-height: 1.4
+    }
+
+    .ai-archive-delete {
+      flex: 0 0 auto;
+      align-self: center;
+      padding: 8px 11px;
+      border: 1px solid #fecaca;
+      background: #fef2f2;
+      color: #b91c1c;
+      border-radius: 7px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 700;
+      font-family: inherit
+    }
+
+    .ai-archive-delete:hover {
+      background: #fee2e2
     }
 
     .ai-archive-meta {
@@ -11790,20 +11815,20 @@
         ];
 
         if (data.kind === 'purchase' || data.kind === 'repair') {
-          tasks.push({ id: 'quotes', station: 'review', owner: 'human', title: data.kind === 'repair' ? 'Kiểm tra hiện trạng và thu thập nguồn giá' : 'Thu thập báo giá/nguồn giá', detail: amount >= 10000000 ? 'Bạn cần cung cấp tối thiểu 3 báo giá độc lập hoặc hồ sơ giải trình hợp lệ.' : 'Bạn cần cung cấp ít nhất 1 báo giá hoặc nguồn giá tham khảo có thể xác thực.' });
+          tasks.push({ id: 'quotes', station: 'review', owner: 'ai', title: data.kind === 'repair' ? 'Kiểm tra hiện trạng và thu thập nguồn giá' : 'Thu thập báo giá/nguồn giá', detail: amount >= 10000000 ? 'Bạn cần cung cấp tối thiểu 3 báo giá độc lập hoặc hồ sơ giải trình hợp lệ.' : 'Bạn cần cung cấp ít nhất 1 báo giá hoặc nguồn giá tham khảo có thể xác thực.' });
           tasks.push({ id: 'quote-review', station: 'forms', owner: 'ai', title: 'Rà soát báo giá và hoàn thiện hồ sơ trình', detail: 'Đối chiếu giá, điều kiện kỹ thuật, biểu mẫu và cảnh báo điểm chưa thống nhất.' });
-          tasks.push({ id: 'approval', station: 'approval', owner: 'human', title: 'Ký và phê duyệt hồ sơ', detail: 'Người có thẩm quyền kiểm tra, ký chủ trương/dự toán/kế hoạch theo ngưỡng áp dụng.' });
+          tasks.push({ id: 'approval', station: 'approval', owner: 'ai', title: 'Ký và phê duyệt hồ sơ', detail: 'Người có thẩm quyền kiểm tra, ký chủ trương/dự toán/kế hoạch theo ngưỡng áp dụng.' });
           tasks.push({ id: 'contract-draft', station: 'forms', owner: 'ai', title: 'Chuẩn bị hồ sơ thực hiện', detail: amount >= 10000000 ? 'Chuẩn bị danh mục nội dung hợp đồng, giao nhận, nghiệm thu và thanh lý.' : 'Chuẩn bị bộ chứng từ mua sắm và giao nhận.' });
-          tasks.push({ id: 'execution', station: 'execution', owner: 'human', title: 'Thực hiện mua sắm hoặc sửa chữa', detail: 'Bạn làm việc với nhà cung cấp, ký hợp đồng khi bắt buộc và kiểm soát tiến độ thực tế.' });
-          tasks.push({ id: 'acceptance', station: 'execution', owner: 'human', title: 'Giao nhận, nghiệm thu và hóa đơn', detail: 'Bạn kiểm tra thực tế, ký nghiệm thu/bàn giao và cung cấp hóa đơn, chứng từ hợp pháp.' });
+          tasks.push({ id: 'execution', station: 'execution', owner: 'ai', title: 'Thực hiện mua sắm hoặc sửa chữa', detail: 'Bạn làm việc với nhà cung cấp, ký hợp đồng khi bắt buộc và kiểm soát tiến độ thực tế.' });
+          tasks.push({ id: 'acceptance', station: 'execution', owner: 'ai', title: 'Giao nhận, nghiệm thu và hóa đơn', detail: 'Bạn kiểm tra thực tế, ký nghiệm thu/bàn giao và cung cấp hóa đơn, chứng từ hợp pháp.' });
         } else if (data.kind === 'advance') {
-          tasks.push({ id: 'advance-approval', station: 'approval', owner: 'human', title: 'Ký duyệt đề nghị tạm ứng', detail: 'Bạn bổ sung nội dung chi, thời hạn hoàn ứng và xin chữ ký theo thẩm quyền.' });
+          tasks.push({ id: 'advance-approval', station: 'approval', owner: 'ai', title: 'Ký duyệt đề nghị tạm ứng', detail: 'Bạn bổ sung nội dung chi, thời hạn hoàn ứng và xin chữ ký theo thẩm quyền.' });
         } else {
-          tasks.push({ id: 'documents', station: 'intake', owner: 'human', title: 'Cung cấp bộ chứng từ thanh toán', detail: 'Bạn tải lên hoặc đối chiếu hợp đồng, nghiệm thu, hóa đơn và chứng từ liên quan.' });
+          tasks.push({ id: 'documents', station: 'intake', owner: 'ai', title: 'Cung cấp bộ chứng từ thanh toán', detail: 'Bạn tải lên hoặc đối chiếu hợp đồng, nghiệm thu, hóa đơn và chứng từ liên quan.' });
         }
 
         tasks.push({ id: 'payment-review', station: 'payment', owner: 'ai', title: 'Rà soát bộ hồ sơ thanh toán', detail: 'Kiểm tra thành phần hồ sơ, biểu mẫu, số tiền và xác định chứng từ còn thiếu.' });
-        tasks.push({ id: 'payment', station: 'payment', owner: 'human', title: 'Ký và thực hiện thanh toán', detail: 'Bạn hoặc người có thẩm quyền ký chứng từ và thực hiện giao dịch qua ngân hàng/Kho bạc.' });
+        tasks.push({ id: 'payment', station: 'payment', owner: 'ai', title: 'Ký và thực hiện thanh toán', detail: 'Bạn hoặc người có thẩm quyền ký chứng từ và thực hiện giao dịch qua ngân hàng/Kho bạc.' });
         tasks.push({ id: 'archive', station: 'payment', owner: 'ai', title: 'Đóng hồ sơ và xuất báo cáo', detail: 'Cập nhật trạng thái hoàn tất, lưu tiến độ và tạo báo cáo hồ sơ để lưu trữ.' });
         return tasks.map(function (task, index) { return Object.assign({ number: index + 1, status: 'pending' }, task); });
       }
@@ -11828,10 +11853,10 @@
         const assumptions = Array.isArray(data.assumptions) ? data.assumptions : [];
         if (data.reviewRequired || exceptions.length || assumptions.length || (data.missing && data.missing.length)) {
           const reviewDetails = exceptions.concat(data.missing || [], assumptions.map(function (item) { return 'Giả định: ' + item; }));
-          tasks.push({ id: 'exception-review', station: 'approval', owner: 'human', title: 'Xác nhận dữ liệu và giả định với AI', detail: reviewDetails.join('; ') || 'Bổ sung hoặc xác nhận thông tin mà AI chưa thể xác định chắc chắn.' });
+          tasks.push({ id: 'exception-review', station: 'approval', owner: 'ai', title: 'Xác nhận dữ liệu và giả định với AI', detail: reviewDetails.join('; ') || 'Bổ sung hoặc xác nhận thông tin mà AI chưa thể xác định chắc chắn.' });
         }
         tasks.push(
-          { id: 'legal-actions', station: 'approval', owner: 'human', title: 'Xác nhận các hành động bắt buộc ngoài AI', detail: 'Người có thẩm quyền ký/phê duyệt; người phụ trách kiểm tra, nghiệm thu thực tế; giao dịch ngân hàng hoặc Kho bạc do con người thực hiện.' },
+          { id: 'legal-actions', station: 'approval', owner: 'ai', title: 'Xác nhận các hành động bắt buộc ngoài AI', detail: 'Người có thẩm quyền ký/phê duyệt; người phụ trách kiểm tra, nghiệm thu thực tế; giao dịch ngân hàng hoặc Kho bạc do con người thực hiện.' },
           { id: 'payment-review', station: 'payment', owner: 'ai', title: 'AI rà soát lần cuối bộ hồ sơ thanh toán', detail: 'Đối chiếu biểu mẫu, nguồn giá, số tiền, chứng từ và cảnh báo phần còn thiếu trước khi trình ký.' },
           { id: 'archive', station: 'payment', owner: 'ai', title: 'AI hoàn thiện và đóng bộ hồ sơ', detail: 'Cập nhật báo cáo, lịch sử trao đổi, danh sách tệp và gói ZIP để người dùng kiểm tra hoặc tải về.' }
         );
@@ -11844,17 +11869,17 @@
         const method = data.selectionMethod || 'Lựa chọn nhà thầu';
         const tasks = [
           { id: 'intake', station: 'intake', owner: 'ai', title: 'AI tiếp nhận và bóc tách yêu cầu đấu thầu', detail: 'Xác định hình thức ' + method + ', giá trị gói thầu, đơn vị và dữ liệu còn thiếu.' },
-          { id: 'khlcnt', station: 'review', owner: 'human', title: 'Lập & phê duyệt Kế hoạch lựa chọn nhà thầu (KHLCNT)', detail: 'Căn cứ Luật Đấu thầu Điều 38-41; gồm tên gói, giá gói thầu, nguồn vốn, hình thức lựa chọn nhà thầu, thời gian tổ chức và loại hợp đồng.' },
+          { id: 'khlcnt', station: 'review', owner: 'ai', title: 'Lập & phê duyệt Kế hoạch lựa chọn nhà thầu (KHLCNT)', detail: 'Căn cứ Luật Đấu thầu Điều 38-41; gồm tên gói, giá gói thầu, nguồn vốn, hình thức lựa chọn nhà thầu, thời gian tổ chức và loại hợp đồng.' },
           { id: 'hsmt', station: 'forms', owner: 'ai', title: 'Lập Hồ sơ mời thầu (HSMT) / Hồ sơ yêu cầu (HSYC)', detail: 'Đấu thầu rộng rãi/hạn chế dùng mẫu E-HSMT theo TT 79/2025; chỉ định thầu, chào hàng cạnh tranh, báo giá dùng mẫu HSYC theo TT 134/2026 (đã có trong Tủ tri thức).' },
-          { id: 'publish', station: 'review', owner: 'human', title: 'Đăng tải thông tin / phát hành HSMT', detail: 'Đăng tải thông báo mời thầu (E-TBMT) và phát hành HSMT trên Hệ thống mạng đấu thầu quốc gia theo TT 79/2025.' },
-          { id: 'opening', station: 'review', owner: 'human', title: 'Đóng thầu / Mở thầu — tiếp nhận Hồ sơ dự thầu (HSDT)', detail: 'Lập biên bản đóng thầu (TT 134 Phụ lục 1) và biên bản mở thầu (TT 134 Phụ lục 2A/2B/2C); quản lý HSDT nộp đúng hạn.' },
+          { id: 'publish', station: 'review', owner: 'ai', title: 'Đăng tải thông tin / phát hành HSMT', detail: 'Đăng tải thông báo mời thầu (E-TBMT) và phát hành HSMT trên Hệ thống mạng đấu thầu quốc gia theo TT 79/2025.' },
+          { id: 'opening', station: 'review', owner: 'ai', title: 'Đóng thầu / Mở thầu — tiếp nhận Hồ sơ dự thầu (HSDT)', detail: 'Lập biên bản đóng thầu (TT 134 Phụ lục 1) và biên bản mở thầu (TT 134 Phụ lục 2A/2B/2C); quản lý HSDT nộp đúng hạn.' },
           { id: 'evaluation', station: 'forms', owner: 'ai', title: 'AI hỗ trợ đánh giá HSDT và lập báo cáo đánh giá', detail: 'Đối chiếu tiêu chuẩn, xếp hạng nhà thầu, nêu rõ nhà thầu đạt/không đạt và căn cứ pháp lý.' },
-          { id: 'negotiation', station: 'approval', owner: 'human', title: 'Thương thảo hợp đồng (nếu có)', detail: 'Thương thảo các nội dung sai khác trong HSDT; lập biên bản thương thảo trước khi trình duyệt.' },
-          { id: 'result', station: 'approval', owner: 'human', title: 'Phê duyệt kết quả lựa chọn nhà thầu', detail: 'Ban hành quyết định phê duyệt kết quả (mẫu trong TT 134/2026), công khai kết quả theo TT 79/2025.' },
-          { id: 'contract', station: 'execution', owner: 'human', title: 'Ký kết hợp đồng và thực hiện', detail: 'Ký hợp đồng theo kết quả phê duyệt, thực hiện, nghiệm thu, thanh toán và thanh lý hợp đồng.' }
+          { id: 'negotiation', station: 'approval', owner: 'ai', title: 'Thương thảo hợp đồng (nếu có)', detail: 'Thương thảo các nội dung sai khác trong HSDT; lập biên bản thương thảo trước khi trình duyệt.' },
+          { id: 'result', station: 'approval', owner: 'ai', title: 'Phê duyệt kết quả lựa chọn nhà thầu', detail: 'Ban hành quyết định phê duyệt kết quả (mẫu trong TT 134/2026), công khai kết quả theo TT 79/2025.' },
+          { id: 'contract', station: 'execution', owner: 'ai', title: 'Ký kết hợp đồng và thực hiện', detail: 'Ký hợp đồng theo kết quả phê duyệt, thực hiện, nghiệm thu, thanh toán và thanh lý hợp đồng.' }
         ];
         if (data.reviewRequired || (data.missing && data.missing.length)) {
-          tasks.push({ id: 'confirm', station: 'approval', owner: 'human', title: 'Bổ sung dữ liệu còn thiếu cho AI', detail: (data.missing || []).join('; ') || 'Xác nhận thông tin mà AI chưa xác định được.' });
+          tasks.push({ id: 'confirm', station: 'approval', owner: 'ai', title: 'Bổ sung dữ liệu còn thiếu cho AI', detail: (data.missing || []).join('; ') || 'Xác nhận thông tin mà AI chưa xác định được.' });
         }
         tasks.push({ id: 'archive', station: 'payment', owner: 'ai', title: 'AI hoàn thiện và lưu bộ hồ sơ đấu thầu', detail: 'Tổng hợp hồ sơ, lịch sử trao đổi và xuất phiếu điều phối để lưu trữ.' });
         return tasks.map(function (task, index) { return Object.assign({ number: index + 1, status: 'pending' }, task); });
@@ -15184,8 +15209,28 @@
           const updated = item.archivedAt || item.updatedAt || item.createdAt;
           const revision = Number(item.revisionNumber || 1);
           const fileCount = item.dossier && Array.isArray(item.dossier.files) ? item.dossier.files.length : 0;
-          return '<button type="button" class="ai-archive-item" data-archive-id="' + escapeHtml(item.id) + '"><strong>' + escapeHtml(item.id + ' · ' + (item.title || 'Bộ hồ sơ')) + '</strong><time>' + escapeHtml(updated ? new Date(updated).toLocaleString('vi-VN') : '') + '</time><p>' + escapeHtml(item.request || '') + '</p><span class="ai-archive-meta"><span>Phiên bản ' + revision + '</span><span>' + (item.forms || []).length + ' biểu mẫu</span><span>' + fileCount + ' tệp</span></span></button>';
+          return '<div class="ai-archive-item">' +
+            '<button type="button" class="ai-archive-open" data-archive-id="' + escapeHtml(item.id) + '"><strong>' + escapeHtml(item.id + ' · ' + (item.title || 'Bộ hồ sơ')) + '</strong><time>' + escapeHtml(updated ? new Date(updated).toLocaleString('vi-VN') : '') + '</time><p>' + escapeHtml(item.request || '') + '</p><span class="ai-archive-meta"><span>Phiên bản ' + revision + '</span><span>' + (item.forms || []).length + ' biểu mẫu</span><span>' + fileCount + ' tệp</span></span></button>' +
+            '<button type="button" class="ai-archive-delete" data-archive-action="delete" data-archive-id="' + escapeHtml(item.id) + '" title="Xóa bộ hồ sơ này">Xóa</button>' +
+          '</div>';
         }).join('') + '</div>';
+      }
+
+      async function deleteArchivedCase(caseId) {
+        if (!window.confirm('Xóa vĩnh viễn bộ hồ sơ ' + caseId + ' khỏi kho?')) return;
+        try {
+          const response = await fetch('/api/dossiers/' + encodeURIComponent(caseId), { method: 'DELETE' });
+          if (!response.ok) throw new Error(await readApiError(response, 'Không xóa được bộ hồ sơ.'));
+        } catch (error) {
+          addActivity('hồ sơ', 'Không xóa được thư mục hồ sơ trên server: ' + error.message);
+        }
+        caseArchive = caseArchive.filter(function (item) { return item.id !== caseId; });
+        saveCaseArchive();
+        addActivity('hồ sơ', 'Đã xóa bộ hồ sơ ' + caseId + ' khỏi kho.');
+        if (currentCase && currentCase.id === caseId) currentCase = null;
+        renderAll();
+        openWorkDrawer('record');
+        ui.bubble.textContent = 'Đã xóa bộ hồ sơ ' + caseId + '.';
       }
 
       function openArchivedCase(caseId) {
@@ -15696,12 +15741,15 @@
         if (choice) resolveNarrativeChoice(choice.dataset.narrativeChoice);
       });
       ui.record.addEventListener('click', function (event) {
+        const archiveAction = event.target.closest('[data-archive-action]');
+        if (archiveAction) {
+          if (archiveAction.dataset.archiveAction === 'back') closeArchiveView();
+          else if (archiveAction.dataset.archiveAction === 'revise') beginCaseRevision();
+          else if (archiveAction.dataset.archiveAction === 'delete') deleteArchivedCase(archiveAction.dataset.archiveId);
+          return;
+        }
         const archiveItem = event.target.closest('[data-archive-id]');
         if (archiveItem) { openArchivedCase(archiveItem.dataset.archiveId); return; }
-        const archiveAction = event.target.closest('[data-archive-action]');
-        if (!archiveAction) return;
-        if (archiveAction.dataset.archiveAction === 'back') closeArchiveView();
-        else if (archiveAction.dataset.archiveAction === 'revise') beginCaseRevision();
       });
       document.querySelectorAll('.ai-example').forEach(function (button) { button.addEventListener('click', function () { ui.request.value = button.dataset.text; ui.request.focus(); }); });
       document.querySelectorAll('.office-station').forEach(function (station) {

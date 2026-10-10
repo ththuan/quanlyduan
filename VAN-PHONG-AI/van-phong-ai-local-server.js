@@ -1040,6 +1040,27 @@ function searchKnowledgeAgentic(question, history, limit = 9) {
   return { matches, plan: Object.assign(plan, { retries, weak: !matches.length || Number(matches[0].relevance || 0) < 4 }) };
 }
 
+// Trích căn cứ pháp luật hiện hành từ Tủ tri thức để đưa vào prompt xử lý nghiệp vụ.
+function buildLegalContext(question, maxChars = 12000) {
+  try {
+    const retrieval = searchKnowledgeAgentic(question, [], 8);
+    const parts = [];
+    const seen = new Set();
+    let len = 0;
+    for (const match of retrieval.matches) {
+      const key = match.documentId + ':' + (match.parentIndex == null ? match.chunkIndex : match.parentIndex);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const content = String(match.parentContent || match.content || '').slice(0, 3200);
+      if (!content || len + content.length > maxChars) continue;
+      len += content.length;
+      parts.push('[Văn bản: ' + match.name + ']\n' + content);
+      if (parts.length >= 6) break;
+    }
+    return parts.join('\n\n');
+  } catch (e) { return ''; }
+}
+
 function listKnowledgeChat(limit = 80) {
   const rows = getKnowledgeDb().prepare('SELECT id,role,content,sources_json,created_at FROM knowledge_chat ORDER BY id DESC LIMIT ?').all(Math.max(1, Math.min(200, limit)));
   return rows.reverse().map((row) => ({
@@ -2416,8 +2437,11 @@ async function handleApi(request, response, requestUrl) {
     const baseInstructions = mode === 'analyze'
       ? 'Vai trò: AI Agent nghiệp vụ mua sắm, sửa chữa, tạm ứng và thanh toán của trường. Mục tiêu: xử lý yêu cầu đầu cuối trên hồ sơ số; bóc tách dữ liệu, xác định biểu mẫu, lập quy trình, rà soát báo giá trên web khi được bật và nêu rõ nguồn. Không bịa giá, nhà cung cấp, căn cứ hay tình trạng pháp lý. Tách rõ việc AI có thể chuẩn bị với chữ ký, phê duyệt, nghiệm thu thực tế và giao dịch ngân hàng/Kho bạc phải do người có thẩm quyền thực hiện. Chỉ đưa vào exceptions những vấn đề thực sự cần người dùng quyết định. Nếu thiếu dữ liệu, đặt một câu hỏi ngắn ở nextQuestion. confidence là độ tin cậy tổng thể từ 0 đến 1; riskLevel phản ánh rủi ro nếu tiếp tục với dữ liệu hiện có. Ghi mọi dữ liệu thiếu vào missing và mọi suy luận chưa có chứng cứ trực tiếp vào assumptions. fieldEvidence phải giải thích nguồn của từng trường quan trọng như kind, amount, quantity, unit và recommendedForms; source chỉ được là request, rule, knowledge, web hoặc assumption. Không đánh dấu confidence cao cho trường lấy từ assumption.'
       : 'Bạn là AI Agent đang tiếp tục xử lý một hồ sơ hành chính. Trả lời bằng tiếng Việt, trực tiếp và có căn cứ. Chủ động đề xuất bước tiếp theo, dùng web search khi cần dữ liệu thị trường mới. Không tuyên bố đã ký, phê duyệt, nghiệm thu hoặc thanh toán thay con người.';
+    const legalContext = buildLegalContext(body.input || '');
+    const input = 'YÊU CẦU CẦN XỬ LÝ:\n' + (body.input || '') +
+      '\n\nCĂN CỨ PHÁP LUẬT HIỆN HÀNH (trích từ Tủ tri thức — ưu tiên đối chiếu các điều/khoản/hạn mức theo nội dung này):\n' + (legalContext || 'Không tìm thấy nội dung phù hợp trong Tủ tri thức.');
     const result = await callOpenAI({
-      input: body.input || '',
+      input,
       instructions: skillInstructions(selectedSkill, mode) + ' ' + baseInstructions,
       reasoning: mode === 'analyze' ? 'medium' : 'medium',
       verbosity: 'medium',
@@ -2452,6 +2476,16 @@ async function handleApi(request, response, requestUrl) {
     const body = await readJsonBody(request);
     const caseId = safeCaseId(body.caseId || 'ho-so');
     sendDownload(response, caseId + '-bao-cao-ho-so.pdf', await buildClientReportPdf(body), 'application/pdf');
+    return true;
+  }
+
+  // Xóa toàn bộ bộ hồ sơ đã lưu (thư mục trong HO-SO-AI)
+  const dossierDeleteMatch = pathname.match(/^\/api\/dossiers\/([^/]+)$/);
+  if (dossierDeleteMatch && request.method === 'DELETE') {
+    const caseId = safeCaseId(decodeURIComponent(dossierDeleteMatch[1]));
+    const folder = path.join(DOSSIER_DIR, caseId);
+    if (fs.existsSync(folder)) fs.rmSync(folder, { recursive: true, force: true });
+    sendJson(response, 200, { deleted: true, caseId: caseId });
     return true;
   }
 
