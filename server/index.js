@@ -150,7 +150,6 @@ app.get('/assets/pdf.worker.min.js', (req, res) => res.sendFile(path.join(ROOT_D
 
 // ---- Văn phòng AI (serve directly from main server, no proxy needed) ----
 // Autonomous office is integrated into this server now
-const path = require('node:path');
 
 // Serve van-phong-ai HTML page
 app.get('/van-phong-ai/quy-trinh-thanh-toan.html', requireAuthWeb, (req, res) => {
