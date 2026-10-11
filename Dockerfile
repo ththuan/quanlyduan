@@ -21,8 +21,10 @@ COPY assets ./assets
 COPY server/*.js ./server/
 COPY server/knowledge ./server/knowledge
 
-# Copy VAN-PHONG-AI modules
+# Copy VAN-PHONG-AI modules and HTML
 COPY VAN-PHONG-AI/*.js ./VAN-PHONG-AI/
+COPY VAN-PHONG-AI/*.html ./VAN-PHONG-AI/
+COPY VAN-PHONG-AI/*.json ./VAN-PHONG-AI/
 COPY VAN-PHONG-AI/*.sh ./VAN-PHONG-AI/
 COPY VAN-PHONG-AI/*.md ./VAN-PHONG-AI/
 
