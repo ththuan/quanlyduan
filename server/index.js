@@ -57,7 +57,7 @@ app.use((req, res, next) => {
     "style-src 'self' 'unsafe-inline'; " +
     "font-src 'self'; " +
     "img-src 'self' data: blob:; " +
-    "connect-src 'self'; " +
+    "connect-src 'self' https://static.cloudflareinsights.com; " +
     "object-src 'none'; base-uri 'self'; " +
     (isVanPhong ? "frame-ancestors 'self'; " : "frame-ancestors 'none'; ") +
     "frame-src 'self' blob: data:"
@@ -148,8 +148,19 @@ app.get('/assets/inter-latin.woff2', (req, res) => res.sendFile(path.join(ROOT_D
 app.get('/assets/pdf.min.js', (req, res) => res.sendFile(path.join(ROOT_DIR, 'assets', 'pdf.min.js'), { headers: { 'Cache-Control': 'public, max-age=31536000, immutable' } }));
 app.get('/assets/pdf.worker.min.js', (req, res) => res.sendFile(path.join(ROOT_DIR, 'assets', 'pdf.worker.min.js'), { headers: { 'Cache-Control': 'public, max-age=31536000, immutable' } }));
 
-// ---- Văn phòng AI (proxy tới service van-phong-ai, nội bộ docker network) ----
-const VANPHONG_URL = process.env.VANPHONG_URL || 'http://van-phong-ai:8765';
+// ---- Văn phòng AI (serve directly from main server, no proxy needed) ----
+// Autonomous office is integrated into this server now
+const path = require('node:path');
+
+// Serve van-phong-ai HTML page
+app.get('/van-phong-ai/quy-trinh-thanh-toan.html', requireAuthWeb, (req, res) => {
+  const filePath = path.join(ROOT_DIR, 'VAN-PHONG-AI', 'quy-trinh-thanh-toan.html');
+  res.sendFile(filePath);
+});
+
+// Serve other van-phong-ai static files
+app.use('/van-phong-ai', requireAuthWeb, express.static(path.join(ROOT_DIR, 'VAN-PHONG-AI')));
+
 const MONITOR_SECRET = process.env.MONITOR_SECRET || '';
 
 function hasMonitorValue(v) {
@@ -194,37 +205,13 @@ app.get('/api/projects/monitor', (req, res) => {
 });
 
 app.get('/api/vanphong/status', requireAuth, async (req, res) => {
-  try {
-    const r = await fetch(VANPHONG_URL + '/api/status', { signal: AbortSignal.timeout(5000) });
-    const data = await r.json().catch(() => ({}));
-    res.json({ ok: r.ok, status: r.status, url: VANPHONG_URL, data });
-  } catch (err) {
-    res.json({ ok: false, url: VANPHONG_URL, error: err.message });
-  }
-});
-
-app.use('/van-phong-ai', requireAuthWeb, (req, res) => {
-  const targetPath = req.url || '/';
-  const target = VANPHONG_URL + targetPath;
-  const proxyReq = http.request(target, {
-    method: req.method,
-    headers: { ...req.headers, host: new URL(target).host }
-  }, (proxyRes) => {
-    res.status(proxyRes.statusCode || 500);
-    for (const key of Object.keys(proxyRes.headers)) {
-      if (['connection', 'keep-alive', 'transfer-encoding', 'content-length'].includes(key.toLowerCase())) continue;
-      res.setHeader(key, proxyRes.headers[key]);
-    }
-    proxyRes.pipe(res);
+  // Autonomous office status - now integrated into main server
+  res.json({ 
+    ok: true, 
+    integrated: true,
+    message: 'Autonomous Office is integrated into main server',
+    timestamp: new Date().toISOString()
   });
-  proxyReq.on('error', (err) => {
-    if (!res.headersSent) {
-      res.status(502);
-      res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      res.end('<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="font-family:sans-serif;padding:24px;color:#333"><h2>Văn phòng AI chưa sẵn sàng</h2><p>Không kết nối được service <code>' + escHtml(VANPHONG_URL) + '</code>.</p><p>Chi tiết: ' + escHtml(err.message) + '</p><p>Trên server hãy chạy:</p><pre>docker compose build van-phong-ai\ndocker compose up -d van-phong-ai</pre></body></html>');
-    } else res.destroy();
-  });
-  req.pipe(proxyReq);
 });
 
 function escHtml(s) {
