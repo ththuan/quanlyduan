@@ -1,0 +1,57 @@
+# docker-compose.yml extension for Autonomous Office
+# Merge this into your main docker-compose.yml
+
+version: '3.8'
+
+services:
+  qlda:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: qlda-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      # Existing volumes
+      - ./server/data:/app/server/data
+      - ./server/uploads:/app/server/uploads
+      
+      # Autonomous Office volumes
+      - ./VAN-PHONG-AI/HO-SO-AI:/app/VAN-PHONG-AI/HO-SO-AI
+      - ./VAN-PHONG-AI/logs:/app/VAN-PHONG-AI/logs
+      - ./VAN-PHONG-AI/MAU:/app/VAN-PHONG-AI/MAU
+      - ./VAN-PHONG-AI/ai-config.local.json:/app/VAN-PHONG-AI/ai-config.local.json:ro
+      
+      # Git repository access for auto-commit
+      - ./.git:/app/.git
+    
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      
+      # Autonomous Office config
+      - AUTONOMOUS_OFFICE_ENABLED=true
+      - AI_AUTO_COMMIT=true
+      - AI_API_URL=${AI_API_URL:-https://cheapkeyai.shop/v1}
+      - AI_MODEL=${AI_MODEL:-cheap-5.6-sol}
+      - AI_API_KEY=${AI_API_KEY}
+    
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    
+    networks:
+      - qlda-network
+
+networks:
+  qlda-network:
+    driver: bridge
+
+# Usage:
+# 1. Create .env file with AI_API_KEY
+# 2. docker-compose up -d --build
+# 3. Access: http://your-server:3000/van-phong-ai

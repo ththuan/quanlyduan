@@ -8,17 +8,15 @@
   const MAX_MEMORIES = 240;
   const MAX_HOOKS = 50;
   const WORKDAY = { arrival: 420, workStart: 480, lunchStart: 660, lunchEnd: 780, regularEnd: 1080, overtimeDecision: 1050, latestEnd: 1260 };
-  const ARRIVAL_OFFSETS = [8, 0, 18, 12, 5, 24, 16];
-  const LUNCH_PLANS = ['coffee', 'nap', 'coffee', 'nap', 'social', 'nap', 'quiet'];
+  const ARRIVAL_OFFSETS = [8, 0, 18, 12, 5];
+  const LUNCH_PLANS = ['coffee', 'nap', 'coffee', 'nap', 'social'];
 
   const profiles = {
     'AN': { role: 'Trưởng nhóm AI', traits: { social: .72, careful: .84, initiative: .96 }, skills: { coordination: .98, analysis: .86, control: .86, system: .72 } },
     'HẢI': { role: 'Tiếp nhận và điều phối', traits: { social: .78, careful: .68, initiative: .82 }, skills: { coordination: .92, forms: .64, control: .62 } },
     'LONG': { role: 'Tài chính và số liệu', traits: { social: .42, careful: .91, initiative: .62 }, skills: { finance: .95, analysis: .91, control: .76 } },
     'MINH': { role: 'Biểu mẫu và tổng hợp', traits: { social: .66, careful: .86, initiative: .68 }, skills: { forms: .95, coordination: .72, records: .68 } },
-    'NAM': { role: 'Lưu trữ và hệ thống', traits: { social: .54, careful: .88, initiative: .74 }, skills: { records: .94, system: .9, control: .7 } },
-    'LÂM': { role: 'Khảo sát và thực hiện', traits: { social: .74, careful: .59, initiative: .88 }, skills: { sourcing: .94, coordination: .76, analysis: .61 } },
-    'PHÚC': { role: 'Kiểm soát và tuân thủ', traits: { social: .38, careful: .97, initiative: .71 }, skills: { control: .98, system: .78, analysis: .82 } }
+    'NAM': { role: 'Lưu trữ và hệ thống', traits: { social: .54, careful: .88, initiative: .74 }, skills: { records: .94, system: .9, control: .7 } }
   };
 
   const names = Object.keys(profiles);
@@ -85,7 +83,7 @@
     return {
       name: name, role: profiles[name].role, activity: 'work', location: 'desk', target: '', busyUntil: 0,
       energy: 72 + Math.round(Math.random() * 12), focus: 72, hydration: 76, social: 62,
-      stress: 22, workload: name === 'HẢI' || name === 'PHÚC' ? 48 : 42,
+      stress: 22, workload: name === 'HẢI' ? 48 : 42,
       mood: 'ổn định', lastAction: 'work', actionCount: 0, unresolved: [], present: false,
       attendanceStatus: 'off-duty', arrivalMinute: WORKDAY.arrival + ARRIVAL_OFFSETS[index], departureMinute: WORKDAY.regularEnd,
       overtimeUntil: 0, overtimeReason: '', lunchPlan: LUNCH_PLANS[index], scheduleDayKey: ''
@@ -414,7 +412,7 @@
       if (type === 'work') bonus -= 24;
     } else if (phase === 'morning') {
       if ((name === 'AN' || name === 'HẢI') && type === 'board') bonus += 18;
-      if ((name === 'NAM' || name === 'PHÚC') && type === 'server') bonus += 12;
+      if (name === 'NAM' && type === 'server') bonus += 12;
       if (name === 'MINH' && type === 'organize') bonus += 11;
       if (type === 'work') bonus += 8;
     } else if (phase === 'lunch') {
@@ -424,7 +422,6 @@
       if (type === 'work') bonus -= 55;
     } else if (phase === 'afternoon') {
       if (type === 'work' || type === 'help') bonus += 12;
-      if (name === 'LÂM' && type === 'talk') bonus += 6;
     } else if (phase === 'lateAfternoon') {
       if (type === 'board' || type === 'organize' || type === 'work') bonus += 13;
     } else if (phase === 'overtime') {
@@ -456,7 +453,7 @@
       { type: 'talk', score: socialNeed * .62 + profile.traits.social * 24 + person.stress * .16 },
       { type: 'help', score: profile.traits.initiative * 18 + Math.max.apply(null, names.filter(function (other) { return other !== name && state.people[other].present; }).map(function (other) { return state.people[other].workload; }).concat([0])) * .36 },
       { type: 'printer', score: (100 - world.printerHealth) * (profile.skills.system || .45) + (name === 'NAM' ? 24 : 0) },
-      { type: 'server', score: (100 - world.networkHealth) * (profile.skills.system || .35) + (name === 'NAM' || name === 'PHÚC' ? 18 : 0) },
+      { type: 'server', score: (100 - world.networkHealth) * (profile.skills.system || .35) + (name === 'NAM' ? 18 : 0) },
       { type: 'board', score: world.queuePressure * (profile.skills.coordination || .42) + (name === 'HẢI' ? 18 : 0) },
       { type: 'organize', score: person.workload * (profile.skills.records || profile.skills.forms || .35) * .42 + (name === 'MINH' || name === 'NAM' ? 14 : 0) }
     ];
@@ -616,7 +613,7 @@
       addHook('printer-pressure', 'Thiết bị in ảnh hưởng tiến độ', [actor || 'NAM', 'MINH', 'HẢI'], event, event.importance * 3.2, 'print');
     }
     if (event.payload.theme === 'network' || state.world.networkHealth < 44) {
-      addHook('network-pressure', 'Kết nối nội bộ trở thành điểm nghẽn', [actor || 'NAM', 'PHÚC', 'HẢI'], event, event.importance * 3.3, 'server');
+      addHook('network-pressure', 'Kết nối nội bộ trở thành điểm nghẽn', [actor || 'NAM', 'HẢI'], event, event.importance * 3.3, 'server');
     }
     if (state.world.coffeeHealth < 38) {
       addHook('coffee-pressure', 'Góc nghỉ của văn phòng gặp trục trặc', ['HẢI', 'MINH', 'NAM'], event, 1.6, 'coffee');
@@ -625,7 +622,7 @@
       addHook('collaboration', 'Một chuỗi hỗ trợ trong nhóm', [event.actor, event.target, 'HẢI'], event, event.importance * 2.2, 'forms');
     }
     if (event.payload.theme === 'deadline' || state.world.queuePressure > 68 || context.mode === 'waiting') {
-      addHook('deadline', 'Áp lực đầu việc cần được điều phối', ['HẢI', 'LONG', 'MINH', 'LÂM', 'PHÚC'], event, event.importance * 1.8 + state.world.queuePressure / 45, 'meeting');
+      addHook('deadline', 'Áp lực đầu việc cần được điều phối', ['HẢI', 'LONG', 'MINH'], event, event.importance * 1.8 + state.world.queuePressure / 45, 'meeting');
     }
     names.forEach(function (name) {
       const person = state.people[name];
@@ -670,7 +667,6 @@
     } else if (hook.kind === 'network-pressure') {
       scene.lines = [
         { person: 'NAM', text: 'Kết nối nội bộ đang giảm ổn định, tôi đã tạm dừng các lượt đồng bộ lớn.' },
-        { person: 'PHÚC', text: 'Không ghi đè tệp trong lúc đường truyền chập chờn. Mọi bản local phải có danh sách chờ đồng bộ.' },
         { person: coordinator, text: 'Nhóm chuyển sang phần có thể làm ngoại tuyến và giữ nhật ký đầy đủ.' }
       ];
       scene.effects = { metrics: { systemHealth: -3, efficiency: -1 } };
@@ -979,7 +975,7 @@
       forceTick: tick,
       forceStory: function () {
         const event = eventRecord('test', 'HẢI', 'MINH', 'meeting', 'Một chuỗi công việc cần điều phối', 'Nhiều đầu việc cùng tăng tải và cần một cuộc trao đổi.', .82, { theme: 'deadline' });
-        const hook = addHook('deadline', 'Áp lực đầu việc cần được điều phối', ['HẢI', 'LONG', 'MINH', 'LÂM', 'PHÚC'], event, 8, 'meeting');
+        const hook = addHook('deadline', 'Áp lực đầu việc cần được điều phối', ['HẢI', 'LONG', 'MINH'], event, 8, 'meeting');
         hook.status = 'ready';
         return generateReadyStory();
       },

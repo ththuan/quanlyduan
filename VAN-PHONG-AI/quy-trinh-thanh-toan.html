@@ -3,9 +3,16 @@
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=1920, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <link rel="icon" href="data:,">
   <title>Văn phòng AI Agent</title>
+  <style>
+    body {
+      width: 1920px !important;
+      height: 1080px !important;
+      overflow: hidden;
+    }
+  </style>
   <script>
     // Base path cho phép chạy dưới tiền tố /van-phong-ai (proxy qua QLDA).
     (function () {
@@ -1144,6 +1151,9 @@
     .ai-office-stage-wrap,
     .ai-work-panel {
       min-width: 0;
+      width: 1920px;
+      height: 1080px;
+      overflow: hidden;
     }
 
     .ai-office-toolbar {
@@ -1209,9 +1219,8 @@
       --agent-x: 36.2%;
       --agent-y: 29%;
       position: relative;
-      width: 100%;
-      aspect-ratio: 1/1;
-      min-height: 560px;
+      width: 1920px;
+      height: 1080px;
       overflow: hidden;
       background: #E6DFC9;
       border: 1px solid #BCC6D3;
@@ -9547,22 +9556,6 @@
                     class="npc-leg npc-leg-left"></span><span class="npc-leg npc-leg-right"></span><span
                     class="npc-label">NAM · VĂN THƯ</span>
                 </div>
-                <div class="office-ambient-person" data-person="LÂM" data-route="4" data-tone="violet"
-                  data-pose="seated" data-presence="pending" style="--npc-x:76%;--npc-y:24%" aria-label="LÂM, mua sắm">
-                  <span class="npc-shadow"></span><span class="npc-head"></span><span class="npc-hair"></span><span
-                    class="npc-face" aria-hidden="true"></span><span class="npc-body"></span><span
-                    class="npc-arm npc-arm-left"></span><span class="npc-arm npc-arm-right"></span><span
-                    class="npc-leg npc-leg-left"></span><span class="npc-leg npc-leg-right"></span><span
-                    class="npc-label">LÂM · MUA SẮM</span>
-                </div>
-                <div class="office-ambient-person" data-person="PHÚC" data-route="5" data-tone="teal" data-pose="seated" data-presence="pending"
-                  style="--npc-x:70%;--npc-y:44%" aria-label="PHÚC, kiểm soát">
-                  <span class="npc-shadow"></span><span class="npc-head"></span><span class="npc-hair"></span><span
-                    class="npc-face" aria-hidden="true"></span><span class="npc-body"></span><span
-                    class="npc-arm npc-arm-left"></span><span class="npc-arm npc-arm-right"></span><span
-                    class="npc-leg npc-leg-left"></span><span class="npc-leg npc-leg-right"></span><span
-                    class="npc-label">PHÚC · KIỂM SOÁT</span>
-                </div>
                 <div class="office-visitor" id="officeVisitor" data-person="KHÁCH" data-tone="violet" data-state="idle"
                   style="--npc-x:16%;--npc-y:90%" aria-hidden="true">
                   <span class="npc-label">KHÁCH</span><span class="npc-speech" role="status"><b
@@ -12393,17 +12386,17 @@
       function officeNavigationGeometry(movingElement, includePeople) {
         const stageRect = officeStage.getBoundingClientRect();
         const movingRect = movingElement ? movingElement.getBoundingClientRect() : null;
-        const characterRadius = movingRect ? Math.max(16, movingRect.width * .5) : 20;
-        const padding = stageRect.width <= 560 ? 13 : Math.max(16, Math.min(24, characterRadius));
+        const characterRadius = movingRect ? Math.max(20, movingRect.width * .6) : 24;
+        const padding = stageRect.width <= 560 ? 18 : Math.max(24, Math.min(32, characterRadius * 1.2));
         const obstacles = Array.from(officeStage.querySelectorAll(officeObstacleSelector)).filter(function (element) {
           const style = window.getComputedStyle(element);
           return style.display !== 'none' && style.visibility !== 'hidden';
         }).map(function (element) {
           const rect = element.getBoundingClientRect();
           const isNoticeBoard = element.classList.contains('pixel-notice-board');
-          const extraTop = isNoticeBoard ? 28 : (element.classList.contains('pixel-water-cooler') ? 31 : (element.classList.contains('pixel-meeting-table') ? 42 : 0));
-          const extraBottom = isNoticeBoard ? 34 : (element.classList.contains('pixel-meeting-table') ? 41 : (element.classList.contains('pixel-game-zone') ? 23 : (element.classList.contains('break-dining-set') ? 18 : (element.classList.contains('pixel-coffee-corner') || element.classList.contains('pixel-bookshelf') ? 15 : 0))));
-          const extraSide = isNoticeBoard ? 16 : 0;
+          const extraTop = isNoticeBoard ? 35 : (element.classList.contains('pixel-water-cooler') ? 38 : (element.classList.contains('pixel-meeting-table') ? 50 : 0));
+          const extraBottom = isNoticeBoard ? 42 : (element.classList.contains('pixel-meeting-table') ? 48 : (element.classList.contains('pixel-game-zone') ? 30 : (element.classList.contains('break-dining-set') ? 25 : (element.classList.contains('pixel-coffee-corner') || element.classList.contains('pixel-bookshelf') ? 20 : 0))));
+          const extraSide = isNoticeBoard ? 22 : (element.classList.contains('pixel-meeting-table') ? 15 : 0);
           return {
             left: rect.left - stageRect.left - padding - extraSide, right: rect.right - stageRect.left + padding + extraSide,
             top: rect.top - stageRect.top - padding - extraTop, bottom: rect.bottom - stageRect.top + padding + extraBottom
@@ -12419,15 +12412,15 @@
           const rect = person.getBoundingClientRect();
           const centerX = rect.left + rect.width / 2 - stageRect.left;
           const centerY = rect.top + rect.height * .76 - stageRect.top;
-          const radiusX = Math.max(18, rect.width * .5);
-          const radiusY = Math.max(16, rect.height * .26);
+          const radiusX = Math.max(22, rect.width * .6);
+          const radiusY = Math.max(20, rect.height * .3);
           return { left: centerX - radiusX, right: centerX + radiusX, top: centerY - radiusY, bottom: centerY + radiusY };
         });
         return { rect: stageRect, width: stageRect.width, height: stageRect.height, obstacles: obstacles.concat(peopleObstacles), padding: padding };
       }
 
       function officePointBlocked(x, y, geometry) {
-        if (x < 30 || y < 44 || x > geometry.width - 25 || y > geometry.height - 24) return true;
+        if (x < 35 || y < 50 || x > geometry.width - 30 || y > geometry.height - 28) return true;
         return geometry.obstacles.some(function (box) { return x >= box.left && x <= box.right && y >= box.top && y <= box.bottom; });
       }
 
@@ -12449,7 +12442,7 @@
 
       function officeLineClear(from, to, geometry) {
         const distance = Math.hypot(to.x - from.x, to.y - from.y);
-        const steps = Math.max(2, Math.ceil(distance / 5));
+        const steps = Math.max(3, Math.ceil(distance / 3));
         for (let index = 1; index <= steps; index += 1) {
           const ratio = index / steps;
           if (officePointBlocked(from.x + (to.x - from.x) * ratio, from.y + (to.y - from.y) * ratio, geometry)) return false;
@@ -12459,7 +12452,7 @@
 
       function findOfficePath(element, target) {
         const geometry = officeNavigationGeometry(element);
-        const cellSize = Math.max(12, Math.min(18, Math.round(geometry.width / 70)));
+        const cellSize = Math.max(10, Math.min(14, Math.round(geometry.width / 80)));
         const cols = Math.max(2, Math.floor(geometry.width / cellSize));
         const rows = Math.max(2, Math.floor(geometry.height / cellSize));
         const elementRect = element.getBoundingClientRect();

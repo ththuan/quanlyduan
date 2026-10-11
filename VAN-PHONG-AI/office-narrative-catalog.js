@@ -21,7 +21,6 @@
 
     E('invoice-mismatch', 'Hóa đơn và biên bản chưa khớp', 'meeting', ['work', 'system'], [
       { person: 'LONG', text: 'Số tiền trên hóa đơn lệch với biên bản nghiệm thu. Chưa thể đưa sang bước thanh toán.' },
-      { person: 'PHÚC', text: 'Phải giữ nguyên dấu vết, xác định nguồn sai rồi mới yêu cầu điều chỉnh.' },
       { person: 'NAM', text: 'Tôi kiểm tra phiên bản tệp và thời điểm văn bản được chuyển đến.' }
     ], [
       C('return', 'Trả lại để điều chỉnh chứng từ', { metrics: { complianceRisk: -6, efficiency: -2, quality: 4 } }, 'Hồ sơ được trả về đúng đầu mối và ghi rõ nội dung cần sửa.'),
@@ -30,25 +29,22 @@
 
     E('missing-acceptance', 'Thiếu biên bản nghiệm thu', 'records', ['work'], [
       { person: 'NAM', text: 'Bộ hồ sơ chưa có biên bản nghiệm thu bản cuối. Tôi chỉ thấy một bản dự thảo.' },
-      { person: 'MINH', text: 'Tôi sẽ đánh dấu trường bắt buộc còn thiếu trong danh mục chứng từ.' },
-      { person: 'PHÚC', text: 'Không được thay bản dự thảo cho tài liệu đã ký và kiểm tra thực tế.' }
+      { person: 'MINH', text: 'Tôi sẽ đánh dấu trường bắt buộc còn thiếu trong danh mục chứng từ.' }
     ], [
       C('pause', 'Tạm dừng bước thanh toán', { metrics: { complianceRisk: -5, efficiency: -2 } }, 'Bước thanh toán được giữ lại cho đến khi có biên bản hợp lệ.'),
       C('prepare', 'Chuẩn bị trước phần không phụ thuộc', { metrics: { efficiency: 3, workload: 2, complianceRisk: -2 } }, 'AI tiếp tục chuẩn bị danh mục và báo cáo, nhưng không vượt qua điểm kiểm soát của con người.')
     ], { modes: ['processing', 'waiting'], cooldownDays: 7 }),
 
     E('rush-procurement', 'Yêu cầu mua sắm phát sinh sát hạn', 'board', ['work', 'system'], [
-      { person: 'LÂM', text: 'Có yêu cầu mua sắm mới cần hoàn thành rất sớm, nhưng thông tin cấu hình còn chưa đủ.' },
-      { person: 'HẢI', text: 'Ta cần tách nhu cầu khẩn thực sự khỏi phần có thể lập kế hoạch bình thường.' },
-      { person: 'PHÚC', text: 'Khẩn không có nghĩa là bỏ căn cứ, bỏ thẩm quyền hoặc bỏ bước kiểm soát.' }
+      { person: 'HẢI', text: 'Có yêu cầu mua sắm mới cần hoàn thành rất sớm, nhưng thông tin cấu hình còn chưa đủ.' },
+      { person: 'MINH', text: 'Ta cần tách nhu cầu khẩn thực sự khỏi phần có thể lập kế hoạch bình thường.' }
     ], [
       C('scope', 'Thu hẹp phạm vi cấp thiết', { metrics: { efficiency: 4, complianceRisk: -3, morale: 1 } }, 'Yêu cầu được chia thành phần cấp thiết và phần lập kế hoạch sau.'),
       C('full', 'Giữ toàn bộ phạm vi', { metrics: { workload: 8, complianceRisk: 2, quality: 2 } }, 'Nhóm giữ phạm vi lớn và chấp nhận áp lực điều phối cao hơn.')
     ], { cooldownDays: 9 }),
 
     E('urgent-approval', 'Hồ sơ cần ý kiến người có thẩm quyền', 'meeting', ['work', 'people'], [
-      { person: 'PHÚC', text: 'Điểm này không thuộc phần AI hoặc nhóm nghiệp vụ có thể tự quyết.' },
-      { person: 'HẢI', text: 'Tôi sẽ tóm tắt phương án và rủi ro để trình đúng người có thẩm quyền.' },
+      { person: 'HẢI', text: 'Điểm này cần được trình đúng người có thẩm quyền. Tôi sẽ tóm tắt phương án và rủi ro.' },
       { person: 'LONG', text: 'Các con số đã khóa, chỉ còn quyết định lựa chọn phương án.' }
     ], [
       C('brief', 'Trình bản tóm tắt hai phương án', { metrics: { quality: 3, efficiency: 2, complianceRisk: -3 } }, 'Người có thẩm quyền nhận được hai phương án cùng tác động rõ ràng.'),
@@ -56,12 +52,11 @@
     ], { modes: ['waiting'], cooldownDays: 5 }),
 
     E('review-disagreement', 'Bất đồng trong cách rà soát', 'meeting', ['people', 'work'], [
-      { person: 'LÂM', text: 'Nếu yêu cầu thêm tài liệu lúc này, nhà cung cấp sẽ chậm báo giá.' },
-      { person: 'PHÚC', text: 'Nếu thiếu căn cứ thì báo giá nhanh cũng không giúp hồ sơ đi tiếp được.' },
-      { person: 'HẢI', text: 'Hai bên cần thống nhất danh sách tối thiểu và thời điểm bổ sung.' }
+      { person: 'HẢI', text: 'Có sự bất đồng về việc yêu cầu bổ sung tài liệu. Chúng ta cần thống nhất danh sách tối thiểu và thời điểm bổ sung.' },
+      { person: 'NAM', text: 'Nếu yêu cầu thêm tài liệu lúc này, có thể sẽ chậm tiến độ.' }
     ], [
-      C('minimum', 'Chốt bộ tài liệu tối thiểu', { metrics: { efficiency: 3, morale: 2 }, relations: { 'LAM:PHUC': 2 } }, 'Lâm và Phúc thống nhất danh sách tối thiểu có thời hạn bổ sung rõ ràng.'),
-      C('strict', 'Yêu cầu đầy đủ trước khi tiếp tục', { metrics: { complianceRisk: -4, efficiency: -3 }, relations: { 'LAM:PHUC': -2 } }, 'Nhóm ưu tiên kiểm soát đầy đủ, chấp nhận thời gian kéo dài hơn.')
+      C('minimum', 'Chốt bộ tài liệu tối thiểu', { metrics: { efficiency: 3, morale: 2 } }, 'Nhóm thống nhất danh sách tối thiểu có thời hạn bổ sung rõ ràng.'),
+      C('strict', 'Yêu cầu đầy đủ trước khi tiếp tục', { metrics: { complianceRisk: -4, efficiency: -3 } }, 'Nhóm ưu tiên kiểm soát đầy đủ, chấp nhận thời gian kéo dài hơn.')
     ], { cooldownDays: 8 }),
 
     E('handover-gap', 'Khoảng trống trong bàn giao', 'records', ['people'], [

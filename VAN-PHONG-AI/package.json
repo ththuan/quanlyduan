@@ -1,18 +1,22 @@
 {
-  "name": "van-phong-ai",
+  "name": "autonomous-office",
   "version": "1.0.0",
-  "description": "Văn phòng AI local — xử lý hồ sơ mua sắm, sửa chữa, thanh toán với giao diện pixel art",
-  "main": "van-phong-ai-local-server.js",
+  "description": "Autonomous AI Office - Self-operating document processing system",
+  "main": "autonomous-office-api.js",
   "scripts": {
-    "start": "node van-phong-ai-local-server.js",
-    "test": "node test-ai-agent-contract.js"
+    "start": "node autonomous-office-api.js",
+    "test": "node test-autonomous-office.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
   "dependencies": {
-    "pdfjs-dist": "^4.10.38",
-    "pdfkit": "^0.15.2"
-  }
+    "node-fetch": "^2.6.1"
+  },
+  "keywords": [
+    "ai",
+    "automation",
+    "document",
+    "autonomous",
+    "office"
+  ],
+  "author": "CTEC AI Team",
+  "license": "MIT"
 }
