@@ -982,6 +982,10 @@ DỮ LIỆU DỰ ÁN HIỆN TẠI:\n${context}`;
   }
 });
 
+// ---- Van Phong AI APIs ----
+const vanphongApi = require('./vanphong-api');
+vanphongApi(app, db, requireAuth, requireAuthWeb);
+
 // ---- Error handler ----
 app.use((err, req, res, next) => {
   console.error(err);
