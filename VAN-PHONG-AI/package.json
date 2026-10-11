@@ -8,7 +8,8 @@
     "test": "node test-autonomous-office.js"
   },
   "dependencies": {
-    "node-fetch": "^2.6.1"
+    "node-fetch": "^2.6.1",
+    "pdfkit": "^0.15.0"
   },
   "keywords": [
     "ai",
