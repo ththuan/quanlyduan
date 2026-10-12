@@ -3653,7 +3653,6 @@
       }
     }
 
-    .leader-workstation.needs-attention>strong,
     .pixel-notice-board.needs-attention {
       animation: leaderAttention .9s steps(2, end) infinite alternate;
     }
@@ -5028,201 +5027,8 @@
       box-shadow: 4px 4px 0 rgba(7, 21, 36, .24);
     }
 
-    .leader-workstation {
-      position: absolute;
-      left: 42%;
-      top: 15%;
-      width: 190px;
-      height: 130px;
-      padding: 0;
-      border: 0;
-      background: transparent;
-      color: #fff;
-      z-index: 7;
-      image-rendering: pixelated;
-      cursor: pointer;
-    }
+    /* Đã xóa CSS của .leader-workstation - bàn dư thừa đã loại bỏ */
 
-    .leader-workstation:focus-visible {
-      outline: 3px solid #F0D36F;
-      outline-offset: 4px;
-    }
-
-    .leader-workstation>strong {
-      display: none;
-    }
-
-    .leader-workstation>strong b {
-      display: inline-block;
-      margin-right: 4px;
-      padding: 1px 4px;
-      background: #2C7A62;
-      color: #fff;
-    }
-
-    .leader-desk-top {
-      position: absolute;
-      left: 8px;
-      right: 8px;
-      top: 43px;
-      height: 43px;
-      background: #80533F;
-      border: 5px solid #402C24;
-      box-shadow: 6px 7px 0 rgba(38, 27, 22, .28);
-      z-index: 3;
-    }
-
-    .leader-desk-top::before {
-      content: "";
-      position: absolute;
-      inset: 7px;
-      background: #A86E4E;
-      border: 3px solid #684332;
-    }
-
-    .leader-monitor {
-      position: absolute;
-      left: 66px;
-      top: 24px;
-      width: 53px;
-      height: 39px;
-      background: #172B42;
-      border: 5px solid #465A73;
-      box-shadow: 4px 4px 0 #1D2A3B;
-      z-index: 5;
-    }
-
-    .leader-monitor::before {
-      content: "";
-      position: absolute;
-      inset: 6px;
-      background: #6DA2B8;
-      box-shadow: inset 8px 0 #8DC2D0, inset -8px 0 #416D86;
-    }
-
-    .leader-monitor::after {
-      content: "";
-      position: absolute;
-      left: 20px;
-      bottom: -15px;
-      width: 9px;
-      height: 14px;
-      background: #465A73;
-      box-shadow: -10px 11px 0 2px #536176;
-    }
-
-    .leader-keyboard {
-      position: absolute;
-      left: 66px;
-      top: 69px;
-      width: 54px;
-      height: 11px;
-      background: #D4DADD;
-      border: 3px solid #536176;
-      z-index: 5;
-      box-shadow: inset 0 3px #AAB6BE;
-    }
-
-    .leader-files {
-      position: absolute;
-      left: 19px;
-      top: 31px;
-      width: 33px;
-      height: 29px;
-      background: #405F7A;
-      border: 4px solid #233A50;
-      z-index: 5;
-      box-shadow: 0 -7px 0 -1px #F0E7C9, 0 -13px 0 -2px #A8C7D5;
-    }
-
-    .leader-files::after {
-      content: "";
-      position: absolute;
-      left: 5px;
-      right: 5px;
-      bottom: 5px;
-      height: 4px;
-      background: #93AABD;
-    }
-
-    .leader-drawer {
-      position: absolute;
-      right: 14px;
-      top: 66px;
-      width: 33px;
-      height: 46px;
-      background: #6D5546;
-      border: 4px solid #49362C;
-      z-index: 2;
-      box-shadow: 4px 5px 0 rgba(48, 32, 24, .22);
-    }
-
-    .leader-drawer::before {
-      content: "";
-      position: absolute;
-      left: 5px;
-      right: 5px;
-      top: 8px;
-      height: 10px;
-      border: 2px solid #49362C;
-      box-shadow: 0 15px 0 -2px #8C6B55;
-    }
-
-    .leader-chair {
-      position: absolute;
-      left: 70px;
-      top: 88px;
-      width: 52px;
-      height: 31px;
-      background: #17304A;
-      border: 5px solid #071524;
-      z-index: 4;
-      box-shadow: 4px 6px 0 #263548;
-    }
-
-    .leader-chair::before {
-      content: "";
-      position: absolute;
-      left: 6px;
-      right: 6px;
-      top: -24px;
-      height: 22px;
-      background: #244B6D;
-      border: 5px solid #071524;
-    }
-
-    .leader-chair::after {
-      content: "";
-      position: absolute;
-      left: 20px;
-      bottom: -16px;
-      width: 8px;
-      height: 16px;
-      background: #38475A;
-      box-shadow: -13px 13px 0 -2px #38475A, 13px 13px 0 -2px #38475A;
-    }
-
-    .leader-lamp {
-      position: absolute;
-      right: 24px;
-      top: 27px;
-      width: 10px;
-      height: 28px;
-      background: #D6B75A;
-      border: 3px solid #76572E;
-      z-index: 5;
-    }
-
-    .leader-lamp::before {
-      content: "";
-      position: absolute;
-      left: -8px;
-      top: -7px;
-      width: 20px;
-      height: 10px;
-      background: #E7C86D;
-      border: 3px solid #76572E;
-    }
 
     .pixel-window {
       position: absolute;
@@ -7689,7 +7495,6 @@
     }
 
     .ai-office-stage.pixel-world-ready .office-station,
-    .ai-office-stage.pixel-world-ready .leader-workstation,
     .ai-office-stage.pixel-world-ready .pixel-window,
     .ai-office-stage.pixel-world-ready .pixel-clock,
     .ai-office-stage.pixel-world-ready .pixel-calendar,
@@ -7954,7 +7759,7 @@
       top: 64px;
     }
 
-    /* �� x�a c�c @media queries responsive v� viewport d� c? d?nh 1920x1080 */
+    /* �� x�a c�c @media queries responsive v� viewport d� c? d?nh 1920x1080 */
 
     @media(prefers-reduced-motion:reduce) {
       .office-ambient-person {
@@ -9015,16 +8820,9 @@
                 <div class="office-plant plant-six" data-plant="cactus" aria-hidden="true"><span></span></div>
                 <div class="office-plant plant-seven" data-plant="monstera" aria-hidden="true"><span></span></div>
 
-                <button type="button" class="leader-workstation" id="agentLeaderDesk"
-                  aria-label="Bàn làm việc của AN, trưởng nhóm">
-                  <strong><b>AN</b> TRƯỞNG NHÓM</strong><span class="leader-desk-top"></span><span
-                    class="leader-monitor"></span><span class="leader-keyboard"></span><span
-                    class="leader-files"></span><span class="leader-drawer"></span><span
-                    class="leader-chair"></span><span class="leader-lamp"></span>
-                </button>
 
                 <div class="office-ambient-person" data-person="LONG" data-route="0" data-tone="blue" data-pose="seated" data-presence="pending"
-                  style="--npc-x:62%;--npc-y:24%" aria-label="LONG, kế toán">
+                  style="--npc-x:30%;--npc-y:40%" aria-label="LONG, kế toán">
                   <span class="npc-shadow"></span><span class="npc-head"></span><span class="npc-hair"></span><span
                     class="npc-face" aria-hidden="true"></span><span class="npc-body"></span><span
                     class="npc-arm npc-arm-left"></span><span class="npc-arm npc-arm-right"></span><span
@@ -9032,7 +8830,7 @@
                     class="npc-label">LONG · KẾ TOÁN</span>
                 </div>
                 <div class="office-ambient-person" data-person="MINH" data-route="1" data-tone="green"
-                  data-pose="seated" data-presence="pending" style="--npc-x:84%;--npc-y:44%" aria-label="MINH, biểu mẫu">
+                  data-pose="seated" data-presence="pending" style="--npc-x:70%;--npc-y:40%" aria-label="MINH, biểu mẫu">
                   <span class="npc-shadow"></span><span class="npc-head"></span><span class="npc-hair"></span><span
                     class="npc-face" aria-hidden="true"></span><span class="npc-body"></span><span
                     class="npc-arm npc-arm-left"></span><span class="npc-arm npc-arm-right"></span><span
@@ -9040,7 +8838,7 @@
                     class="npc-label">MINH · BIỂU MẪU</span>
                 </div>
                 <div class="office-ambient-person" data-person="HẢI" data-route="2" data-tone="coral" data-pose="seated" data-presence="pending"
-                  style="--npc-x:16%;--npc-y:24%" aria-label="HẢI, hành chính">
+                  style="--npc-x:15%;--npc-y:40%" aria-label="HẢI, hành chính">
                   <span class="npc-shadow"></span><span class="npc-head"></span><span class="npc-hair"></span><span
                     class="npc-face" aria-hidden="true"></span><span class="npc-body"></span><span
                     class="npc-arm npc-arm-left"></span><span class="npc-arm npc-arm-right"></span><span
@@ -9048,7 +8846,7 @@
                     class="npc-label">HẢI · HÀNH CHÍNH</span>
                 </div>
                 <div class="office-ambient-person" data-person="NAM" data-route="3" data-tone="mustard"
-                  data-pose="seated" data-presence="pending" style="--npc-x:30%;--npc-y:24%" aria-label="NAM, văn thư">
+                  data-pose="seated" data-presence="pending" style="--npc-x:85%;--npc-y:40%" aria-label="NAM, văn thư">
                   <span class="npc-shadow"></span><span class="npc-head"></span><span class="npc-hair"></span><span
                     class="npc-face" aria-hidden="true"></span><span class="npc-body"></span><span
                     class="npc-arm npc-arm-left"></span><span class="npc-arm npc-arm-right"></span><span
@@ -10559,17 +10357,18 @@
       const SYSTEM_KEY = 'ctec-ai-office-system-v1';
       const STORY_KEY = 'ctec-ai-office-story-v1';
       const stationPositions = {
-        intake: { x: 15, y: 35 }, forms: { x: 70, y: 35 }, execution: { x: 30, y: 35 }, payment: { x: 85, y: 35 }
+        intake: { x: 15, y: 35 }, forms: { x: 70, y: 35 }, execution: { x: 30, y: 35 }, payment: { x: 85, y: 35 }, leader: { x: 50, y: 35 }
       };
       const devicePositions = {
         leader: { x: 50, y: 35 }, printer: { x: 70, y: 52 }, server: { x: 82, y: 24 }, meeting: { x: 53, y: 61 }, records: { x: 7, y: 71 }
       };
       const stationSeatPositions = {
-        intake: { x: 15, y: 40 }, forms: { x: 70, y: 40 }, execution: { x: 30, y: 40 }, payment: { x: 85, y: 40 }
+        intake: { x: 15, y: 40 }, forms: { x: 70, y: 40 }, execution: { x: 30, y: 40 }, payment: { x: 85, y: 40 }, leader: { x: 50, y: 40 }
       };
       const deviceSeatPositions = { leader: { x: 50, y: 40 } };
       function leaderSeatPosition() {
-        const chair = document.querySelector('.leader-chair');
+        const station = document.querySelector('.station-leader');
+        const chair = station ? station.querySelector('.desk-chair') : null;
         if (!chair || !officeStage) return deviceSeatPositions.leader;
         const stageRect = officeStage.getBoundingClientRect();
         const chairRect = chair.getBoundingClientRect();
@@ -11872,7 +11671,7 @@
       }
 
       const officeObstacleSelector = [
-        '.office-station', '.leader-workstation', '.server-room', '.pixel-window', '.pixel-meeting-table', '.pixel-bookshelf', '.print-workbench', '.pixel-printer', '.pixel-printer-main', '.pixel-copier',
+        '.office-station', '.server-room', '.pixel-window', '.pixel-meeting-table', '.pixel-bookshelf', '.print-workbench', '.pixel-printer', '.pixel-printer-main', '.pixel-copier',
         '.pixel-reception', '.pixel-coffee-corner', '.pixel-game-zone', '.pixel-water-cooler', '.office-cabinet',
         '.office-process-cabinet', '.office-knowledge-cabinet', '.office-entry', '.office-sofa', '.pixel-plant', '.office-plant', '.break-dining-set', '.pixel-notice-board', '.pixel-nap-storage'
       ].join(',');
@@ -12314,12 +12113,10 @@
       // Nhân viên nền tạo nhịp sống cho văn phòng, độc lập với quy trình đang xử lý.
       const ambientPeople = Array.from(document.querySelectorAll('.office-ambient-person'));
       const ambientRoutes = [
-        [{ x: 59, y: 37 }, { x: 69, y: 40 }, { x: 68, y: 54 }, { x: 58, y: 54 }],
-        [{ x: 75, y: 43 }, { x: 82, y: 49 }, { x: 79, y: 61 }, { x: 69, y: 58 }],
-        [{ x: 23, y: 36 }, { x: 35, y: 39 }, { x: 40, y: 48 }, { x: 25, y: 54 }],
-        [{ x: 32, y: 36 }, { x: 43, y: 38 }, { x: 48, y: 49 }, { x: 37, y: 57 }],
-        [{ x: 30, y: 61 }, { x: 43, y: 63 }, { x: 50, y: 69 }, { x: 39, y: 80 }],
-        [{ x: 64, y: 62 }, { x: 74, y: 58 }, { x: 82, y: 68 }, { x: 69, y: 80 }]
+        [{ x: 28, y: 46 }, { x: 38, y: 46 }, { x: 38, y: 50 }, { x: 28, y: 50 }],
+        [{ x: 62, y: 46 }, { x: 72, y: 46 }, { x: 72, y: 50 }, { x: 62, y: 50 }],
+        [{ x: 12, y: 46 }, { x: 20, y: 46 }, { x: 20, y: 50 }, { x: 12, y: 50 }],
+        [{ x: 80, y: 46 }, { x: 90, y: 46 }, { x: 90, y: 50 }, { x: 80, y: 50 }]
       ];
       function startAmbientOffice() {
         ambientPeople.forEach(function (person, index) {
@@ -12339,7 +12136,7 @@
               window.setTimeout(visitNext, 1100);
               return;
             }
-            if (Math.random() < .32) {
+            if (Math.random() < .15) {
               const point = route[pointIndex % route.length];
               pointIndex += 1;
               await walkAmbientPerson(person, point);
@@ -12349,7 +12146,7 @@
             } else if (person.dataset.pose !== 'seated') {
               await returnAmbientPersonToDesk(person);
             }
-            window.setTimeout(visitNext, 8500 + Math.floor(Math.random() * 6500));
+            window.setTimeout(visitNext, 12000 + Math.floor(Math.random() * 9000));
           }
           window.setTimeout(visitNext, index * 900 + 6500);
         });
