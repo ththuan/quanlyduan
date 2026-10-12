@@ -3,16 +3,9 @@
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=1920, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=0.5, maximum-scale=2.0, user-scalable=yes">
   <link rel="icon" href="data:,">
   <title>Văn phòng AI Agent</title>
-  <style>
-    body {
-      width: 1920px !important;
-      height: 1080px !important;
-      overflow: hidden;
-    }
-  </style>
   <script>
     // Base path cho phép chạy dưới tiền tố /van-phong-ai (proxy qua QLDA).
     (function () {
@@ -1219,8 +1212,10 @@
       --agent-x: 36.2%;
       --agent-y: 29%;
       position: relative;
-      width: 1920px;
-      height: 1080px;
+      width: 100%;
+      max-width: 1920px;
+      margin: 0 auto;
+      aspect-ratio: 16 / 9;
       overflow: hidden;
       background: #E6DFC9;
       border: 1px solid #BCC6D3;
@@ -3595,10 +3590,13 @@
 
     .ai-office-stage-wrap {
       width: 100%;
+      max-width: 1920px;
+      margin: 0 auto;
     }
 
     .ai-office-stage {
-      min-height: 600px;
+      width: 100%;
+      min-height: 400px;
       aspect-ratio: 16/9;
     }
 
@@ -9408,43 +9406,42 @@
                 <div class="office-entry" aria-label="Cửa ra vào chính"></div>
                 <div class="exit-sign" aria-hidden="true">LỐI RA</div>
 
+                <!-- Leader AN desk -->
+                <button type="button" class="office-station station-leader" data-station="leader"
+                  style="--x:50%;--y:15%">
+                  <span class="station-sign">LEADER · AN</span><span class="desk-top"></span><span
+                    class="desk-leg l"></span><span class="desk-leg r"></span><span class="desk-chair"></span><span
+                    class="desk-screen"></span><span class="desk-keyboard"></span><span
+                    class="desk-file-tray"></span><span class="desk-drawer"></span><span class="desk-mug"></span>
+                </button>
+
+                <!-- 4 nhân viên desks -->
                 <button type="button" class="office-station station-intake" data-station="intake"
-                  style="--x:16%;--y:20%">
-                  <span class="station-sign">01 · TIẾP NHẬN</span><span class="desk-top"></span><span
+                  style="--x:20%;--y:25%">
+                  <span class="station-sign">01 · TIẾP NHẬN (HẢI)</span><span class="desk-top"></span><span
                     class="desk-leg l"></span><span class="desk-leg r"></span><span class="desk-chair"></span><span
                     class="desk-screen"></span><span class="desk-keyboard"></span><span
                     class="desk-file-tray"></span><span class="desk-drawer"></span><span class="desk-mug"></span>
                 </button>
-                <button type="button" class="office-station station-review" data-station="review"
-                  style="--x:30%;--y:20%">
-                  <span class="station-sign">02 · RÀ SOÁT</span><span class="desk-top"></span><span
+                
+                <button type="button" class="office-station station-forms" data-station="forms" style="--x:80%;--y:25%">
+                  <span class="station-sign">02 · BIỂU MẪU (MINH)</span><span class="desk-top"></span><span
                     class="desk-leg l"></span><span class="desk-leg r"></span><span class="desk-chair"></span><span
                     class="desk-screen"></span><span class="desk-keyboard"></span><span
                     class="desk-file-tray"></span><span class="desk-drawer"></span><span class="desk-mug"></span>
                 </button>
-                <button type="button" class="office-station station-forms" data-station="forms" style="--x:84%;--y:40%">
-                  <span class="station-sign">03 · BIỂU MẪU</span><span class="desk-top"></span><span
-                    class="desk-leg l"></span><span class="desk-leg r"></span><span class="desk-chair"></span><span
-                    class="desk-screen"></span><span class="desk-keyboard"></span><span
-                    class="desk-file-tray"></span><span class="desk-drawer"></span><span class="desk-mug"></span>
-                </button>
-                <button type="button" class="office-station station-approval" data-station="approval"
-                  style="--x:70%;--y:40%">
-                  <span class="station-sign">04 · PHÊ DUYỆT</span><span class="desk-top"></span><span
-                    class="desk-leg l"></span><span class="desk-leg r"></span><span class="desk-chair"></span><span
-                    class="desk-screen"></span><span class="desk-keyboard"></span><span
-                    class="desk-file-tray"></span><span class="desk-drawer"></span><span class="desk-mug"></span>
-                </button>
+                
                 <button type="button" class="office-station station-execution" data-station="execution"
-                  style="--x:76%;--y:23%">
-                  <span class="station-sign">05 · THỰC HIỆN</span><span class="desk-top"></span><span
+                  style="--x:20%;--y:45%">
+                  <span class="station-sign">03 · TÀI CHÍNH (LONG)</span><span class="desk-top"></span><span
                     class="desk-leg l"></span><span class="desk-leg r"></span><span class="desk-chair"></span><span
                     class="desk-screen"></span><span class="desk-keyboard"></span><span
                     class="desk-file-tray"></span><span class="desk-drawer"></span><span class="desk-mug"></span>
                 </button>
+                
                 <button type="button" class="office-station station-payment" data-station="payment"
-                  style="--x:62%;--y:20%">
-                  <span class="station-sign">06 · THANH TOÁN</span><span class="desk-top"></span><span
+                  style="--x:80%;--y:45%">
+                  <span class="station-sign">04 · LƯU TRỮ (NAM)</span><span class="desk-top"></span><span
                     class="desk-leg l"></span><span class="desk-leg r"></span><span class="desk-chair"></span><span
                     class="desk-screen"></span><span class="desk-keyboard"></span><span
                     class="desk-file-tray"></span><span class="desk-drawer"></span><span class="desk-mug"></span>
@@ -11082,7 +11079,7 @@
         };
       }
       const ambientDeskMap = {
-        LONG: { station: 'payment' }, MINH: { station: 'forms' }, HẢI: { station: 'intake' }, NAM: { station: 'review' }, LÂM: { station: 'execution' }, PHÚC: { station: 'approval' }
+        AN: { station: 'leader' }, HẢI: { station: 'intake' }, MINH: { station: 'forms' }, LONG: { station: 'execution' }, NAM: { station: 'payment' }
       };
       const formCatalog = {
         '01': 'Phiếu đề nghị và dự toán sơ bộ mua sắm/sửa chữa',
