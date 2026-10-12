@@ -5616,24 +5616,24 @@
 
     .print-workbench {
       position: absolute;
-      left: auto;
-      right: .6%;
-      top: 20.5%;
-      width: 205px;
-      height: 82px;
+      left: 70%;
+      top: 50%;
+      width: 140px;
+      height: 60px;
       z-index: 7;
-      image-rendering: pixelated
+      image-rendering: pixelated;
+      transform: translate(-50%, 0);
     }
 
     .print-bench-surface {
       position: absolute;
       left: 0;
       right: 0;
-      top: 47px;
-      height: 15px;
+      top: 34px;
+      height: 12px;
       background: #7C5945;
-      border: 4px solid #493326;
-      box-shadow: 5px 6px 0 rgba(16, 37, 64, .22);
+      border: 3px solid #493326;
+      box-shadow: 3px 4px 0 rgba(16, 37, 64, .22);
       z-index: 2
     }
 
@@ -5641,56 +5641,56 @@
     .print-bench-surface::after {
       content: "";
       position: absolute;
-      top: 15px;
-      width: 11px;
-      height: 36px;
+      top: 12px;
+      width: 8px;
+      height: 24px;
       background: #604333;
-      border: 3px solid #3D2C24
+      border: 2px solid #3D2C24
     }
 
     .print-bench-surface::before {
-      left: 14px
+      left: 10px
     }
 
     .print-bench-surface::after {
-      right: 14px
+      right: 10px
     }
 
     .print-bench-label {
       position: absolute;
       left: 50%;
-      top: 68px;
+      top: 48px;
       transform: translateX(-50%);
-      padding: 2px 7px;
+      padding: 2px 6px;
       background: #17304A;
       color: #F0D36F;
       border: 2px solid #071524;
-      font-size: 8px;
+      font-size: 7px;
       font-weight: 700;
       white-space: nowrap;
       z-index: 4
     }
 
     .print-workbench .pixel-printer {
-      left: 8px;
-      top: 10px;
-      transform: scale(.76);
+      left: 5px;
+      top: 6px;
+      transform: scale(.55);
       transform-origin: left bottom;
       z-index: 5
     }
 
     .print-workbench .pixel-printer-main {
-      left: 64px;
-      top: 5px;
-      transform: scale(.8);
+      left: 45px;
+      top: 3px;
+      transform: scale(.58);
       transform-origin: left bottom;
       z-index: 5
     }
 
     .print-workbench .pixel-copier {
-      left: 126px;
-      top: -1px;
-      transform: scale(.72);
+      left: 88px;
+      top: 0px;
+      transform: scale(.52);
       transform-origin: left bottom;
       z-index: 5
     }
@@ -9406,41 +9406,40 @@
                 <div class="office-entry" aria-label="Cửa ra vào chính"></div>
                 <div class="exit-sign" aria-hidden="true">LỐI RA</div>
 
-                <!-- Leader AN desk -->
-                <button type="button" class="office-station station-leader" data-station="leader"
-                  style="--x:50%;--y:15%">
-                  <span class="station-sign">LEADER · AN</span><span class="desk-top"></span><span
-                    class="desk-leg l"></span><span class="desk-leg r"></span><span class="desk-chair"></span><span
-                    class="desk-screen"></span><span class="desk-keyboard"></span><span
-                    class="desk-file-tray"></span><span class="desk-drawer"></span><span class="desk-mug"></span>
-                </button>
-
-                <!-- 4 nhân viên desks -->
+                <!-- 5 bàn xếp thành 1 hàng ngang, AN (leader) ở giữa -->
                 <button type="button" class="office-station station-intake" data-station="intake"
-                  style="--x:20%;--y:25%">
+                  style="--x:15%;--y:35%">
                   <span class="station-sign">01 · TIẾP NHẬN (HẢI)</span><span class="desk-top"></span><span
                     class="desk-leg l"></span><span class="desk-leg r"></span><span class="desk-chair"></span><span
                     class="desk-screen"></span><span class="desk-keyboard"></span><span
                     class="desk-file-tray"></span><span class="desk-drawer"></span><span class="desk-mug"></span>
                 </button>
                 
-                <button type="button" class="office-station station-forms" data-station="forms" style="--x:80%;--y:25%">
-                  <span class="station-sign">02 · BIỂU MẪU (MINH)</span><span class="desk-top"></span><span
+                <button type="button" class="office-station station-execution" data-station="execution"
+                  style="--x:30%;--y:35%">
+                  <span class="station-sign">02 · TÀI CHÍNH (LONG)</span><span class="desk-top"></span><span
+                    class="desk-leg l"></span><span class="desk-leg r"></span><span class="desk-chair"></span><span
+                    class="desk-screen"></span><span class="desk-keyboard"></span><span
+                    class="desk-file-tray"></span><span class="desk-drawer"></span><span class="desk-mug"></span>
+                </button>
+
+                <button type="button" class="office-station station-leader" data-station="leader"
+                  style="--x:50%;--y:35%">
+                  <span class="station-sign">LEADER · AN</span><span class="desk-top"></span><span
                     class="desk-leg l"></span><span class="desk-leg r"></span><span class="desk-chair"></span><span
                     class="desk-screen"></span><span class="desk-keyboard"></span><span
                     class="desk-file-tray"></span><span class="desk-drawer"></span><span class="desk-mug"></span>
                 </button>
                 
-                <button type="button" class="office-station station-execution" data-station="execution"
-                  style="--x:20%;--y:45%">
-                  <span class="station-sign">03 · TÀI CHÍNH (LONG)</span><span class="desk-top"></span><span
+                <button type="button" class="office-station station-forms" data-station="forms" style="--x:70%;--y:35%">
+                  <span class="station-sign">03 · BIỂU MẪU (MINH)</span><span class="desk-top"></span><span
                     class="desk-leg l"></span><span class="desk-leg r"></span><span class="desk-chair"></span><span
                     class="desk-screen"></span><span class="desk-keyboard"></span><span
                     class="desk-file-tray"></span><span class="desk-drawer"></span><span class="desk-mug"></span>
                 </button>
                 
                 <button type="button" class="office-station station-payment" data-station="payment"
-                  style="--x:80%;--y:45%">
+                  style="--x:85%;--y:35%">
                   <span class="station-sign">04 · LƯU TRỮ (NAM)</span><span class="desk-top"></span><span
                     class="desk-leg l"></span><span class="desk-leg r"></span><span class="desk-chair"></span><span
                     class="desk-screen"></span><span class="desk-keyboard"></span><span
@@ -11057,16 +11056,15 @@
       const SYSTEM_KEY = 'ctec-ai-office-system-v1';
       const STORY_KEY = 'ctec-ai-office-story-v1';
       const stationPositions = {
-        intake: { x: 23, y: 34 }, review: { x: 37, y: 34 }, forms: { x: 77, y: 53 },
-        approval: { x: 63, y: 53 }, execution: { x: 83, y: 37 }, payment: { x: 69, y: 34 }
+        intake: { x: 15, y: 35 }, forms: { x: 70, y: 35 }, execution: { x: 30, y: 35 }, payment: { x: 85, y: 35 }
       };
       const devicePositions = {
-        leader: { x: 49, y: 32 }, printer: { x: 74, y: 62 }, server: { x: 82, y: 24 }, meeting: { x: 53, y: 61 }, records: { x: 7, y: 71 }
+        leader: { x: 50, y: 35 }, printer: { x: 70, y: 52 }, server: { x: 82, y: 24 }, meeting: { x: 53, y: 61 }, records: { x: 7, y: 71 }
       };
       const stationSeatPositions = {
-        intake: { x: 16, y: 24 }, review: { x: 30, y: 24 }, forms: { x: 84, y: 44 }, approval: { x: 70, y: 44 }, execution: { x: 76, y: 24 }, payment: { x: 62, y: 24 }
+        intake: { x: 15, y: 40 }, forms: { x: 70, y: 40 }, execution: { x: 30, y: 40 }, payment: { x: 85, y: 40 }
       };
-      const deviceSeatPositions = { leader: { x: 49, y: 28 } };
+      const deviceSeatPositions = { leader: { x: 50, y: 40 } };
       function leaderSeatPosition() {
         const chair = document.querySelector('.leader-chair');
         if (!chair || !officeStage) return deviceSeatPositions.leader;
