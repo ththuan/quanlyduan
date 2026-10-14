@@ -2049,6 +2049,13 @@ canvas {
   color: var(--accent-cyan);
 }
 
+.alert-empty {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  padding: 4px 2px;
+  line-height: 1.5;
+}
+
 /* ============================================================
    REPORTS
    ============================================================ */

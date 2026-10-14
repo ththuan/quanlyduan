@@ -1108,7 +1108,15 @@ function renderAlertsPanel(project) {
   const panel = document.getElementById('alerts-panel');
   if (!panel) return;
   const alerts = computeAlerts(project);
-  if (alerts.length === 0) { panel.innerHTML = ''; return; }
+  if (alerts.length === 0) {
+    panel.innerHTML = `
+      <div class="alert-banner glass-card">
+        <h3><span class="material-symbols-rounded">notifications_active</span> Cảnh báo cần theo dõi</h3>
+        <div class="alert-empty">Không có cảnh báo cần theo dõi. Hệ thống sẽ tự nêu khi phát hiện rủi ro về tiến độ, hạn hợp đồng, hóa đơn/nghiệm thu hoặc hạn bảo hành.</div>
+      </div>
+    `;
+    return;
+  }
   panel.innerHTML = `
     <div class="alert-banner glass-card">
       <h3><span class="material-symbols-rounded">notifications_active</span> Cảnh báo cần theo dõi (${alerts.length})</h3>
