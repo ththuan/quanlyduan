@@ -842,7 +842,7 @@ function renderDonutChart() {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(centerLabel, cx, cy - 14);
-  const totalLabel = formatCompactCurrency(total);
+  const totalLabel = formatCurrency(total);
   const totalSize = fitFontSize(ctx, totalLabel, centerMaxWidth, 600, 15);
   ctx.font = `600 ${totalSize}px Inter, sans-serif`;
   ctx.fillStyle = '#2563eb';
@@ -850,13 +850,15 @@ function renderDonutChart() {
 
   // Legend
   if (legendEl) {
-    legendEl.innerHTML = data.map(d => `
+    legendEl.innerHTML = data.map(d => {
+      const share = total > 0 ? (d.value / total) * 100 : 0;
+      return `
       <div class="legend-item">
         <span class="legend-dot" style="background:${d.color}"></span>
-        <span>${esc(d.label)}</span>
-        <span class="legend-value" title="${esc(formatCurrency(d.value))}">${formatCompactCurrency(d.value)}</span>
-      </div>
-    `).join('');
+        <span>${esc(d.label)} <small style="color:var(--text-muted)">${share.toFixed(1)}%</small></span>
+        <span class="legend-value" title="${esc(formatCurrency(d.value))}">${formatCurrency(d.value)}</span>
+      </div>`;
+    }).join('');
   }
 }
 
@@ -950,26 +952,17 @@ function renderDisbursementChart() {
   // Giá trị hợp đồng (trên)
   ctx.fillStyle = '#64748b';
   fitFontSize(ctx, 'Giá trị HĐ', centerMaxWidth, 600, 10);
-  ctx.fillText('Giá trị HĐ', cx, cy - 40);
-  const contractLabel = formatCompactCurrency(totalContract);
-  fitFontSize(ctx, contractLabel, centerMaxWidth, 700, 14);
+  ctx.fillText('Giá trị HĐ', cx, cy - 22);
+  const contractLabel = formatCurrency(totalContract);
+  fitFontSize(ctx, contractLabel, centerMaxWidth, 700, 13);
   ctx.fillStyle = '#0f172a';
-  ctx.fillText(contractLabel, cx, cy - 24);
+  ctx.fillText(contractLabel, cx, cy - 6);
 
-  // % giải ngân (giữa)
+  // % giải ngân (dưới)
   const pctLabel = overall.toFixed(1) + '%';
-  fitFontSize(ctx, pctLabel, centerMaxWidth, 700, 22);
+  fitFontSize(ctx, pctLabel, centerMaxWidth, 700, 24);
   ctx.fillStyle = '#2563eb';
-  ctx.fillText(pctLabel, cx, cy + 3);
-
-  // Đã giải ngân (dưới)
-  ctx.fillStyle = '#64748b';
-  fitFontSize(ctx, 'Đã giải ngân', centerMaxWidth, 600, 10);
-  ctx.fillText('Đã giải ngân', cx, cy + 27);
-  const disbLabel = formatCompactCurrency(totalDisbursed);
-  fitFontSize(ctx, disbLabel, centerMaxWidth, 700, 14);
-  ctx.fillStyle = '#0f172a';
-  ctx.fillText(disbLabel, cx, cy + 43);
+  ctx.fillText(pctLabel, cx, cy + 20);
 }
 
 function renderDisbursementDetail() {
@@ -1117,16 +1110,13 @@ function renderDashboard() {
   renderAlertsPanel(project);
 
   const allPkgs = project.categories.flatMap(c => c.packages.map(p => ({ cat: c, pkg: p })));
-  const catCount = project.categories.length;
 
   const totalInvest = project.totalInvestment;
-  const totalEstimate = project.categories.reduce((s, c) => s + getCatEstimateTotal(c), 0);
   const totalBid = project.categories.reduce((s, c) => s + getCatBidTotal(c), 0);
   const totalDisbursed = project.categories.reduce((s, c) => s + getCatDisbursedTotal(c), 0);
   const totalCumulative = project.categories.reduce((s, c) => s + getCatCumulativeTotal(c), 0);
   const totalAcceptance = allPkgs.reduce((s, x) => s + (x.pkg.acceptanceValue || 0), 0);
 
-  const disbursedRate = totalInvest > 0 ? (totalDisbursed / totalInvest) * 100 : 0;
   const acceptRate = totalBid > 0 ? (totalAcceptance / totalBid) * 100 : 0;
 
   // ---- KPI cards ----
@@ -1138,14 +1128,6 @@ function renderDashboard() {
       </div>
       <div class="kpi-value">${formatCurrency(totalInvest, true)}</div>
       <div class="kpi-sub">KH vốn năm ${project.planYear || '—'}: ${formatCurrency(project.annualPlan, true)}</div>
-    </div>
-    <div class="kpi-card glass-card" data-color="blue">
-      <div class="kpi-header">
-        <span class="kpi-label">Tổng dự toán</span>
-        <div class="kpi-icon"><span class="material-symbols-rounded">request_quote</span></div>
-      </div>
-      <div class="kpi-value">${formatCurrency(totalEstimate, true)}</div>
-      <div class="kpi-sub">${catCount} danh mục · ${allPkgs.length} gói thầu</div>
     </div>
     <div class="kpi-card glass-card" data-color="purple">
       <div class="kpi-header">
@@ -1171,15 +1153,6 @@ function renderDashboard() {
       <div class="kpi-value">${formatCurrency(totalAcceptance, true)}</div>
       <div class="kpi-sub">${formatPercent(acceptRate)} / hợp đồng</div>
       <div class="kpi-progress"><span style="width:${Math.min(100, acceptRate).toFixed(1)}%"></span></div>
-    </div>
-    <div class="kpi-card glass-card" data-color="amber">
-      <div class="kpi-header">
-        <span class="kpi-label">Tỷ lệ giải ngân</span>
-        <div class="kpi-icon"><span class="material-symbols-rounded">trending_up</span></div>
-      </div>
-      <div class="kpi-value">${formatPercent(disbursedRate)}</div>
-      <div class="kpi-sub">/ Tổng mức đầu tư</div>
-      <div class="kpi-progress"><span style="width:${Math.min(100, disbursedRate).toFixed(1)}%;background:var(--accent-amber)"></span></div>
     </div>
   `;
 
