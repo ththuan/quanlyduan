@@ -969,6 +969,32 @@ function renderDisbursementChart() {
   fitFontSize(ctx, pctLabel, centerMaxWidth, 700, 24);
   ctx.fillStyle = '#2563eb';
   ctx.fillText(pctLabel, cx, cy + 20);
+
+  // Bấm vào lát biểu đồ để xem gói thầu tương ứng
+  const sliceHit = (mx, my) => {
+    const dx = mx - cx, dy = my - cy;
+    const dist = Math.hypot(dx, dy);
+    if (dist < innerR || dist > outerR) return null;
+    let a = Math.atan2(dy, dx) + Math.PI / 2;
+    if (a < 0) a += Math.PI * 2;
+    let acc = 0;
+    for (const r of rows) {
+      const slice = (r.contract / totalContract) * Math.PI * 2;
+      if (a >= acc && a < acc + slice) return r;
+      acc += slice;
+    }
+    return null;
+  };
+  canvas.style.cursor = 'default';
+  canvas.onmousemove = (e) => {
+    const rect = canvas.getBoundingClientRect();
+    canvas.style.cursor = sliceHit(e.clientX - rect.left, e.clientY - rect.top) ? 'pointer' : 'default';
+  };
+  canvas.onclick = (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const r = sliceHit(e.clientX - rect.left, e.clientY - rect.top);
+    if (r) viewPackageDetail(r.cat.id, r.pkg.id);
+  };
 }
 
 function renderDisbursementDetail() {
@@ -1006,10 +1032,12 @@ function renderDisbursementDetail() {
       const psBadge = variation > 0
         ? `<span class="badge-ps" title="Phát sinh đã duyệt: ${esc(formatCurrency(variation))}">+PS ${formatCompactCurrency(variation)}</span>`
         : '';
-      html += `<div class="prog-row">
+      html += `<div class="prog-row prog-row-clickable" role="button" tabindex="0" title="Bấm để xem chi tiết gói thầu"
+        onclick="viewPackageDetail('${cat.id}','${pkg.id}')"
+        onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();viewPackageDetail('${cat.id}','${pkg.id}');}">
         <div class="prog-row-head">
           <span class="prog-name">${esc(pkg.name)}${psBadge}</span>
-          <span class="prog-pct">${realPct.toFixed(1)}%</span>
+          <span class="prog-pct">${realPct.toFixed(1)}% <span class="material-symbols-rounded prog-chevron">chevron_right</span></span>
         </div>
         <div class="prog-track"><span class="prog-fill ${cls}" style="width:${pct.toFixed(1)}%"></span></div>
         <div class="prog-row-meta prog-row-meta-stack"><span>Giá trị HĐ: <b>${formatCurrency(contract, true)}</b></span><span>Đã giải ngân: <b>${formatCurrency(disbursed, true)}</b></span></div>

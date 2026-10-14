@@ -808,6 +808,25 @@ body.read-only .edit-only { display: none !important; }
   gap: 2px;
 }
 
+.prog-row-clickable {
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 8px;
+  transition: background 0.15s;
+}
+
+.prog-row-clickable:hover,
+.prog-row-clickable:focus-visible {
+  background: rgba(37, 99, 235, 0.06);
+  outline: none;
+}
+
+.prog-chevron {
+  font-size: 16px;
+  vertical-align: middle;
+  color: var(--text-muted);
+}
+
 /* ---- Tiến độ giải ngân các gói thầu ---- */
 .disb-colorbar {
   display: flex;
@@ -847,7 +866,7 @@ body.read-only .edit-only { display: none !important; }
 .disb-group {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
 .disb-group-head {
