@@ -92,13 +92,30 @@ EOF
 > - File `.env` nằm trong `.gitignore` — deploy lại (`git pull`) sau này **không bao giờ ghi đè** cổng bạn đã chọn.
 
 
-**3. (Tuỳ chọn) Đổi model AI nếu bị deprecate**
+**3. (Tuỳ chọn) Chọn nhà cung cấp / model AI**
 
-Model Gemini có thể bị đổi theo thời gian. Nếu gặp lỗi kiểu "model X no longer available", **không cần sửa code** — thêm dòng sau vào `.env` rồi restart (không cần build lại):
+Mặc định dùng Google Gemini. Có thể đổi model hoặc chuyển sang API tương thích OpenAI (OpenAI, OpenRouter, gateway…) **chỉ bằng biến môi trường — không cần sửa code**:
+
 ```bash
+# Vẫn Gemini, chỉ đổi model (khi Google deprecate):
 echo "GEMINI_MODEL=gemini-3.6-flash" >> .env
+
+# Hoặc chuyển sang API tương thích OpenAI:
+cat >> .env <<'EOF'
+AI_PROVIDER=openai
+AI_BASE_URL=https://api.openai.com/v1
+AI_API_KEY=sk-...
+AI_MODEL=gpt-4o-mini
+EOF
+
 docker compose up -d qlda
 ```
+
+> - `AI_PROVIDER`: `gemini` (mặc định) hoặc `openai`.
+> - `AI_BASE_URL`: base URL nhà cung cấp (bao gồm `/v1`), ví dụ `https://openrouter.ai/api/v1`.
+> - `AI_API_KEY`, `AI_MODEL`: khóa API và tên model.
+> - Tương thích ngược: `GEMINI_API_KEY` / `GEMINI_MODEL` vẫn dùng được nếu không đặt `AI_*`.
+> - Chatbot, lưu kho tri thức và tóm tắt văn bản đều dùng chung cấu hình này.
 
 **4. Build & chạy**
 ```bash
