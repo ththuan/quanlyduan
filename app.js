@@ -889,7 +889,7 @@ function renderBarChart() {
       <span class="cmp-lbl"><i class="cmp-dot" style="background:#fbbf24"></i>&ge; 30%</span>
       <span class="cmp-lbl"><i class="cmp-dot" style="background:#f87171"></i>&lt; 30%</span>
     </div>
-    <p class="network-hint">Kích thước nút = Tổng dự toán &nbsp;&middot;&nbsp; Màu nút = Tiến độ giải ngân</p>`;
+    <p class="network-hint">Các danh mục quay quanh lõi dự án &nbsp;&middot;&nbsp; Kích thước = Tổng dự toán &nbsp;&middot;&nbsp; Màu = Tiến độ giải ngân &nbsp;&middot;&nbsp; Di chuột để xem, bấm để mở gói thầu</p>`;
 
   el.innerHTML = legend + '<canvas id="network-canvas"></canvas>';
   drawCategoryNetwork(document.getElementById('network-canvas'), cats, el);
@@ -913,46 +913,63 @@ function drawCategoryNetwork(canvas, cats, container) {
   const totalDisbursed = cats.reduce((s, c) => s + getCatDisbursedTotal(c), 0);
   const totalRate = totalInvest > 0 ? (totalDisbursed / totalInvest) * 100 : 0;
 
-  const centerNode = { x: cx, y: cy, r: 40, color: '#38bdf8', fixed: true, vx: 0, vy: 0, cat: null, rate: totalRate, invest: totalInvest, disbursed: totalDisbursed };
+  // Hệ hành tinh: lõi ở tâm, mỗi danh mục là một hành tinh quay trên quỹ đạo nghiêng
+  const tiltBase = 0.5;
+  const maxTilt = tiltBase + 0.08;
+  const maxOrbit = Math.max(120, Math.min(width / 2 - 48, (height / 2 - 40) / maxTilt));
 
-  // Vị trí khởi tạo gần vòng tròn + nhiễu -> force layout sẽ phân bố hữu cơ (không đều tăm tắp)
+  const centerNode = { x: cx, y: cy, r: 24, color: '#38bdf8', cat: null, rate: totalRate, invest: totalInvest, disbursed: totalDisbursed };
+
   const catNodes = cats.map((cat, i) => {
     const invest = getCatInvestTotal(cat);
     const disbursed = getCatDisbursedTotal(cat);
     const rate = invest > 0 ? (disbursed / invest) * 100 : 0;
-    const ang = (i / cats.length) * Math.PI * 2 - Math.PI / 2;
-    const base = Math.min(width, height) / 2 - 96;
-    const jitter = base * 0.35;
+    const ratio = cats.length <= 1 ? 0.5 : i / (cats.length - 1);
     return {
       cat, invest, disbursed, rate,
-      x: cx + Math.cos(ang) * (base + (Math.random() - 0.5) * jitter),
-      y: cy + Math.sin(ang) * (base + (Math.random() - 0.5) * jitter),
-      r: 15 + (invest / maxVal) * 24,
-      color: rateColor(rate), vx: 0, vy: 0, fixed: false, grav: true
+      orbit: maxOrbit * (0.44 + ratio * 0.5),
+      phase: (i / cats.length) * Math.PI * 2 + Math.random() * 0.5,
+      speed: 0.34 * (1.25 - ratio * 0.65) * (0.9 + Math.random() * 0.2),
+      nodeTilt: tiltBase + (Math.random() - 0.5) * 0.16,
+      r: 12 + (invest / maxVal) * 20,
+      seed: Math.random() * 100,
+      color: rateColor(rate),
+      x: cx, y: cy
     };
   });
 
   const pkgNodes = [];
   catNodes.forEach(n => {
-    const pkgs = (n.cat.packages || []).slice(0, 6);
-    pkgs.forEach((p, j) => {
-      const a = (j / Math.max(1, pkgs.length)) * Math.PI * 2;
-      pkgNodes.push({ pkg: p, parent: n, x: n.x + Math.cos(a) * (n.r + 20), y: n.y + Math.sin(a) * (n.r + 20), r: 2.5 + (j % 3), color: n.color, vx: 0, vy: 0, fixed: false, grav: false });
+    (n.cat.packages || []).slice(0, 6).forEach((p, j) => {
+      pkgNodes.push({
+        pkg: p, parent: n, color: n.color,
+        r: 1.8 + (j % 3) * 0.9,
+        orbit: n.r + 12 + j * 5,
+        phase: Math.random() * Math.PI * 2,
+        speed: 0.6 + Math.random() * 0.7,
+        x: n.x, y: n.y
+      });
     });
   });
 
-  // Cạnh cho mô phỏng lực + vẽ
-  const edges = [];
-  catNodes.forEach(n => edges.push({ a: centerNode, b: n, len: 130, kind: 'cat' }));
-  for (let i = 0; i < catNodes.length; i++) edges.push({ a: catNodes[i], b: catNodes[(i + 1) % catNodes.length], len: 175, kind: 'ring' });
-  pkgNodes.forEach(p => edges.push({ a: p.parent, b: p, len: p.parent.r + 24, kind: 'pkg' }));
+  // Cập nhật vị trí theo quỹ đạo mỗi khung hình (không dùng layout tĩnh)
+  function layout() {
+    catNodes.forEach(n => {
+      const a = n.phase + t * n.speed;
+      n.x = cx + Math.cos(a) * n.orbit;
+      n.y = cy + Math.sin(a) * n.orbit * n.nodeTilt;
+    });
+    pkgNodes.forEach(p => {
+      const a = p.phase + t * p.speed;
+      p.x = p.parent.x + Math.cos(a) * p.orbit;
+      p.y = p.parent.y + Math.sin(a) * p.orbit * 0.72;
+    });
+  }
 
-  const allNodes = [centerNode, ...catNodes, ...pkgNodes];
-  settleForce(allNodes, edges, width, height, cx, cy);
-
-  const stars = Array.from({ length: 60 }, () => ({
+  const starCount = Math.min(140, Math.round((width * height) / 5200));
+  const stars = Array.from({ length: starCount }, () => ({
     x: Math.random() * width, y: Math.random() * height,
-    r: Math.random() * 1.2 + 0.3, s: Math.random() * 0.4 + 0.05, tw: Math.random() * Math.PI * 2
+    r: Math.random() * 1.2 + 0.25, tw: Math.random() * Math.PI * 2, sp: Math.random() * 0.6 + 0.15
   }));
 
   let tip = container.querySelector('.chart-tooltip');
@@ -963,47 +980,46 @@ function drawCategoryNetwork(canvas, cats, container) {
   function frame() {
     networkAnimFrame = requestAnimationFrame(frame);
     t += 0.016;
+    layout();
     const ctx = canvas.getContext('2d');
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    const bg = ctx.createRadialGradient(cx, cy, 0, cx, cy, maxDim * 0.75);
-    bg.addColorStop(0, '#1e293b');
-    bg.addColorStop(0.5, '#0f172a');
-    bg.addColorStop(1, '#020617');
+    const bg = ctx.createRadialGradient(cx, cy, 0, cx, cy, maxDim * 0.8);
+    bg.addColorStop(0, '#122036');
+    bg.addColorStop(0.5, '#0b1626');
+    bg.addColorStop(1, '#04070d');
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, width, height);
 
+    const neb = ctx.createRadialGradient(cx, cy * 0.72, 0, cx, cy, maxDim * 0.62);
+    neb.addColorStop(0, 'rgba(56,189,248,0.10)');
+    neb.addColorStop(0.6, 'rgba(99,102,241,0.05)');
+    neb.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = neb;
+    ctx.fillRect(0, 0, width, height);
+
     stars.forEach(d => {
-      const a = 0.25 + 0.35 * Math.sin(t * 2 + d.tw);
-      ctx.globalAlpha = Math.max(0, a);
-      ctx.fillStyle = '#94a3b8';
+      const a = 0.2 + 0.6 * (0.5 + 0.5 * Math.sin(t * d.sp * 2.4 + d.tw));
+      ctx.globalAlpha = a;
+      ctx.fillStyle = '#cbd5e1';
       ctx.beginPath();
       ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
       ctx.fill();
     });
     ctx.globalAlpha = 1;
 
-    for (let r = 0; r < 2; r++) {
+    // Quỹ đạo của từng danh mục
+    catNodes.forEach(n => {
       ctx.save();
       ctx.translate(cx, cy);
-      ctx.rotate(t * 0.4 * (r ? -1 : 1));
-      ctx.strokeStyle = 'rgba(56,189,248,0.16)';
+      ctx.scale(1, n.nodeTilt);
+      ctx.beginPath();
+      ctx.arc(0, 0, n.orbit, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(148,163,184,0.12)';
       ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.ellipse(0, 0, centerNode.r * 1.9 + r * 22, centerNode.r * 0.55 + r * 8, 0, 0, Math.PI * 2);
       ctx.stroke();
-      ctx.fillStyle = 'rgba(125,211,252,0.6)';
-      ctx.beginPath();
-      ctx.arc(centerNode.r * 1.9 + r * 22, 0, 2.4, 0, Math.PI * 2);
-      ctx.fill();
       ctx.restore();
-    }
-
-    // Ring mesh
-    for (let i = 0; i < catNodes.length; i++) {
-      const a = catNodes[i], b = catNodes[(i + 1) % catNodes.length];
-      drawCurvedEdge(ctx, a, b, 'rgba(100,116,139,0.18)', 1);
-    }
+    });
 
     // Center -> category edges + energy streams
     catNodes.forEach((n, i) => {
@@ -1046,113 +1062,73 @@ function drawCategoryNetwork(canvas, cats, container) {
       ctx.fill();
     });
 
-    drawNetworkNode(ctx, centerNode.x, centerNode.y, centerNode.r, centerNode.color, Math.round(totalRate) + '%', 1, t);
-    catNodes.forEach((n, i) => drawNetworkNode(ctx, n.x, n.y, n.r, n.color, n.cat.code || '?', 0.85, t + i * 0.5));
+    // Hành tinh (danh mục) vẽ theo độ sâu để tạo cảm giác 3D
+    [...catNodes].sort((a, b) => a.y - b.y).forEach(n => {
+      const depth = Math.max(0, Math.min(1, (n.y - (cy - n.orbit)) / (2 * n.orbit || 1)));
+      drawPlanet(ctx, n, depth, t);
+    });
 
-    ctx.font = '10px Inter, system-ui, sans-serif';
+    // Lõi dự án (mặt trời)
+    drawCore(ctx, centerNode, t);
+
+    // Nhãn danh mục
+    ctx.font = '600 10.5px Inter, system-ui, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
-    ctx.fillStyle = '#94a3b8';
     catNodes.forEach(n => {
-      const short = String(n.cat.name || '').length > 20 ? n.cat.name.slice(0, 20) + '…' : (n.cat.name || '');
-      ctx.fillText(short, n.x, n.y + n.r + 6);
+      const name = String(n.cat.name || '');
+      const short = name.length > 22 ? name.slice(0, 22) + '…' : name;
+      const tw = ctx.measureText(short).width;
+      const lx = Math.max(tw / 2 + 8, Math.min(width - tw / 2 - 8, n.x));
+      const ly = Math.min(n.y + n.r + 6, height - 18);
+      ctx.fillStyle = 'rgba(8,17,32,0.6)';
+      ctx.fillRect(lx - tw / 2 - 6, ly - 2, tw + 12, 15);
+      ctx.fillStyle = '#cbd5e1';
+      ctx.fillText(short, lx, ly);
     });
   }
   networkAnimFrame = requestAnimationFrame(frame);
 
-  // ---- Kéo nút + click để khoan sâu vào danh mục ----
+  // ---- Di chuột xem chi tiết, bấm để mở gói thầu ----
   const hit = (mx, my) => {
     const inCat = catNodes.find(n => Math.hypot(mx - n.x, my - n.y) <= n.r + 6);
     if (inCat) return inCat;
     return pkgNodes.find(n => Math.hypot(mx - n.x, my - n.y) <= n.r + 5) || null;
   };
 
-  let dragNode = null, dragOff = { x: 0, y: 0 }, downAt = null;
-
+  let downAt = null;
   canvas.onmousedown = (e) => {
     const rect = canvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
-    downAt = { mx, my };
-    const n = hit(mx, my);
-    if (n) { dragNode = n; dragOff = { x: mx - n.x, y: my - n.y }; }
+    downAt = { mx: e.clientX - rect.left, my: e.clientY - rect.top };
   };
   canvas.onmousemove = (e) => {
     const rect = canvas.getBoundingClientRect();
     const mx = e.clientX - rect.left, my = e.clientY - rect.top;
-    if (dragNode) {
-      dragNode.x = Math.max(16, Math.min(width - 16, mx - dragOff.x));
-      dragNode.y = Math.max(16, Math.min(height - 16, my - dragOff.y));
-      tip.style.display = 'none';
-      return;
-    }
     const n = hit(mx, my);
     if (!n) { tip.style.display = 'none'; canvas.style.cursor = 'default'; return; }
-    canvas.style.cursor = 'grab';
+    canvas.style.cursor = 'pointer';
     tip.style.display = 'block';
     if (n.cat) {
-      tip.innerHTML = `<strong>${esc(n.cat.code ? n.cat.code + '. ' : '')}${esc(n.cat.name)}</strong><br>Tổng dự toán: <b>${esc(formatCurrency(n.invest))}</b><br>Đã giải ngân: <b>${esc(formatCurrency(n.disbursed))}</b> (${n.rate.toFixed(1)}%)<br>Gói thầu: <b>${(n.cat.packages || []).length}</b><br><small>Kéo để di chuyển · Bấm để xem gói thầu</small>`;
+      tip.innerHTML = `<strong>${esc(n.cat.code ? n.cat.code + '. ' : '')}${esc(n.cat.name)}</strong><br>Tổng dự toán: <b>${esc(formatCurrency(n.invest))}</b><br>Đã giải ngân: <b>${esc(formatCurrency(n.disbursed))}</b> (${n.rate.toFixed(1)}%)<br>Gói thầu: <b>${(n.cat.packages || []).length}</b><br><small>Bấm để xem gói thầu</small>`;
     } else if (n.parent) {
       tip.innerHTML = `<strong>${esc(n.pkg?.name || '')}</strong>`;
     } else {
       tip.innerHTML = `<strong>Toàn dự án</strong><br>Tổng dự toán: <b>${esc(formatCurrency(n.invest))}</b><br>Đã giải ngân: <b>${esc(formatCurrency(n.disbursed))}</b> (${n.rate.toFixed(1)}%)`;
     }
-    const cw = rect.width;
-    tip.style.left = Math.min(mx + 14, cw - 220) + 'px';
+    tip.style.left = Math.min(mx + 14, rect.width - 220) + 'px';
     tip.style.top = Math.max(my - 10, 0) + 'px';
   };
   canvas.onmouseup = (e) => {
-    if (dragNode) {
-      const rect = canvas.getBoundingClientRect();
-      const mx = e.clientX - rect.left, my = e.clientY - rect.top;
-      const moved = downAt ? Math.hypot(mx - downAt.mx, my - downAt.my) : 99;
-      if (moved < 5 && dragNode.cat) drillToCategory(dragNode.cat.id);
-      dragNode = null;
-    }
+    if (!downAt) return;
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    const moved = Math.hypot(mx - downAt.mx, my - downAt.my);
+    downAt = null;
+    if (moved >= 6) return;
+    const n = hit(mx, my);
+    if (n && n.cat) drillToCategory(n.cat.id);
   };
-  canvas.onmouseleave = () => { dragNode = null; tip.style.display = 'none'; };
-}
-
-// Mô phỏng lực (force-directed) — nút đẩy nhau, cạnh kéo theo chiều dài mục tiêu, hút nhẹ về tâm
-function settleForce(nodes, edges, width, height, cx, cy) {
-  const repulsion = 260, gravity = 0.05, spring = 0.03, damping = 0.8;
-  const iters = 320;
-  for (let it = 0; it < iters; it++) {
-    for (let i = 0; i < nodes.length; i++) {
-      const a = nodes[i];
-      for (let j = i + 1; j < nodes.length; j++) {
-        const b = nodes[j];
-        let dx = a.x - b.x, dy = a.y - b.y;
-        let d2 = dx * dx + dy * dy;
-        if (d2 < 1) { dx = Math.random() - 0.5; dy = Math.random() - 0.5; d2 = dx * dx + dy * dy; }
-        const f = repulsion / d2;
-        const d = Math.sqrt(d2);
-        const fx = dx / d * f, fy = dy / d * f;
-        if (!a.fixed) { a.vx += fx; a.vy += fy; }
-        if (!b.fixed) { b.vx -= fx; b.vy -= fy; }
-      }
-    }
-    edges.forEach(e => {
-      const a = e.a, b = e.b;
-      const dx = b.x - a.x, dy = b.y - a.y;
-      const d = Math.sqrt(dx * dx + dy * dy) || 1;
-      const f = (d - e.len) * spring;
-      const fx = dx / d * f, fy = dy / d * f;
-      if (!a.fixed) { a.vx += fx; a.vy += fy; }
-      if (!b.fixed) { b.vx -= fx; b.vy -= fy; }
-    });
-    nodes.forEach(n => {
-      if (n.fixed || !n.grav) return;
-      n.vx += (cx - n.x) * gravity;
-      n.vy += (cy - n.y) * gravity;
-    });
-    nodes.forEach(n => {
-      if (n.fixed) return;
-      n.vx *= damping; n.vy *= damping;
-      n.x += n.vx; n.y += n.vy;
-      n.x = Math.max(16, Math.min(width - 16, n.x));
-      n.y = Math.max(16, Math.min(height - 16, n.y));
-    });
-  }
+  canvas.onmouseleave = () => { tip.style.display = 'none'; };
 }
 
 function drillToCategory(catId) {
@@ -1181,40 +1157,89 @@ function drawCurvedEdge(ctx, a, b, color, width) {
   ctx.stroke();
 }
 
-function drawNetworkNode(ctx, x, y, r, color, label, glow = 0.7, phase = 0) {
-  const breathe = 1 + Math.sin(phase * 1.4) * 0.05;
-  const R = r * breathe;
+// Hành tinh danh mục — bóng loáng, có vành sáng và điểm phản chiếu
+function drawPlanet(ctx, n, depth, t) {
+  const R = n.r * (0.9 + depth * 0.2);
+  const breathe = 1 + Math.sin(t * 1.2 + n.seed) * 0.04;
+  const rad = R * breathe;
 
-  // Halo (breathing glow)
-  const halo = ctx.createRadialGradient(x, y, R * 0.5, x, y, R * 2.4);
-  halo.addColorStop(0, hexAlpha(color, 0.4 * glow));
-  halo.addColorStop(1, hexAlpha(color, 0));
-  ctx.fillStyle = halo;
+  const glow = ctx.createRadialGradient(n.x, n.y, rad * 0.5, n.x, n.y, rad * 3);
+  glow.addColorStop(0, hexAlpha(n.color, 0.3 * (0.55 + depth * 0.45)));
+  glow.addColorStop(1, hexAlpha(n.color, 0));
+  ctx.fillStyle = glow;
   ctx.beginPath();
-  ctx.arc(x, y, R * 2.4, 0, Math.PI * 2);
+  ctx.arc(n.x, n.y, rad * 3, 0, Math.PI * 2);
   ctx.fill();
 
-  // Glossy body (radial gradient)
-  const body = ctx.createRadialGradient(x - R * 0.35, y - R * 0.4, R * 0.1, x, y, R);
-  body.addColorStop(0, lighten(color, 0.45));
-  body.addColorStop(0.55, color);
-  body.addColorStop(1, darken(color, 0.2));
+  const body = ctx.createRadialGradient(n.x - rad * 0.35, n.y - rad * 0.4, rad * 0.12, n.x, n.y, rad);
+  body.addColorStop(0, lighten(n.color, 0.55));
+  body.addColorStop(0.5, n.color);
+  body.addColorStop(1, darken(n.color, 0.38));
   ctx.fillStyle = body;
   ctx.beginPath();
-  ctx.arc(x, y, R, 0, Math.PI * 2);
+  ctx.arc(n.x, n.y, rad, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.lineWidth = 2;
-  ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+  ctx.lineWidth = 1.4;
+  ctx.strokeStyle = hexAlpha('#ffffff', 0.28 + depth * 0.32);
   ctx.stroke();
 
-  if (label) {
-    ctx.fillStyle = '#fff';
-    ctx.font = `bold ${Math.max(10, Math.round(R * 0.5))}px Inter, system-ui, sans-serif`;
+  ctx.fillStyle = 'rgba(255,255,255,0.8)';
+  ctx.beginPath();
+  ctx.arc(n.x - rad * 0.34, n.y - rad * 0.38, Math.max(1.1, rad * 0.14), 0, Math.PI * 2);
+  ctx.fill();
+
+  if (n.cat.code && rad > 11) {
+    ctx.fillStyle = 'rgba(3,12,22,0.82)';
+    ctx.font = `bold ${Math.round(rad * 0.6)}px Inter, system-ui, sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(label, x, y + 1);
+    ctx.fillText(n.cat.code, n.x, n.y + 0.5);
   }
+}
+
+// Lõi dự án — mặt trời có vành quay và nhịp thở
+function drawCore(ctx, node, t) {
+  const pulse = 1 + Math.sin(t * 1.6) * 0.06;
+  const R = node.r * pulse;
+
+  const glow = ctx.createRadialGradient(node.x, node.y, R * 0.4, node.x, node.y, R * 3.4);
+  glow.addColorStop(0, 'rgba(125,211,252,0.5)');
+  glow.addColorStop(0.5, 'rgba(56,189,248,0.16)');
+  glow.addColorStop(1, 'rgba(56,189,248,0)');
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(node.x, node.y, R * 3.4, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.save();
+  ctx.translate(node.x, node.y);
+  ctx.rotate(t * 0.5);
+  ctx.strokeStyle = 'rgba(125,211,252,0.35)';
+  ctx.lineWidth = 1.4;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, R * 1.9, R * 0.55, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.fillStyle = 'rgba(226,246,255,0.9)';
+  ctx.beginPath();
+  ctx.arc(R * 1.9, 0, 2.4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  const body = ctx.createRadialGradient(node.x - R * 0.3, node.y - R * 0.35, R * 0.1, node.x, node.y, R);
+  body.addColorStop(0, '#e0f5ff');
+  body.addColorStop(0.42, '#7dd3fc');
+  body.addColorStop(1, '#0284c7');
+  ctx.fillStyle = body;
+  ctx.beginPath();
+  ctx.arc(node.x, node.y, R, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#04121f';
+  ctx.font = `bold ${Math.round(R * 0.72)}px Inter, system-ui, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(Math.round(node.rate) + '%', node.x, node.y + 1);
 }
 
 function hexAlpha(hex, alpha) {
