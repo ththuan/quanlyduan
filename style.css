@@ -669,15 +669,13 @@ body.read-only .edit-only { display: none !important; }
    ============================================================ */
 .charts-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: minmax(300px, 0.85fr) minmax(0, 1.4fr);
   gap: 16px;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
 
-.donut-card {
-  max-width: 640px;
-  margin: 0 auto;
-  width: 100%;
+.charts-row-wide {
+  grid-template-columns: 1fr;
 }
 
 .donut-card .chart-wrapper {

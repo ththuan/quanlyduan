@@ -102,11 +102,21 @@
       <div id="kpi-cards" class="kpi-grid"></div>
       <div class="charts-row">
         <div class="chart-card glass-card donut-card">
-          <h3><span class="material-symbols-rounded">donut_large</span> Phân bổ chi phí</h3>
+          <h3><span class="material-symbols-rounded">donut_large</span> Phân bổ dự toán</h3>
           <div class="chart-wrapper">
             <canvas id="chart-donut" width="380" height="380"></canvas>
             <div id="donut-legend" class="chart-legend"></div>
           </div>
+        </div>
+        <div class="chart-card glass-card">
+          <h3><span class="material-symbols-rounded">hub</span> Mạng lưới danh mục</h3>
+          <div id="chart-bar"></div>
+        </div>
+      </div>
+      <div class="charts-row charts-row-wide">
+        <div class="chart-card glass-card">
+          <h3><span class="material-symbols-rounded">savings</span> Tiến độ giải ngân theo danh mục</h3>
+          <div id="progress-list" class="prog-list"></div>
         </div>
       </div>
       <div class="dash-lower-row">

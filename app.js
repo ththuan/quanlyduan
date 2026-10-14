@@ -1318,6 +1318,34 @@ function renderAlertsPanel(project) {
   `;
 }
 
+// Tiến độ giải ngân theo danh mục (thanh tỷ lệ, HTML/CSS)
+function renderProgressList() {
+  const el = document.getElementById('progress-list');
+  if (!el) return;
+  const project = getCurrentProject();
+  const cats = project ? getSortedCategories(project) : [];
+  if (!cats.length) {
+    el.innerHTML = '<p class="plot-empty">Chưa có dữ liệu</p>';
+    return;
+  }
+  el.innerHTML = cats.map(cat => {
+    const invest = getCatInvestTotal(cat);
+    const bid = getCatBidTotal(cat);
+    const disb = getCatDisbursedTotal(cat);
+    const base = invest > 0 ? invest : bid;
+    const rate = base > 0 ? Math.min(100, (disb / base) * 100) : 0;
+    const cls = rate >= 100 ? 'complete' : rate >= 60 ? 'high' : rate >= 30 ? 'medium' : 'low';
+    return `<div class="prog-row">
+        <div class="prog-row-head">
+          <span class="prog-name">${cat.code ? `<span class="prog-code">${esc(cat.code)}</span>` : ''}${esc(cat.name)}</span>
+          <span class="prog-pct">${rate.toFixed(1)}%</span>
+        </div>
+        <div class="prog-track"><span class="prog-fill ${cls}" style="width:${rate.toFixed(1)}%"></span></div>
+        <div class="prog-row-meta"><span>Đã giải ngân: <b>${formatCurrency(disb, true)}</b></span><span>Dự toán: <b>${formatCurrency(base, true)}</b></span></div>
+      </div>`;
+  }).join('');
+}
+
 function renderDashboard() {
   const project = getCurrentProject();
   const kpiEl = document.getElementById('kpi-cards');
@@ -1331,6 +1359,7 @@ function renderDashboard() {
     document.getElementById('alerts-panel').innerHTML = '';
     renderDonutChart();
     renderBarChart();
+    renderProgressList();
     return;
   }
 
@@ -1473,6 +1502,7 @@ function renderDashboard() {
 
   renderDonutChart();
   renderBarChart();
+  renderProgressList();
 }
 
 function renderPackages(searchTerm = document.getElementById('search-packages')?.value || '') {
@@ -5598,6 +5628,7 @@ window.addEventListener('resize', () => {
     if (state.currentView === 'dashboard') {
       renderDonutChart();
       renderBarChart();
+      renderProgressList();
     }
   }, 250);
 });
