@@ -894,7 +894,8 @@ function renderDisbursementChart() {
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
-  const size = 220;
+  const availW = canvas.parentElement ? canvas.parentElement.clientWidth : 280;
+  const size = Math.max(240, Math.min(320, availW || 280));
   canvas.width = size * dpr;
   canvas.height = size * dpr;
   canvas.style.width = size + 'px';
@@ -942,16 +943,33 @@ function renderDisbursementChart() {
     startAngle = endAngle;
   });
 
-  const centerMaxWidth = innerR * 1.8;
-  ctx.fillStyle = '#334155';
-  fitFontSize(ctx, 'GIẢI NGÂN', centerMaxWidth, 700, 12);
+  const centerMaxWidth = innerR * 1.9;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('GIẢI NGÂN', cx, cy - 13);
+
+  // Giá trị hợp đồng (trên)
+  ctx.fillStyle = '#64748b';
+  fitFontSize(ctx, 'Giá trị HĐ', centerMaxWidth, 600, 10);
+  ctx.fillText('Giá trị HĐ', cx, cy - 40);
+  const contractLabel = formatCompactCurrency(totalContract);
+  fitFontSize(ctx, contractLabel, centerMaxWidth, 700, 14);
+  ctx.fillStyle = '#0f172a';
+  ctx.fillText(contractLabel, cx, cy - 24);
+
+  // % giải ngân (giữa)
   const pctLabel = overall.toFixed(1) + '%';
-  fitFontSize(ctx, pctLabel, centerMaxWidth, 700, 20);
+  fitFontSize(ctx, pctLabel, centerMaxWidth, 700, 22);
   ctx.fillStyle = '#2563eb';
-  ctx.fillText(pctLabel, cx, cy + 13);
+  ctx.fillText(pctLabel, cx, cy + 3);
+
+  // Đã giải ngân (dưới)
+  ctx.fillStyle = '#64748b';
+  fitFontSize(ctx, 'Đã giải ngân', centerMaxWidth, 600, 10);
+  ctx.fillText('Đã giải ngân', cx, cy + 27);
+  const disbLabel = formatCompactCurrency(totalDisbursed);
+  fitFontSize(ctx, disbLabel, centerMaxWidth, 700, 14);
+  ctx.fillStyle = '#0f172a';
+  ctx.fillText(disbLabel, cx, cy + 43);
 }
 
 function renderDisbursementDetail() {
@@ -995,7 +1013,7 @@ function renderDisbursementDetail() {
           <span class="prog-pct">${realPct.toFixed(1)}%</span>
         </div>
         <div class="prog-track"><span class="prog-fill ${cls}" style="width:${pct.toFixed(1)}%"></span></div>
-        <div class="prog-row-meta"><span>Đã giải ngân: <b>${formatCurrency(disbursed, true)}</b></span><span>Giá trị HĐ: <b>${formatCurrency(contract, true)}</b></span></div>
+        <div class="prog-row-meta prog-row-meta-stack"><span>Giá trị HĐ: <b>${formatCurrency(contract, true)}</b></span><span>Đã giải ngân: <b>${formatCurrency(disbursed, true)}</b></span></div>
       </div>`;
     });
     html += `</div>`;

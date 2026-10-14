@@ -802,7 +802,12 @@ body.read-only .edit-only { display: none !important; }
   font-weight: 600;
 }
 
-/* Mạng liên kết danh mục (nơ-ron) */
+.prog-row-meta-stack {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
 /* ---- Tiến độ giải ngân các gói thầu ---- */
 .disb-colorbar {
   display: flex;
@@ -813,14 +818,18 @@ body.read-only .edit-only { display: none !important; }
 
 .disb-split {
   display: grid;
-  grid-template-columns: 220px minmax(0, 1fr);
+  grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
   gap: 20px;
   align-items: start;
 }
 
+.disb-donut {
+  display: flex;
+  justify-content: center;
+}
+
 #chart-disburse {
   flex: 0 0 auto;
-  justify-self: center;
 }
 
 .disb-detail {
