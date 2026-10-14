@@ -860,411 +860,147 @@ function renderDonutChart() {
   }
 }
 
-let networkAnimFrame = null;
-
-function rateColor(rate) {
-  if (rate >= 100) return '#34d399';
-  if (rate >= 60) return '#22d3ee';
-  if (rate >= 30) return '#fbbf24';
-  return '#f87171';
+// ============================================================
+// TIẾN ĐỘ GIẢI NGÂN THEO GÓI THẦU
+// % giải ngân = lũy kế giải ngân / giá trị hợp đồng hiện hành
+// (giá trị hợp đồng hiện hành = trúng thầu + phát sinh đã duyệt)
+// ============================================================
+function disbColor(percent) {
+  if (percent >= 100) return '#34d399';
+  if (percent >= 60) return '#22d3ee';
+  if (percent >= 30) return '#fbbf24';
+  if (percent > 0) return '#f87171';
+  return '#cbd5e1';
 }
 
-function renderBarChart() {
-  const el = document.getElementById('chart-bar');
-  if (!el) return;
-  if (networkAnimFrame) { cancelAnimationFrame(networkAnimFrame); networkAnimFrame = null; }
-
-  const project = getCurrentProject();
-  const cats = project ? getSortedCategories(project) : [];
-
-  if (!cats.length) {
-    el.innerHTML = '<div class="plot-empty">Chưa có dữ liệu</div>';
-    return;
-  }
-
-  const legend = `
-    <div class="cmp-legend">
-      <span class="cmp-lbl"><i class="cmp-dot" style="background:#34d399"></i>Hoàn thành</span>
-      <span class="cmp-lbl"><i class="cmp-dot" style="background:#22d3ee"></i>&ge; 60%</span>
-      <span class="cmp-lbl"><i class="cmp-dot" style="background:#fbbf24"></i>&ge; 30%</span>
-      <span class="cmp-lbl"><i class="cmp-dot" style="background:#f87171"></i>&lt; 30%</span>
-    </div>
-    <p class="network-hint">Các danh mục quay quanh lõi dự án &nbsp;&middot;&nbsp; Kích thước = Tổng dự toán &nbsp;&middot;&nbsp; Màu = Tiến độ giải ngân &nbsp;&middot;&nbsp; Di chuột để xem, bấm để mở gói thầu</p>`;
-
-  el.innerHTML = legend + '<canvas id="network-canvas"></canvas>';
-  drawCategoryNetwork(document.getElementById('network-canvas'), cats, el);
-}
-
-function drawCategoryNetwork(canvas, cats, container) {
-  if (!canvas) return;
-  const dpr = window.devicePixelRatio || 1;
-  const width = Math.max(340, canvas.parentElement.clientWidth);
-  const height = 440;
-  canvas.style.width = width + 'px';
-  canvas.style.height = height + 'px';
-  canvas.width = width * dpr;
-  canvas.height = height * dpr;
-
-  const maxVal = Math.max(...cats.map(c => getCatInvestTotal(c)), 1);
-  const cx = width / 2;
-  const cy = height / 2;
-
-  const totalInvest = cats.reduce((s, c) => s + getCatInvestTotal(c), 0);
-  const totalDisbursed = cats.reduce((s, c) => s + getCatDisbursedTotal(c), 0);
-  const totalRate = totalInvest > 0 ? (totalDisbursed / totalInvest) * 100 : 0;
-
-  // Hệ hành tinh: lõi ở tâm, mỗi danh mục là một hành tinh quay trên quỹ đạo nghiêng
-  const tiltBase = 0.5;
-  const maxTilt = tiltBase + 0.08;
-  const maxOrbit = Math.max(120, Math.min(width / 2 - 48, (height / 2 - 40) / maxTilt));
-
-  const centerNode = { x: cx, y: cy, r: 24, color: '#38bdf8', cat: null, rate: totalRate, invest: totalInvest, disbursed: totalDisbursed };
-
-  const catNodes = cats.map((cat, i) => {
-    const invest = getCatInvestTotal(cat);
-    const disbursed = getCatDisbursedTotal(cat);
-    const rate = invest > 0 ? (disbursed / invest) * 100 : 0;
-    const ratio = cats.length <= 1 ? 0.5 : i / (cats.length - 1);
-    return {
-      cat, invest, disbursed, rate,
-      orbit: maxOrbit * (0.44 + ratio * 0.5),
-      phase: (i / cats.length) * Math.PI * 2 + Math.random() * 0.5,
-      speed: 0.34 * (1.25 - ratio * 0.65) * (0.9 + Math.random() * 0.2),
-      nodeTilt: tiltBase + (Math.random() - 0.5) * 0.16,
-      r: 12 + (invest / maxVal) * 20,
-      seed: Math.random() * 100,
-      color: rateColor(rate),
-      x: cx, y: cy
-    };
-  });
-
-  const pkgNodes = [];
-  catNodes.forEach(n => {
-    (n.cat.packages || []).slice(0, 6).forEach((p, j) => {
-      pkgNodes.push({
-        pkg: p, parent: n, color: n.color,
-        r: 1.8 + (j % 3) * 0.9,
-        orbit: n.r + 12 + j * 5,
-        phase: Math.random() * Math.PI * 2,
-        speed: 0.6 + Math.random() * 0.7,
-        x: n.x, y: n.y
+function getDisbursementRows(project) {
+  const rows = [];
+  getSortedCategories(project).forEach(cat => {
+    (cat.packages || []).forEach(pkg => {
+      const contract = getCurrentContractValue(pkg);
+      const disbursed = Number(pkg.cumulativeDisbursed) || 0;
+      rows.push({
+        cat, pkg, contract, disbursed,
+        variation: getApprovedVariationTotal(pkg),
+        percent: contract > 0 ? (disbursed / contract) * 100 : 0
       });
     });
   });
-
-  // Cập nhật vị trí theo quỹ đạo mỗi khung hình (không dùng layout tĩnh)
-  function layout() {
-    catNodes.forEach(n => {
-      const a = n.phase + t * n.speed;
-      n.x = cx + Math.cos(a) * n.orbit;
-      n.y = cy + Math.sin(a) * n.orbit * n.nodeTilt;
-    });
-    pkgNodes.forEach(p => {
-      const a = p.phase + t * p.speed;
-      p.x = p.parent.x + Math.cos(a) * p.orbit;
-      p.y = p.parent.y + Math.sin(a) * p.orbit * 0.72;
-    });
-  }
-
-  const starCount = Math.min(140, Math.round((width * height) / 5200));
-  const stars = Array.from({ length: starCount }, () => ({
-    x: Math.random() * width, y: Math.random() * height,
-    r: Math.random() * 1.2 + 0.25, tw: Math.random() * Math.PI * 2, sp: Math.random() * 0.6 + 0.15
-  }));
-
-  let tip = container.querySelector('.chart-tooltip');
-  if (!tip) { tip = document.createElement('div'); tip.className = 'chart-tooltip'; container.appendChild(tip); }
-
-  const maxDim = Math.max(width, height);
-  let t = 0;
-  function frame() {
-    networkAnimFrame = requestAnimationFrame(frame);
-    t += 0.016;
-    layout();
-    const ctx = canvas.getContext('2d');
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-    const bg = ctx.createRadialGradient(cx, cy, 0, cx, cy, maxDim * 0.8);
-    bg.addColorStop(0, '#122036');
-    bg.addColorStop(0.5, '#0b1626');
-    bg.addColorStop(1, '#04070d');
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, width, height);
-
-    const neb = ctx.createRadialGradient(cx, cy * 0.72, 0, cx, cy, maxDim * 0.62);
-    neb.addColorStop(0, 'rgba(56,189,248,0.10)');
-    neb.addColorStop(0.6, 'rgba(99,102,241,0.05)');
-    neb.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = neb;
-    ctx.fillRect(0, 0, width, height);
-
-    stars.forEach(d => {
-      const a = 0.2 + 0.6 * (0.5 + 0.5 * Math.sin(t * d.sp * 2.4 + d.tw));
-      ctx.globalAlpha = a;
-      ctx.fillStyle = '#cbd5e1';
-      ctx.beginPath();
-      ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
-      ctx.fill();
-    });
-    ctx.globalAlpha = 1;
-
-    // Quỹ đạo của từng danh mục
-    catNodes.forEach(n => {
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.scale(1, n.nodeTilt);
-      ctx.beginPath();
-      ctx.arc(0, 0, n.orbit, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(148,163,184,0.12)';
-      ctx.lineWidth = 1;
-      ctx.stroke();
-      ctx.restore();
-    });
-
-    // Center -> category edges + energy streams
-    catNodes.forEach((n, i) => {
-      drawCurvedEdge(ctx, centerNode, n, hexAlpha(n.color, 0.32), 1.6);
-      for (let k = 0; k < 3; k++) {
-        const s = (t * (0.35 + n.rate / 120) + i * 0.21 + k * 0.33) % 1;
-        const px = centerNode.x + (n.x - centerNode.x) * s;
-        const py = centerNode.y + (n.y - centerNode.y) * s;
-        const s2 = Math.max(0, s - 0.07);
-        const px2 = centerNode.x + (n.x - centerNode.x) * s2;
-        const py2 = centerNode.y + (n.y - centerNode.y) * s2;
-        const grad = ctx.createLinearGradient(px2, py2, px, py);
-        grad.addColorStop(0, hexAlpha(n.color, 0));
-        grad.addColorStop(1, hexAlpha(n.color, 0.95));
-        ctx.strokeStyle = grad;
-        ctx.lineWidth = 3;
-        ctx.lineCap = 'round';
-        ctx.beginPath();
-        ctx.moveTo(px2, py2);
-        ctx.lineTo(px, py);
-        ctx.stroke();
-        ctx.fillStyle = '#ffffff';
-        ctx.beginPath();
-        ctx.arc(px, py, 2.2, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    });
-
-    // Category -> package edges + dots
-    pkgNodes.forEach(p => {
-      ctx.strokeStyle = hexAlpha(p.color, 0.3);
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(p.parent.x, p.parent.y);
-      ctx.lineTo(p.x, p.y);
-      ctx.stroke();
-      ctx.fillStyle = hexAlpha(p.color, 0.95);
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-      ctx.fill();
-    });
-
-    // Hành tinh (danh mục) vẽ theo độ sâu để tạo cảm giác 3D
-    [...catNodes].sort((a, b) => a.y - b.y).forEach(n => {
-      const depth = Math.max(0, Math.min(1, (n.y - (cy - n.orbit)) / (2 * n.orbit || 1)));
-      drawPlanet(ctx, n, depth, t);
-    });
-
-    // Lõi dự án (mặt trời)
-    drawCore(ctx, centerNode, t);
-
-    // Nhãn danh mục
-    ctx.font = '600 10.5px Inter, system-ui, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
-    catNodes.forEach(n => {
-      const name = String(n.cat.name || '');
-      const short = name.length > 22 ? name.slice(0, 22) + '…' : name;
-      const tw = ctx.measureText(short).width;
-      const lx = Math.max(tw / 2 + 8, Math.min(width - tw / 2 - 8, n.x));
-      const ly = Math.min(n.y + n.r + 6, height - 18);
-      ctx.fillStyle = 'rgba(8,17,32,0.6)';
-      ctx.fillRect(lx - tw / 2 - 6, ly - 2, tw + 12, 15);
-      ctx.fillStyle = '#cbd5e1';
-      ctx.fillText(short, lx, ly);
-    });
-  }
-  networkAnimFrame = requestAnimationFrame(frame);
-
-  // ---- Di chuột xem chi tiết, bấm để mở gói thầu ----
-  const hit = (mx, my) => {
-    const inCat = catNodes.find(n => Math.hypot(mx - n.x, my - n.y) <= n.r + 6);
-    if (inCat) return inCat;
-    return pkgNodes.find(n => Math.hypot(mx - n.x, my - n.y) <= n.r + 5) || null;
-  };
-
-  let downAt = null;
-  canvas.onmousedown = (e) => {
-    const rect = canvas.getBoundingClientRect();
-    downAt = { mx: e.clientX - rect.left, my: e.clientY - rect.top };
-  };
-  canvas.onmousemove = (e) => {
-    const rect = canvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
-    const n = hit(mx, my);
-    if (!n) { tip.style.display = 'none'; canvas.style.cursor = 'default'; return; }
-    canvas.style.cursor = 'pointer';
-    tip.style.display = 'block';
-    if (n.cat) {
-      tip.innerHTML = `<strong>${esc(n.cat.code ? n.cat.code + '. ' : '')}${esc(n.cat.name)}</strong><br>Tổng dự toán: <b>${esc(formatCurrency(n.invest))}</b><br>Đã giải ngân: <b>${esc(formatCurrency(n.disbursed))}</b> (${n.rate.toFixed(1)}%)<br>Gói thầu: <b>${(n.cat.packages || []).length}</b><br><small>Bấm để xem gói thầu</small>`;
-    } else if (n.parent) {
-      tip.innerHTML = `<strong>${esc(n.pkg?.name || '')}</strong>`;
-    } else {
-      tip.innerHTML = `<strong>Toàn dự án</strong><br>Tổng dự toán: <b>${esc(formatCurrency(n.invest))}</b><br>Đã giải ngân: <b>${esc(formatCurrency(n.disbursed))}</b> (${n.rate.toFixed(1)}%)`;
-    }
-    tip.style.left = Math.min(mx + 14, rect.width - 220) + 'px';
-    tip.style.top = Math.max(my - 10, 0) + 'px';
-  };
-  canvas.onmouseup = (e) => {
-    if (!downAt) return;
-    const rect = canvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
-    const moved = Math.hypot(mx - downAt.mx, my - downAt.my);
-    downAt = null;
-    if (moved >= 6) return;
-    const n = hit(mx, my);
-    if (n && n.cat) drillToCategory(n.cat.id);
-  };
-  canvas.onmouseleave = () => { tip.style.display = 'none'; };
+  return rows;
 }
 
-function drillToCategory(catId) {
-  switchView('packages');
-  setTimeout(() => {
-    const group = document.querySelector(`.category-group[data-cat-id="${catId}"]`);
-    if (group) {
-      group.classList.add('expanded');
-      group.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  }, 80);
-}
+function renderDisbursementChart() {
+  const canvas = document.getElementById('chart-disburse');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const size = 220;
+  canvas.width = size * dpr;
+  canvas.height = size * dpr;
+  canvas.style.width = size + 'px';
+  canvas.style.height = size + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, size, size);
 
-function drawCurvedEdge(ctx, a, b, color, width) {
-  const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
-  const dx = b.x - a.x, dy = b.y - a.y;
-  const len = Math.hypot(dx, dy) || 1;
-  const bow = len * 0.07;
-  const cpx = mx - dy / len * bow, cpy = my + dx / len * bow;
-  ctx.strokeStyle = color;
-  ctx.lineWidth = width;
-  ctx.lineCap = 'round';
-  ctx.beginPath();
-  ctx.moveTo(a.x, a.y);
-  ctx.quadraticCurveTo(cpx, cpy, b.x, b.y);
-  ctx.stroke();
-}
+  const project = getCurrentProject();
+  const rows = project ? getDisbursementRows(project).filter(r => r.contract > 0) : [];
+  const cx = size / 2, cy = size / 2;
 
-// Hành tinh danh mục — bóng loáng, có vành sáng và điểm phản chiếu
-function drawPlanet(ctx, n, depth, t) {
-  const R = n.r * (0.9 + depth * 0.2);
-  const breathe = 1 + Math.sin(t * 1.2 + n.seed) * 0.04;
-  const rad = R * breathe;
+  const totalContract = rows.reduce((s, r) => s + r.contract, 0);
+  const totalDisbursed = rows.reduce((s, r) => s + r.disbursed, 0);
+  const overall = totalContract > 0 ? (totalDisbursed / totalContract) * 100 : 0;
 
-  const glow = ctx.createRadialGradient(n.x, n.y, rad * 0.5, n.x, n.y, rad * 3);
-  glow.addColorStop(0, hexAlpha(n.color, 0.3 * (0.55 + depth * 0.45)));
-  glow.addColorStop(1, hexAlpha(n.color, 0));
-  ctx.fillStyle = glow;
-  ctx.beginPath();
-  ctx.arc(n.x, n.y, rad * 3, 0, Math.PI * 2);
-  ctx.fill();
-
-  const body = ctx.createRadialGradient(n.x - rad * 0.35, n.y - rad * 0.4, rad * 0.12, n.x, n.y, rad);
-  body.addColorStop(0, lighten(n.color, 0.55));
-  body.addColorStop(0.5, n.color);
-  body.addColorStop(1, darken(n.color, 0.38));
-  ctx.fillStyle = body;
-  ctx.beginPath();
-  ctx.arc(n.x, n.y, rad, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.lineWidth = 1.4;
-  ctx.strokeStyle = hexAlpha('#ffffff', 0.28 + depth * 0.32);
-  ctx.stroke();
-
-  ctx.fillStyle = 'rgba(255,255,255,0.8)';
-  ctx.beginPath();
-  ctx.arc(n.x - rad * 0.34, n.y - rad * 0.38, Math.max(1.1, rad * 0.14), 0, Math.PI * 2);
-  ctx.fill();
-
-  if (n.cat.code && rad > 11) {
-    ctx.fillStyle = 'rgba(3,12,22,0.82)';
-    ctx.font = `bold ${Math.round(rad * 0.6)}px Inter, system-ui, sans-serif`;
+  if (!rows.length || totalContract <= 0) {
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '500 13px Inter, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(n.cat.code, n.x, n.y + 0.5);
+    ctx.fillText('Chưa có dữ liệu', cx, cy);
+    return;
   }
-}
 
-// Lõi dự án — mặt trời có vành quay và nhịp thở
-function drawCore(ctx, node, t) {
-  const pulse = 1 + Math.sin(t * 1.6) * 0.06;
-  const R = node.r * pulse;
+  const outerR = size / 2 - 26;
+  const innerR = outerR * 0.62;
+  let startAngle = -Math.PI / 2;
+  rows.forEach(r => {
+    const slice = (r.contract / totalContract) * Math.PI * 2;
+    const endAngle = startAngle + slice;
+    ctx.beginPath();
+    ctx.arc(cx, cy, outerR, startAngle, endAngle);
+    ctx.arc(cx, cy, innerR, endAngle, startAngle, true);
+    ctx.closePath();
+    ctx.fillStyle = disbColor(r.percent);
+    ctx.fill();
 
-  const glow = ctx.createRadialGradient(node.x, node.y, R * 0.4, node.x, node.y, R * 3.4);
-  glow.addColorStop(0, 'rgba(125,211,252,0.5)');
-  glow.addColorStop(0.5, 'rgba(56,189,248,0.16)');
-  glow.addColorStop(1, 'rgba(56,189,248,0)');
-  ctx.fillStyle = glow;
-  ctx.beginPath();
-  ctx.arc(node.x, node.y, R * 3.4, 0, Math.PI * 2);
-  ctx.fill();
+    ctx.beginPath();
+    ctx.arc(cx, cy, outerR, endAngle - 0.008, endAngle + 0.008);
+    ctx.arc(cx, cy, innerR, endAngle + 0.008, endAngle - 0.008, true);
+    ctx.closePath();
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
 
-  ctx.save();
-  ctx.translate(node.x, node.y);
-  ctx.rotate(t * 0.5);
-  ctx.strokeStyle = 'rgba(125,211,252,0.35)';
-  ctx.lineWidth = 1.4;
-  ctx.beginPath();
-  ctx.ellipse(0, 0, R * 1.9, R * 0.55, 0, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.fillStyle = 'rgba(226,246,255,0.9)';
-  ctx.beginPath();
-  ctx.arc(R * 1.9, 0, 2.4, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
+    startAngle = endAngle;
+  });
 
-  const body = ctx.createRadialGradient(node.x - R * 0.3, node.y - R * 0.35, R * 0.1, node.x, node.y, R);
-  body.addColorStop(0, '#e0f5ff');
-  body.addColorStop(0.42, '#7dd3fc');
-  body.addColorStop(1, '#0284c7');
-  ctx.fillStyle = body;
-  ctx.beginPath();
-  ctx.arc(node.x, node.y, R, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = '#04121f';
-  ctx.font = `bold ${Math.round(R * 0.72)}px Inter, system-ui, sans-serif`;
+  const centerMaxWidth = innerR * 1.8;
+  ctx.fillStyle = '#334155';
+  fitFontSize(ctx, 'GIẢI NGÂN', centerMaxWidth, 700, 12);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(Math.round(node.rate) + '%', node.x, node.y + 1);
+  ctx.fillText('GIẢI NGÂN', cx, cy - 13);
+  const pctLabel = overall.toFixed(1) + '%';
+  fitFontSize(ctx, pctLabel, centerMaxWidth, 700, 20);
+  ctx.fillStyle = '#2563eb';
+  ctx.fillText(pctLabel, cx, cy + 13);
 }
 
-function hexAlpha(hex, alpha) {
-  const h = hex.replace('#', '');
-  const full = h.length === 3 ? h.split('').map(c => c + c).join('') : h;
-  const num = parseInt(full, 16);
-  const r = (num >> 16) & 255, g = (num >> 8) & 255, b = num & 255;
-  return `rgba(${r},${g},${b},${alpha})`;
-}
-
-function lighten(hex, amt) {
-  const c = hexToRgb(hex);
-  return `rgb(${Math.round(c.r + (255 - c.r) * amt)},${Math.round(c.g + (255 - c.g) * amt)},${Math.round(c.b + (255 - c.b) * amt)})`;
-}
-
-function darken(hex, amt) {
-  const c = hexToRgb(hex);
-  return `rgb(${Math.round(c.r * (1 - amt))},${Math.round(c.g * (1 - amt))},${Math.round(c.b * (1 - amt))})`;
-}
-
-function hexToRgb(hex) {
-  const h = hex.replace('#', '');
-  const full = h.length === 3 ? h.split('').map(c => c + c).join('') : h;
-  const num = parseInt(full, 16);
-  return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
+function renderDisbursementDetail() {
+  const el = document.getElementById('disburse-detail');
+  if (!el) return;
+  const project = getCurrentProject();
+  if (!project) {
+    el.innerHTML = '<p class="plot-empty">Chưa có dữ liệu</p>';
+    return;
+  }
+  const cats = getSortedCategories(project);
+  let html = '';
+  let any = false;
+  cats.forEach(cat => {
+    const pkgs = cat.packages || [];
+    if (!pkgs.length) return;
+    const catContract = pkgs.reduce((s, p) => s + getCurrentContractValue(p), 0);
+    const catDisbursed = pkgs.reduce((s, p) => s + (Number(p.cumulativeDisbursed) || 0), 0);
+    if (catContract <= 0 && catDisbursed <= 0) return;
+    any = true;
+    const catPct = catContract > 0 ? (catDisbursed / catContract) * 100 : 0;
+    html += `<div class="disb-group">
+      <div class="disb-group-head">
+        ${cat.code ? `<span class="prog-code">${esc(cat.code)}</span>` : ''}
+        <span class="disb-group-name">${esc(cat.name)}</span>
+        <span class="disb-group-pct">${catPct.toFixed(1)}%</span>
+      </div>`;
+    pkgs.forEach(pkg => {
+      const contract = getCurrentContractValue(pkg);
+      const variation = getApprovedVariationTotal(pkg);
+      const disbursed = Number(pkg.cumulativeDisbursed) || 0;
+      const realPct = contract > 0 ? (disbursed / contract) * 100 : 0;
+      const pct = Math.min(100, realPct);
+      const cls = pct >= 100 ? 'complete' : pct >= 60 ? 'high' : pct >= 30 ? 'medium' : 'low';
+      const psBadge = variation > 0
+        ? `<span class="badge-ps" title="Phát sinh đã duyệt: ${esc(formatCurrency(variation))}">+PS ${formatCompactCurrency(variation)}</span>`
+        : '';
+      html += `<div class="prog-row">
+        <div class="prog-row-head">
+          <span class="prog-name">${esc(pkg.name)}${psBadge}</span>
+          <span class="prog-pct">${realPct.toFixed(1)}%</span>
+        </div>
+        <div class="prog-track"><span class="prog-fill ${cls}" style="width:${pct.toFixed(1)}%"></span></div>
+        <div class="prog-row-meta"><span>Đã giải ngân: <b>${formatCurrency(disbursed, true)}</b></span><span>Giá trị HĐ: <b>${formatCurrency(contract, true)}</b></span></div>
+      </div>`;
+    });
+    html += `</div>`;
+  });
+  el.innerHTML = any ? html : '<p class="plot-empty">Chưa có gói thầu với giá trị hợp đồng</p>';
 }
 
 // ============================================================
@@ -1343,34 +1079,6 @@ function renderAlertsPanel(project) {
   `;
 }
 
-// Tiến độ giải ngân theo danh mục (thanh tỷ lệ, HTML/CSS)
-function renderProgressList() {
-  const el = document.getElementById('progress-list');
-  if (!el) return;
-  const project = getCurrentProject();
-  const cats = project ? getSortedCategories(project) : [];
-  if (!cats.length) {
-    el.innerHTML = '<p class="plot-empty">Chưa có dữ liệu</p>';
-    return;
-  }
-  el.innerHTML = cats.map(cat => {
-    const invest = getCatInvestTotal(cat);
-    const bid = getCatBidTotal(cat);
-    const disb = getCatDisbursedTotal(cat);
-    const base = invest > 0 ? invest : bid;
-    const rate = base > 0 ? Math.min(100, (disb / base) * 100) : 0;
-    const cls = rate >= 100 ? 'complete' : rate >= 60 ? 'high' : rate >= 30 ? 'medium' : 'low';
-    return `<div class="prog-row">
-        <div class="prog-row-head">
-          <span class="prog-name">${cat.code ? `<span class="prog-code">${esc(cat.code)}</span>` : ''}${esc(cat.name)}</span>
-          <span class="prog-pct">${rate.toFixed(1)}%</span>
-        </div>
-        <div class="prog-track"><span class="prog-fill ${cls}" style="width:${rate.toFixed(1)}%"></span></div>
-        <div class="prog-row-meta"><span>Đã giải ngân: <b>${formatCurrency(disb, true)}</b></span><span>Dự toán: <b>${formatCurrency(base, true)}</b></span></div>
-      </div>`;
-  }).join('');
-}
-
 function renderDashboard() {
   const project = getCurrentProject();
   const kpiEl = document.getElementById('kpi-cards');
@@ -1383,8 +1091,8 @@ function renderDashboard() {
     if (timelineEl) timelineEl.innerHTML = '';
     document.getElementById('alerts-panel').innerHTML = '';
     renderDonutChart();
-    renderBarChart();
-    renderProgressList();
+    renderDisbursementChart();
+    renderDisbursementDetail();
     return;
   }
 
@@ -1526,8 +1234,8 @@ function renderDashboard() {
   }
 
   renderDonutChart();
-  renderBarChart();
-  renderProgressList();
+  renderDisbursementChart();
+  renderDisbursementDetail();
 }
 
 function renderPackages(searchTerm = document.getElementById('search-packages')?.value || '') {
@@ -5652,8 +5360,8 @@ window.addEventListener('resize', () => {
   resizeTimer = setTimeout(() => {
     if (state.currentView === 'dashboard') {
       renderDonutChart();
-      renderBarChart();
-      renderProgressList();
+      renderDisbursementChart();
+      renderDisbursementDetail();
     }
   }, 250);
 });

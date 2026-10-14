@@ -669,13 +669,9 @@ body.read-only .edit-only { display: none !important; }
    ============================================================ */
 .charts-row {
   display: grid;
-  grid-template-columns: minmax(300px, 0.85fr) minmax(0, 1.4fr);
+  grid-template-columns: minmax(280px, 0.75fr) minmax(0, 1.5fr);
   gap: 16px;
   margin-bottom: 16px;
-}
-
-.charts-row-wide {
-  grid-template-columns: 1fr;
 }
 
 .donut-card .chart-wrapper {
@@ -807,33 +803,77 @@ body.read-only .edit-only { display: none !important; }
 }
 
 /* Mạng liên kết danh mục (nơ-ron) */
-#chart-bar {
-  position: relative;
+/* ---- Tiến độ giải ngân các gói thầu ---- */
+.disb-colorbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: -4px 0 16px;
 }
 
-.network-hint {
-  margin: -10px 0 10px;
-  font-size: 0.72rem;
-  color: var(--text-muted);
+.disb-split {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
 }
 
-.chart-tooltip {
-  position: absolute;
-  z-index: 10;
-  display: none;
-  pointer-events: none;
-  background: #0f172a;
-  color: #f8fafc;
-  font-size: 0.72rem;
-  line-height: 1.45;
-  padding: 8px 10px;
-  border-radius: 8px;
-  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.28);
-  max-width: 240px;
+#chart-disburse {
+  flex: 0 0 auto;
+  justify-self: center;
 }
 
-.chart-tooltip b {
-  color: #7dd3fc;
+.disb-detail {
+  max-height: 360px;
+  overflow-y: auto;
+  padding-right: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.disb-detail::-webkit-scrollbar { width: 6px; }
+.disb-detail::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+
+.disb-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.disb-group-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-glass);
+}
+
+.disb-group-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.disb-group-pct {
+  flex-shrink: 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--accent-blue);
+}
+
+.badge-ps {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: #fef3c7;
+  color: #b45309;
+  font-size: 0.66rem;
+  font-weight: 700;
+  vertical-align: middle;
 }
 
 /* Comparison horizontal bar list */
@@ -2635,6 +2675,12 @@ canvas {
   }
   .dash-lower-row {
     grid-template-columns: 1fr;
+  }
+  .disb-split {
+    grid-template-columns: 1fr;
+  }
+  .disb-detail {
+    max-height: none;
   }
 }
 
