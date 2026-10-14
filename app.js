@@ -1350,9 +1350,8 @@ function renderPackages(searchTerm = document.getElementById('search-packages')?
                     <td class="pkg-wrap">${esc(pkg.selectionMethod || '—')}</td>
                     <td class="pkg-wrap">${esc(pkg.contractor || '—')}</td>
                     <td>
-                      <span class="badge ${(() => { const r = getContractRoute(pkg); return r.code === 'ktkt' ? 'badge-warning' : (r.code === 'bcnckt' ? 'badge-info' : (r.code === 'competitive' ? 'badge-info' : (r.code === 'directPurchase' ? 'badge-success' : 'badge-neutral'))); })()}">${getContractRoute(pkg).name}</span>
                       ${pkg.pkgType !== 'consulting' && pkg.pkgType !== 'nonConsulting' ? `
-                      <div class="progress-bar" style="margin-top:4px"><div class="progress-fill ${progressClass}" style="width:${pkg.progress}%"></div></div>
+                      <div class="progress-bar"><div class="progress-fill ${progressClass}" style="width:${pkg.progress}%"></div></div>
                       <span>${pkg.progress}%</span>
                       ` : '<span style="color:var(--text-muted);font-size:0.85rem">—</span>'}
                     </td>
