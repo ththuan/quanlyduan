@@ -1367,6 +1367,9 @@ function renderPackages(searchTerm = document.getElementById('search-packages')?
                         <button class="btn-icon btn-sm edit-only" title="Sửa" onclick="editPackage('${cat.id}','${pkg.id}')">
                           <span class="material-symbols-rounded">edit</span>
                         </button>
+                        <button class="btn-icon btn-sm edit-only" title="Chuyển sang danh mục khác" onclick="movePackage('${cat.id}','${pkg.id}')">
+                          <span class="material-symbols-rounded">drive_file_move</span>
+                        </button>
                         <button class="btn-icon btn-sm edit-only" title="Xóa" onclick="deletePackage('${cat.id}','${pkg.id}')">
                           <span class="material-symbols-rounded">delete</span>
                         </button>
@@ -3678,6 +3681,59 @@ function confirmDeletePackage(catId, pkgId) {
   showToast('Đã xóa gói thầu', 'info');
 }
 
+// ---- Chuyển gói thầu sang danh mục khác ----
+function movePackage(catId, pkgId) {
+  if (!requireEditPermission()) return;
+  const project = getCurrentProject();
+  const cat = project?.categories.find(c => c.id === catId);
+  const pkg = cat?.packages.find(p => p.id === pkgId);
+  if (!pkg) return;
+  const others = project.categories.filter(c => c.id !== catId);
+  if (!others.length) {
+    showToast('Chưa có danh mục khác để chuyển đến', 'error');
+    return;
+  }
+  const options = others.map(c => `<option value="${esc(c.id)}">${esc((c.code ? c.code + '. ' : '') + c.name)}</option>`).join('');
+  openModal('Chuyển gói thầu sang danh mục khác', `
+    <div class="form-grid form-single">
+      <div class="form-group">
+        <label>Gói thầu</label>
+        <input type="text" value="${esc(pkg.name)}" readonly>
+      </div>
+      <div class="form-group">
+        <label>Danh mục hiện tại</label>
+        <input type="text" value="${esc((cat.code ? cat.code + '. ' : '') + cat.name)}" readonly>
+      </div>
+      <div class="form-group">
+        <label>Chuyển đến danh mục</label>
+        <select id="move-target-cat">${options}</select>
+      </div>
+    </div>
+  `, `
+    <button class="btn btn-secondary" onclick="closeModal()">Hủy</button>
+    <button class="btn btn-primary" onclick="confirmMovePackage('${catId}','${pkgId}')">
+      <span class="material-symbols-rounded">drive_file_move</span> Chuyển
+    </button>
+  `);
+}
+
+function confirmMovePackage(catId, pkgId) {
+  if (!requireEditPermission()) return;
+  const project = getCurrentProject();
+  const fromCat = project?.categories.find(c => c.id === catId);
+  const pkg = fromCat?.packages.find(p => p.id === pkgId);
+  const targetId = document.getElementById('move-target-cat')?.value;
+  const toCat = project?.categories.find(c => c.id === targetId);
+  if (!pkg || !toCat || toCat.id === catId) { showToast('Danh mục đích không hợp lệ', 'error'); return; }
+  fromCat.packages = fromCat.packages.filter(p => p.id !== pkgId);
+  toCat.packages.push(pkg);
+  addAudit(project, 'update', 'gói thầu', pkg.name, `Chuyển từ "${fromCat.name}" sang "${toCat.name}"`);
+  saveState();
+  closeModal();
+  renderAll();
+  showToast(`Đã chuyển "${pkg.name}" sang danh mục ${toCat.name}`);
+}
+
 // ---- View Package Detail ----
 function viewPackageDetail(catId, pkgId) {
   const project = getCurrentProject();
@@ -3858,6 +3914,9 @@ function viewPackageDetail(catId, pkgId) {
     <button class="btn btn-secondary" onclick="closeModal()">Đóng</button>
     <button class="btn btn-primary edit-only" onclick="editPackage('${catId}','${pkgId}')">
       <span class="material-symbols-rounded">edit</span> Sửa
+    </button>
+    <button class="btn btn-secondary edit-only" onclick="movePackage('${catId}','${pkgId}')">
+      <span class="material-symbols-rounded">drive_file_move</span> Chuyển danh mục
     </button>
   `);
 }
