@@ -763,13 +763,20 @@ function fitFontSize(ctx, text, maxWidth, weight, maxSize, minSize = 8) {
   return size;
 }
 
+// Cỡ chung cho cả hai biểu đồ tròn để đồng đều nhau
+function donutSize() {
+  const w = window.innerWidth;
+  if (w <= 560) return 210;
+  if (w <= 1024) return 250;
+  return 290;
+}
+
 function renderDonutChart() {
   const canvas = document.getElementById('chart-donut');
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
-  const availW = canvas.parentElement ? canvas.parentElement.clientWidth : 380;
-  const size = Math.max(220, Math.min(380, availW || 380));
+  const size = donutSize();
   canvas.width = size * dpr;
   canvas.height = size * dpr;
   canvas.style.width = size + 'px';
@@ -896,8 +903,7 @@ function renderDisbursementChart() {
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
-  const availW = canvas.parentElement ? canvas.parentElement.clientWidth : 280;
-  const size = Math.max(240, Math.min(320, availW || 280));
+  const size = donutSize();
   canvas.width = size * dpr;
   canvas.height = size * dpr;
   canvas.style.width = size + 'px';
@@ -1127,7 +1133,7 @@ function renderDashboard() {
         <div class="kpi-icon"><span class="material-symbols-rounded">account_balance</span></div>
       </div>
       <div class="kpi-value">${formatCurrency(totalInvest, true)}</div>
-      <div class="kpi-sub">KH vốn năm ${project.planYear || '—'}: ${formatCurrency(project.annualPlan, true)}</div>
+      <div class="kpi-sub">${project.annualPlan > 0 ? `KH vốn năm ${project.planYear || '—'}: ${formatCurrency(project.annualPlan, true)}` : `${allPkgs.length} gói thầu · ${project.categories.length} danh mục`}</div>
     </div>
     <div class="kpi-card glass-card" data-color="purple">
       <div class="kpi-header">
@@ -1376,7 +1382,7 @@ function renderReports() {
       <div class="report-summary-card glass-card">
         <h4>Tổng mức đầu tư</h4>
         <div class="big-number" style="color:var(--accent-cyan)">${formatCurrency(totalInvest, true)}</div>
-        <div class="big-sub">Kế hoạch vốn năm ${project.planYear || '—'}: ${formatCurrency(project.annualPlan, true)}</div>
+        ${project.annualPlan > 0 ? `<div class="big-sub">Kế hoạch vốn năm ${project.planYear || '—'}: ${formatCurrency(project.annualPlan, true)}</div>` : ''}
       </div>
       <div class="report-summary-card glass-card">
         <h4>Đã thanh toán</h4>
