@@ -35,18 +35,12 @@ if (HTTPS_PFX && fs.existsSync(HTTPS_PFX)) {
 const IS_HTTPS = !!tlsOptions;
 
 app.disable('x-powered-by');
-// Không parse body JSON cho luồng proxy Văn phòng AI (để chuyển tiếp nguyên vẹn)
-app.use((req, res, next) => {
-  if (req.path.startsWith('/van-phong-ai')) return next();
-  express.json({ limit: '10mb' })(req, res, next);
-});
+app.use(express.json({ limit: '10mb' }));
 
 // ---- Security headers (không cần helmet) ----
 app.use((req, res, next) => {
-  const isVanPhong = req.path.startsWith('/van-phong-ai');
   res.setHeader('X-Content-Type-Options', 'nosniff');
-  // Văn phòng AI được nhúng trong iframe cùng nguồn; phần còn lại vẫn chặn nhúng.
-  res.setHeader('X-Frame-Options', isVanPhong ? 'SAMEORIGIN' : 'DENY');
+  res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'same-origin');
   res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
@@ -59,7 +53,7 @@ app.use((req, res, next) => {
     "img-src 'self' data: blob:; " +
     "connect-src 'self' https://static.cloudflareinsights.com; " +
     "object-src 'none'; base-uri 'self'; " +
-    (isVanPhong ? "frame-ancestors 'self'; " : "frame-ancestors 'none'; ") +
+    "frame-ancestors 'none'; " +
     "frame-src 'self' blob: data:"
   );
   next();
@@ -74,7 +68,7 @@ function requireAuth(req, res, next) {
   const user = db.getUserById(session.user_id);
   if (!user) return res.status(401).json({ error: 'Chưa đăng nhập' });
   req.sessionId = session.id;
-  // Đồng bộ cookie cho iframe Văn phòng AI (cả phiên cũ chưa đăng nhập lại)
+  // Đồng bộ cookie phiên web (đọc bởi các luồng web cùng nguồn)
   setSessionCookie(res, session.id);
   req.user = { id: user.id, username: user.username, role: user.role, mustChangePassword: !!user.must_change_password };
   // Ép đổi mật khẩu: chặn mọi API trừ logout, đổi mật khẩu, /api/me
@@ -98,27 +92,6 @@ function setSessionCookie(res, sessionId) {
 
 function clearSessionCookie(res) {
   res.setHeader('Set-Cookie', 'qlda_sid=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0');
-}
-
-function parseCookie(header) {
-  const out = {};
-  if (!header) return out;
-  header.split(';').forEach(p => {
-    const i = p.indexOf('=');
-    if (i > 0) out[p.slice(0, i).trim()] = decodeURIComponent(p.slice(i + 1).trim());
-  });
-  return out;
-}
-
-// Xác thực cho iframe/proxy web (đọc cookie qlda_sid) — không ép đổi mật khẩu.
-function requireAuthWeb(req, res, next) {
-  const sid = parseCookie(req.headers.cookie || '').qlda_sid;
-  const session = sid && db.getSessionById(sid);
-  if (!session) return res.status(401).json({ error: 'Chưa đăng nhập' });
-  const user = db.getUserById(session.user_id);
-  if (!user) return res.status(401).json({ error: 'Chưa đăng nhập' });
-  req.user = { id: user.id, username: user.username, role: user.role };
-  next();
 }
 
 // Public healthcheck (no auth) for Docker HEALTHCHECK / monitoring
@@ -147,75 +120,6 @@ app.get('/assets/inter-vietnamese.woff2', (req, res) => res.sendFile(path.join(R
 app.get('/assets/inter-latin.woff2', (req, res) => res.sendFile(path.join(ROOT_DIR, 'assets', 'inter-latin.woff2'), { headers: { 'Cache-Control': 'public, max-age=31536000, immutable' } }));
 app.get('/assets/pdf.min.js', (req, res) => res.sendFile(path.join(ROOT_DIR, 'assets', 'pdf.min.js'), { headers: { 'Cache-Control': 'public, max-age=31536000, immutable' } }));
 app.get('/assets/pdf.worker.min.js', (req, res) => res.sendFile(path.join(ROOT_DIR, 'assets', 'pdf.worker.min.js'), { headers: { 'Cache-Control': 'public, max-age=31536000, immutable' } }));
-
-// ---- Văn phòng AI (serve directly from main server, no proxy needed) ----
-// Autonomous office is integrated into this server now
-
-// Serve van-phong-ai HTML page
-app.get('/van-phong-ai/quy-trinh-thanh-toan.html', requireAuthWeb, (req, res) => {
-  const filePath = path.join(ROOT_DIR, 'VAN-PHONG-AI', 'quy-trinh-thanh-toan.html');
-  res.sendFile(filePath);
-});
-
-// Serve other van-phong-ai static files
-app.use('/van-phong-ai', requireAuthWeb, express.static(path.join(ROOT_DIR, 'VAN-PHONG-AI')));
-
-const MONITOR_SECRET = process.env.MONITOR_SECRET || '';
-
-function hasMonitorValue(v) {
-  const s = String(v ?? '').trim();
-  return s !== '' && s !== '-';
-}
-
-function monitorStatus(pkg) {
-  if (!pkg) return 'notStarted';
-  if (pkg.handoverDate) return 'handedOver';
-  if (pkg.acceptanceStatus === 'Đã nghiệm thu' && (pkg.acceptanceValue || 0) > 0) return 'accepted';
-  if (hasMonitorValue(pkg.contract) || pkg.contractSignDate) {
-    const active = (pkg.acceptances || []).length || (pkg.progress || 0) > 0 || (pkg.acceptanceValue || 0) > 0;
-    return active ? 'executing' : 'signed';
-  }
-  if (hasMonitorValue(pkg.khlcntNumber) || hasMonitorValue(pkg.hsmtNumber) || pkg.hsmtDate || pkg.bidOpenDate || pkg.bidCloseDate || hasMonitorValue(pkg.contractor)) return 'selecting';
-  return 'notStarted';
-}
-
-// Dữ liệu dự án/gói thầu cho Văn phòng AI giám sát (bảo vệ bằng secret nội bộ)
-app.get('/api/projects/monitor', (req, res) => {
-  if (MONITOR_SECRET && req.headers['x-monitor-secret'] !== MONITOR_SECRET) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-  const state = db.getState();
-  const projects = (state.projects || []).map(p => ({
-    id: p.id, name: p.name, fullName: p.fullName, owner: p.owner,
-    totalInvestment: p.totalInvestment, projectScope: p.projectScope, buildingGrade: p.buildingGrade,
-    packages: (p.categories || []).flatMap(c => (c.packages || []).map(pkg => ({
-      id: pkg.id, name: pkg.name, catCode: c.code, catName: c.name,
-      pkgType: pkg.pkgType, pkgScope: pkg.pkgScope,
-      selectionMethod: pkg.selectionMethod, contractor: pkg.contractor,
-      contract: pkg.contract, contractEndDate: pkg.contractEndDate, contractSignDate: pkg.contractSignDate,
-      progress: pkg.progress || 0, estimateValue: pkg.estimateValue || 0, bidValue: pkg.bidValue, cumulativeValue: pkg.cumulativeValue || 0, cumulativeDisbursed: pkg.cumulativeDisbursed || 0,
-      acceptanceStatus: pkg.acceptanceStatus || '', acceptanceValue: pkg.acceptanceValue || 0, acceptanceDate: pkg.acceptanceDate,
-      handoverDate: pkg.handoverDate, liquidationDate: pkg.liquidationDate,
-      invoiceNumber: pkg.invoiceNumber, invoiceDate: pkg.invoiceDate,
-      status: monitorStatus(pkg)
-    })))
-  }));
-  res.json({ projects, generatedAt: new Date().toISOString() });
-});
-
-app.get('/api/vanphong/status', requireAuth, async (req, res) => {
-  // Autonomous office status - now integrated into main server
-  res.json({ 
-    ok: true, 
-    integrated: true,
-    message: 'Autonomous Office is integrated into main server',
-    timestamp: new Date().toISOString()
-  });
-});
-
-function escHtml(s) {
-  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
 
 // ---- Auth API ----
 // Rate limiter đơn giản theo IP (in-memory)
@@ -980,10 +884,6 @@ DỮ LIỆU DỰ ÁN HIỆN TẠI:\n${context}`;
     res.status(500).json({ error: 'Lỗi AI: ' + err.message });
   }
 });
-
-// ---- Van Phong AI APIs ----
-const vanphongApi = require('./vanphong-api');
-vanphongApi(app, db, requireAuth, requireAuthWeb);
 
 // ---- Error handler ----
 app.use((err, req, res, next) => {

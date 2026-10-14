@@ -5038,20 +5038,6 @@ function switchView(viewName) {
   else if (viewName === 'reports') renderReports();
 }
 
-// Nạp iframe Văn phòng AI sau khi cookie qlda_sid đã được đồng bộ (tránh tải sớm bị 401)
-function loadVanPhongFrame() {
-  const frame = document.getElementById('vanphong-frame');
-  const status = document.getElementById('vanphong-status');
-  if (!frame) return;
-  if (frame.dataset.loaded) return;
-  frame.dataset.loaded = '1';
-  if (status) status.style.display = 'none';
-  frame.style.display = 'block';
-  frame.onload = () => { if (status) status.style.display = 'none'; };
-  frame.onerror = () => { if (status) { status.style.display = 'block'; status.textContent = 'Không tải được Văn phòng AI. Vui lòng tải lại trang.'.trim(); } };
-  frame.src = '/van-phong-ai/quy-trinh-thanh-toan.html';
-}
-
 function renderAll() {
   renderProjectInfoBar();
   if (state.currentView === 'dashboard') renderDashboard();
@@ -5579,8 +5565,6 @@ async function init() {
     return;
   }
   renderAccountUI();
-  // Cookie qlda_sid đã được server cấp trong lần gọi /api/me -> nạp iframe Văn phòng AI
-  loadVanPhongFrame();
   requireForcePasswordChange();
   // Đang bị buộc đổi mật khẩu: dừng tải dữ liệu, chờ đổi xong rồi reload
   if (currentUser.mustChangePassword) return;

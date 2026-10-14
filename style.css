@@ -669,9 +669,15 @@ body.read-only .edit-only { display: none !important; }
    ============================================================ */
 .charts-row {
   display: grid;
-  grid-template-columns: 260px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
   margin-bottom: 24px;
+}
+
+.donut-card {
+  max-width: 640px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 .donut-card .chart-wrapper {
@@ -685,18 +691,6 @@ body.read-only .edit-only { display: none !important; }
   gap: 6px;
   max-height: 240px;
   overflow-y: auto;
-}
-
-.vanphong-embed {
-  display: flex;
-  flex-direction: column;
-}
-
-.vanphong-embed #vanphong-frame {
-  flex: 1;
-  width: 100%;
-  height: calc(100vh - 300px);
-  min-height: 560px;
 }
 
 .chart-card {
@@ -2644,10 +2638,6 @@ canvas {
   .dash-lower-row {
     grid-template-columns: 1fr;
   }
-  .vanphong-embed #vanphong-frame {
-    height: 70vh;
-    min-height: 520px;
-  }
 }
 
 @media (max-width: 900px) {
@@ -2698,11 +2688,6 @@ canvas {
     grid-template-columns: 1fr 1fr;
   }
 
-  .vanphong-embed #vanphong-frame {
-    height: 62vh;
-    min-height: 440px;
-  }
-
   .section-header {
     flex-direction: column;
     align-items: flex-start;
@@ -2750,11 +2735,6 @@ canvas {
   .kpi-grid { grid-template-columns: 1fr; }
   .kpi-card .kpi-value { font-size: 1.2rem; }
   .nav-tab { padding: 8px 10px; font-size: 0.78rem; }
-
-  .vanphong-embed #vanphong-frame {
-    height: 58vh;
-    min-height: 400px;
-  }
 
   .report-summary-grid { grid-template-columns: 1fr; }
   .report-table thead th { font-size: 0.65rem; padding: 6px 4px; }
@@ -2962,40 +2942,6 @@ canvas {
 .ai-source.repealed { background: #fee2e2; color: #b91c1c; text-decoration: line-through; }
 
 .ai-save-wiki { display: inline-flex; align-items: center; gap: 4px; }
-
-.vanphong-promo {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-  min-height: 300px;
-  text-align: center;
-  padding: 20px;
-}
-
-.vanphong-promo-icon {
-  width: 72px;
-  height: 72px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 20px;
-  font-size: 36px;
-  background: linear-gradient(135deg, #2563eb, #0891b2);
-  color: #fff;
-  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.3);
-}
-
-.vanphong-promo p {
-  color: var(--text-secondary);
-  font-size: 0.85rem;
-  max-width: 440px;
-  margin: 0;
-  line-height: 1.5;
-}
-
-#view-vanphong { padding: 0; }
 
 /* ---- Kho tri thức (wiki) ---- */
 .wiki-stats {
