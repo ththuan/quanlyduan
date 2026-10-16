@@ -3279,12 +3279,8 @@ function getPackageFormHTML(pkg = null, catId = '') {
         <input type="date" id="f-contractEndDate" value="${pkg?.contractEndDate || ''}">
       </div>
       <div class="form-group">
-        <label>Số phụ lục hợp đồng (nếu có)</label>
-        <input type="text" id="f-contractExtension" value="${esc(pkg?.contractExtension || '')}" placeholder="VD: PL01/HĐ">
-      </div>
-      <div class="form-group">
-        <label>Ngày phụ lục hợp đồng</label>
-        <input type="date" id="f-contractExtensionDate" value="${pkg?.contractExtensionDate || ''}">
+        <label>Phụ lục hợp đồng (số + ngày, nếu có)</label>
+        <input type="text" id="f-contractExtension" value="${esc(pkg?.contractExtension || '')}" placeholder="VD: PL01/HĐ ngày 10/12/2023">
       </div>
 
       <div data-show="construction mixed" class="pkg-show">
