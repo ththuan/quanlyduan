@@ -412,13 +412,13 @@ function isPackageComplete(pkg) {
 }
 
 // ---- Giá trị hợp đồng & nghiệm thu ----
-// Giá trị hợp đồng hiện hành = trúng thầu + phát sinh đã duyệt
-function getApprovedVariationTotal(pkg) {
-  return (pkg?.variations || []).filter(v => v.status === 'approved').reduce((s, v) => s + (Number(v.amount) || 0), 0);
+// Giá trị hợp đồng hiện hành = trúng thầu + phát sinh (chưa từ chối)
+function getVariationTotal(pkg) {
+  return (pkg?.variations || []).filter(v => v.status !== 'rejected').reduce((s, v) => s + (Number(v.amount) || 0), 0);
 }
 
 function getCurrentContractValue(pkg) {
-  return (Number(pkg?.bidValue) || 0) + getApprovedVariationTotal(pkg);
+  return (Number(pkg?.bidValue) || 0) + getVariationTotal(pkg);
 }
 
 // Đồng bộ các trường nghiệm thu tổng (dùng bởi báo cáo cũ) từ danh sách các đợt
@@ -930,7 +930,7 @@ function renderDonutChart() {
 // ============================================================
 // TIẾN ĐỘ GIẢI NGÂN THEO GÓI THẦU
 // % giải ngân = lũy kế giải ngân / giá trị hợp đồng hiện hành
-// (giá trị hợp đồng hiện hành = trúng thầu + phát sinh đã duyệt)
+// (giá trị hợp đồng hiện hành = trúng thầu + phát sinh)
 // ============================================================
 function disbColor(percent) {
   if (percent >= 100) return '#34d399';
@@ -948,7 +948,7 @@ function getDisbursementRows(project) {
       const disbursed = Number(pkg.cumulativeDisbursed) || 0;
       rows.push({
         cat, pkg, contract, disbursed,
-        variation: getApprovedVariationTotal(pkg),
+        variation: getVariationTotal(pkg),
         percent: contract > 0 ? (disbursed / contract) * 100 : 0
       });
     });
@@ -1082,13 +1082,13 @@ function renderDisbursementDetail() {
       </div>`;
     pkgs.forEach(pkg => {
       const contract = getCurrentContractValue(pkg);
-      const variation = getApprovedVariationTotal(pkg);
+      const variation = getVariationTotal(pkg);
       const disbursed = Number(pkg.cumulativeDisbursed) || 0;
       const realPct = contract > 0 ? (disbursed / contract) * 100 : 0;
       const pct = Math.min(100, realPct);
       const cls = pct >= 100 ? 'complete' : pct >= 60 ? 'high' : pct >= 30 ? 'medium' : 'low';
       const psBadge = variation > 0
-        ? `<span class="badge-ps" title="Phát sinh đã duyệt: ${esc(formatCurrency(variation))}">+PS ${formatCompactCurrency(variation)}</span>`
+        ? `<span class="badge-ps" title="Phát sinh: ${esc(formatCurrency(variation))}">+PS ${formatCompactCurrency(variation)}</span>`
         : '';
       html += `<div class="prog-row prog-row-clickable" role="button" tabindex="0" title="Bấm để xem chi tiết gói thầu"
         onclick="viewPackageDetail('${cat.id}','${pkg.id}')"
@@ -1413,7 +1413,7 @@ function renderPackages(searchTerm = document.getElementById('search-packages')?
                     <td>${pi + 1}</td>
                     <td class="pkg-name">${esc(pkg.name)}${packageDeadlineBadges(pkg, project)}${pkg.pdfs?.length ? ' <span class="material-symbols-rounded" style="font-size:14px;color:var(--accent-amber)" title="Có file đính kèm">attach_file</span>' : ''}</td>
                     <td class="text-right">${pkg.estimateValue ? formatCurrency(pkg.estimateValue, true) : '—'}</td>
-                    <td class="text-right">${ast.contract ? formatCurrency(ast.contract, true) : '—'}${getApprovedVariationTotal(pkg) ? '<div style="font-size:0.7rem;color:var(--text-muted)">gồm phát sinh</div>' : ''}</td>
+                    <td class="text-right">${ast.contract ? formatCurrency(ast.contract, true) : '—'}${getVariationTotal(pkg) ? '<div style="font-size:0.7rem;color:var(--text-muted)">gồm phát sinh</div>' : ''}</td>
                     <td class="pkg-wrap">${esc(pkg.selectionMethod || '—')}</td>
                     <td class="pkg-wrap">${esc(pkg.contractor || '—')}</td>
                     <td>
@@ -2342,7 +2342,7 @@ function exportPackageAcceptanceReport() {
         <tr>
           <th style="width:30px">TT</th><th>Tên gói thầu</th><th>Nhà thầu</th>
           <th class="text-right">Dự toán</th><th class="text-right">Trúng thầu</th>
-          <th class="text-right">Phát sinh đã duyệt</th><th class="text-right">Giá trị HĐ hiện hành</th>
+          <th class="text-right">Phát sinh</th><th class="text-right">Giá trị HĐ hiện hành</th>
           <th class="text-right">Nghiệm thu</th><th class="text-center">% NT</th><th>Trạng thái</th>
         </tr>
       </thead>
@@ -2355,7 +2355,7 @@ function exportPackageAcceptanceReport() {
           <td>${esc(p.contractor || '—')}</td>
           <td class="text-right">${formatCurrency(p.estimateValue)}</td>
           <td class="text-right">${formatCurrency(p.bidValue)}</td>
-          <td class="text-right">${formatCurrency(getApprovedVariationTotal(p))}</td>
+          <td class="text-right">${formatCurrency(getVariationTotal(p))}</td>
           <td class="text-right">${formatCurrency(st.contract)}</td>
           <td class="text-right">${formatCurrency(st.accepted)}</td>
           <td class="text-center">${st.percent != null ? st.percent.toFixed(1) + '%' : '—'}</td>
@@ -2366,7 +2366,7 @@ function exportPackageAcceptanceReport() {
           <td colspan="3" class="text-center">TỔNG CỘNG</td>
           <td class="text-right">${formatCurrency(sum(p => p.estimateValue || 0))}</td>
           <td class="text-right">${formatCurrency(sum(p => p.bidValue || 0))}</td>
-          <td class="text-right">${formatCurrency(sum(p => getApprovedVariationTotal(p)))}</td>
+          <td class="text-right">${formatCurrency(sum(p => getVariationTotal(p)))}</td>
           <td class="text-right">${formatCurrency(totalContract)}</td>
           <td class="text-right">${formatCurrency(totalAccepted)}</td>
           <td class="text-center">${totalContract > 0 ? (totalAccepted / totalContract * 100).toFixed(1) + '%' : '—'}</td>
@@ -3782,7 +3782,7 @@ function viewPackageDetail(catId, pkgId) {
       ${section('verified', 'Nghiệm thu hoàn thành')}
       ${pkg.acceptanceRecord ? item('Biên bản nghiệm thu', esc(pkg.acceptanceRecord)) : ''}
       ${item('Giá trị hợp đồng hiện hành', `<strong>${formatCurrency(st.contract)}</strong>`, true)}
-      ${item('Phát sinh đã duyệt', formatCurrency(getApprovedVariationTotal(pkg)), true)}
+      ${item('Phát sinh (cộng vào giá trị HĐ)', formatCurrency(getVariationTotal(pkg)), true)}
       ${item('Giá trị nghiệm thu lũy kế', formatCurrency(st.accepted), true)}
       ${item('% nghiệm thu / hợp đồng', st.percent != null ? `<span class="${st.percent > 100 ? 'badge badge-danger' : ''}">${formatPercent(st.percent)}</span>` : '—')}
       ${item('Còn lại chưa nghiệm thu', st.remaining != null ? formatCurrency(st.remaining) : '—', true)}
@@ -4092,8 +4092,8 @@ function addVariation(catId, pkgId) {
       <div class="form-group"><label>Giá trị (VNĐ)</label><input type="number" id="var-amount"></div>
       <div class="form-group"><label>Trạng thái</label>
         <select id="var-status">
-          <option value="pending">Chờ duyệt</option>
           <option value="approved">Đã duyệt</option>
+          <option value="pending">Chờ duyệt</option>
           <option value="rejected">Từ chối</option>
         </select>
       </div>
