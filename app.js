@@ -600,6 +600,37 @@ function addMonths(dateStr, months) {
   return d.toISOString().slice(0, 10);
 }
 
+// Tách "6 tháng", "30 ngày", "2 năm", "335 ngày" -> { months } hoặc { days }
+function parseDuration(text) {
+  const s = String(text || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/gi, 'd').toLowerCase();
+  const m = s.match(/(\d+(?:[.,]\d+)?)\s*(thang|ngay|nam|tuan)/);
+  if (!m) return null;
+  const value = parseFloat(m[1].replace(',', '.'));
+  if (!isFinite(value)) return null;
+  if (m[2] === 'thang') return { months: value };
+  if (m[2] === 'nam') return { months: value * 12 };
+  if (m[2] === 'ngay') return { days: value };
+  if (m[2] === 'tuan') return { days: value * 7 };
+  return null;
+}
+
+// Tự tính Ngày hoàn thành hợp đồng = Ngày bắt đầu thực hiện + Thời gian thực hiện
+function autoCalcContractEnd() {
+  const startEl = document.getElementById('f-contractStartDate');
+  const durEl = document.getElementById('f-duration');
+  const endEl = document.getElementById('f-contractEndDate');
+  if (!startEl || !durEl || !endEl) return;
+  const start = startEl.value;
+  const dur = parseDuration(durEl.value);
+  if (!start || !dur) return;
+  const d = new Date(start + 'T00:00:00');
+  if (isNaN(d)) return;
+  if (dur.months) d.setMonth(d.getMonth() + Math.round(dur.months));
+  else if (dur.days) d.setDate(d.getDate() + Math.round(dur.days));
+  const pad = n => String(n).padStart(2, '0');
+  endEl.value = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+}
+
 function daysUntil(dateStr) {
   if (!dateStr) return null;
   const target = new Date(dateStr);
@@ -3218,7 +3249,15 @@ function getPackageFormHTML(pkg = null, catId = '') {
         <input type="date" id="f-contractSignDate" value="${pkg?.contractSignDate || ''}">
       </div>
       <div class="form-group">
-        <label>Ngày hoàn thành hợp đồng</label>
+        <label>Ngày bắt đầu thực hiện</label>
+        <input type="date" id="f-contractStartDate" value="${pkg?.contractStartDate || ''}" onchange="autoCalcContractEnd()">
+      </div>
+      <div class="form-group">
+        <label>Thời gian thực hiện</label>
+        <input type="text" id="f-duration" value="${esc(pkg?.duration || '')}" placeholder="VD: 6 tháng / 30 ngày / 2 năm" oninput="autoCalcContractEnd()">
+      </div>
+      <div class="form-group">
+        <label>Ngày hoàn thành hợp đồng <span style="font-weight:400;color:var(--text-muted)">— tự tính từ Ngày bắt đầu + Thời gian</span></label>
         <input type="date" id="f-contractEndDate" value="${pkg?.contractEndDate || ''}">
       </div>
 
@@ -3297,7 +3336,9 @@ function getPackageFormData(pkg = null) {
     contractor: gtxt('f-contractor', pkg?.contractor || ''),
     contract: gtxt('f-contract', pkg?.contract || ''),
     contractSignDate: giso('f-contractSignDate', pkg?.contractSignDate),
+    contractStartDate: giso('f-contractStartDate', pkg?.contractStartDate),
     contractEndDate: giso('f-contractEndDate', pkg?.contractEndDate),
+    duration: gtxt('f-duration', pkg?.duration || ''),
     progress: gnum('f-progress', pkg?.progress),
     handoverDate: giso('f-handoverDate', pkg?.handoverDate),
     warrantyMonths,
@@ -3306,7 +3347,6 @@ function getPackageFormData(pkg = null) {
     // Trường pháp lý/chi tiết đã bỏ khỏi form: giữ nguyên giá trị cũ (không mất dữ liệu)
     cumulativeValue: pkg?.cumulativeValue || 0,
     contractType: pkg?.contractType || '',
-    contractStartDate: pkg?.contractStartDate || '',
     contractExtension: pkg?.contractExtension || '',
     pl02aDate: pkg?.pl02aDate || '',
     negotiation: pkg?.negotiation || '',
@@ -3326,7 +3366,6 @@ function getPackageFormData(pkg = null) {
     docAcceptRecord: pkg?.docAcceptRecord || '',
     docAcceptDate: pkg?.docAcceptDate || '',
     docAcceptStatus: pkg?.docAcceptStatus || '',
-    duration: pkg?.duration || '',
     khlcntDocId: pkg?.khlcntDocId || '',
     khlcntNumber: pkg?.khlcntNumber || '',
     khlcntDate: pkg?.khlcntDate || '',
