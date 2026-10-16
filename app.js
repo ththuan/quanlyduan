@@ -3796,15 +3796,12 @@ function viewPackageDetail(catId, pkgId) {
       ${item('Thời gian thực hiện', esc(pkg.duration || '—'))}
       ${pkg.expectedCompletion ? item('Dự kiến thời gian hoàn thành', esc(pkg.expectedCompletion)) : ''}
 
-      ${isConstructionLike || hasQuote || isDocType || (isGoodsLike) ? section('category', 'Đặc thù theo loại gói thầu') : ''}
+      ${isConstructionLike || isGoodsLike ? section('category', 'Đặc thù theo loại gói thầu') : ''}
       ${isConstructionLike ? item('Tiến độ thi công', `${pkg.progress || 0}%`) : ''}
-      ${isConstructionLike && (pkg.pl03aValue || pkg.pl03aDate) ? item('Giá trị khối lượng (PL 03a)', `${pkg.pl03aValue ? formatCurrency(pkg.pl03aValue) : '—'}${pkg.pl03aDate ? ` — ${formatDateVN(pkg.pl03aDate)}` : ''}`, true) : ''}
       ${isGoodsLike ? item('Ngày bàn giao', formatDateVN(pkg.handoverDate)) : ''}
       ${isGoodsLike ? item('Thời hạn bảo hành', `${pkg.warrantyMonths || computeWarrantyMonths(project.buildingGrade)} tháng`) : ''}
       ${isGoodsLike && pkg.handoverDate ? item('Ngày hết hạn bảo hành', formatDateVN(addMonths(pkg.handoverDate, pkg.warrantyMonths || computeWarrantyMonths(project.buildingGrade)))) : ''}
-      ${isGoodsLike && hasWarranty ? item('Chứng thư bảo lãnh bảo hành', `${esc(pkg.warrantyGuaranteeNumber || '—')}${pkg.warrantyGuaranteeDate ? ` — ${formatDateVN(pkg.warrantyGuaranteeDate)}` : ''}${pkg.warrantyGuaranteeValue ? ` · ${formatCurrency(pkg.warrantyGuaranteeValue)}` : ''}`) : ''}
-      ${hasQuote ? item('Báo giá', `${esc(pkg.quoteNumber || '—')}${pkg.quoteDate ? ` — đăng ${formatDateVN(pkg.quoteDate)}` : ''}${pkg.quoteCount ? ` · ${pkg.quoteCount} báo giá` : ''}`) : ''}
-      ${isDocType ? item('Nghiệm thu hồ sơ', `${esc(pkg.docAcceptRecord || '—')}${pkg.docAcceptDate ? ` — ${formatDateVN(pkg.docAcceptDate)}` : ''} · <span class="badge ${pkg.docAcceptStatus === 'Đã nghiệm thu' ? 'badge-success' : 'badge-warning'}">${esc(pkg.docAcceptStatus || 'Chưa nghiệm thu')}</span>`) : ''}
+
 
       ${section('verified', 'Nghiệm thu hoàn thành')}
       ${pkg.acceptanceRecord ? item('Biên bản nghiệm thu', esc(pkg.acceptanceRecord)) : ''}
