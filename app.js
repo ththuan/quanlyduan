@@ -3382,6 +3382,16 @@ function getPackageFormHTML(pkg = null, catId = '') {
         <div id="form-payment-total" style="margin-top:6px;font-size:0.82rem;color:var(--text-secondary)"></div>
       </div>
 
+      <div class="form-section-title"><span class="material-symbols-rounded">calculate</span> Quyết toán A-B</div>
+      <div class="form-group">
+        <label>Giá trị quyết toán A-B (VNĐ)</label>
+        <input type="number" id="f-settlementValue" value="${pkg?.settlementValue || ''}" placeholder="Giá trị cuối cùng hai bên ký">
+      </div>
+      <div class="form-group">
+        <label>Ngày quyết toán A-B</label>
+        <input type="date" id="f-settlementDate" value="${pkg?.settlementDate || ''}">
+      </div>
+
       <div class="form-section-title"><span class="material-symbols-rounded">sticky_note_2</span> Ghi chú & Hồ sơ đính kèm</div>
       <div class="form-group full-width">
         <label>Ghi chú</label>
@@ -3452,6 +3462,8 @@ function getPackageFormData(pkg = null) {
     acceptanceValue: gnum('f-acceptanceValue', pkg?.acceptanceValue),
     acceptanceStatus: gv('f-acceptanceStatus', pkg?.acceptanceStatus || ACCEPTANCE_STATUSES[0]),
     acceptanceDate: dateFromText(gtxt('f-acceptanceRecord', pkg?.acceptanceRecord || '')) || pkg?.acceptanceDate || '',
+    settlementValue: gnum('f-settlementValue', pkg?.settlementValue),
+    settlementDate: giso('f-settlementDate', pkg?.settlementDate),
     notes: gtxt('f-notes', pkg?.notes || ''),
     payments: readFormPayments(),
 
@@ -3814,6 +3826,11 @@ function viewPackageDetail(catId, pkgId) {
       ${st.saving != null && pkg.estimateValue > 0 ? item('% giảm giá so với dự toán', formatPercent(st.saving / pkg.estimateValue * 100)) : ''}
       ${item('Trạng thái nghiệm thu', `<span class="badge ${pkg.acceptanceStatus === 'Đã nghiệm thu' ? 'badge-success' : 'badge-warning'}">${esc(pkg.acceptanceStatus || 'Chưa nghiệm thu')}</span>`)}
       ${item('Ngày nghiệm thu gần nhất', formatDateVN(pkg.acceptanceDate))}
+
+      ${(pkg.settlementValue || pkg.settlementDate) ? section('calculate', 'Quyết toán A-B') : ''}
+      ${pkg.settlementValue ? item('Giá trị quyết toán A-B', formatCurrency(pkg.settlementValue), true) : ''}
+      ${pkg.settlementDate ? item('Ngày quyết toán A-B', formatDateVN(pkg.settlementDate)) : ''}
+      ${pkg.settlementValue > 0 && pkg.bidValue > 0 ? item('Chênh lệch quyết toán - trúng thầu', formatCurrency(pkg.settlementValue - pkg.bidValue), true) : ''}
 
       <div class="detail-section-title">Các đợt nghiệm thu
         <button type="button" class="btn btn-secondary btn-sm edit-only" style="margin-left:8px" onclick="openAcceptanceForm('${catId}','${pkgId}')"><span class="material-symbols-rounded">add</span> Thêm đợt</button>
