@@ -433,7 +433,8 @@ function syncPackageAcceptance(pkg) {
 
 function getAcceptanceStats(pkg) {
   const contract = getCurrentContractValue(pkg);
-  const accepted = Number(pkg?.acceptanceValue) || 0;
+  const fromBatches = (pkg?.acceptances || []).reduce((s, a) => s + (Number(a.value) || 0), 0);
+  const accepted = Number(pkg?.acceptanceValue) || fromBatches;
   return {
     contract,
     accepted,
@@ -1346,8 +1347,9 @@ function renderPackages(searchTerm = document.getElementById('search-packages')?
               </thead>
               <tbody>
                 ${filteredPkgs.map((pkg, pi) => {
-      const progressClass = pkg.progress >= 100 ? 'complete' : pkg.progress >= 60 ? 'high' : pkg.progress >= 30 ? 'medium' : 'low';
       const ast = getAcceptanceStats(pkg);
+      const accPct = ast.percent != null ? Math.min(100, ast.percent) : 0;
+      const progressClass = accPct >= 100 ? 'complete' : accPct >= 60 ? 'high' : accPct >= 30 ? 'medium' : 'low';
       const docp = getDocChecklistProgress(pkg);
       return `
                   <tr>
@@ -1358,12 +1360,10 @@ function renderPackages(searchTerm = document.getElementById('search-packages')?
                     <td class="pkg-wrap">${esc(pkg.selectionMethod || '—')}</td>
                     <td class="pkg-wrap">${esc(pkg.contractor || '—')}</td>
                     <td>
-                      ${pkg.pkgType !== 'consulting' && pkg.pkgType !== 'nonConsulting' ? `
-                      <div class="progress-bar"><div class="progress-fill ${progressClass}" style="width:${pkg.progress}%"></div></div>
-                      <span>${pkg.progress}%</span>
-                      ` : '<span style="color:var(--text-muted);font-size:0.85rem">—</span>'}
+                      <div class="progress-bar"><div class="progress-fill ${progressClass}" style="width:${accPct.toFixed(1)}%"></div></div>
+                      <span>${(ast.percent != null ? ast.percent : 0).toFixed(1)}%</span>
                     </td>
-                    <td class="text-right">${ast.accepted ? formatCurrency(ast.accepted, true) : '—'}${ast.percent != null && ast.accepted ? `<div style="font-size:0.7rem;color:${ast.percent > 100 ? 'var(--accent-red)' : 'var(--text-muted)'}">${ast.percent.toFixed(0)}% HĐ</div>` : ''}</td>
+                    <td class="text-right">${ast.accepted ? formatCurrency(ast.accepted, true) : '—'}</td>
                     <td>${getPackageStatusBadge(pkg)}</td>
                     <td>${docp.total ? `<span class="badge ${docp.done === docp.total ? 'badge-success' : 'badge-neutral'}" title="Mục bắt buộc đã có hồ sơ">${docp.done}/${docp.total}</span>` : '—'}</td>
                     <td>
