@@ -632,6 +632,14 @@ function parseDuration(text) {
   return null;
 }
 
+// Trích ngày dd/mm/yyyy từ chuỗi (vd "Số 01/BBNT ngày 24/12/2022" -> 2022-12-24)
+function dateFromText(text) {
+  const m = String(text || '').match(/(\d{1,2})\s*[/.-]\s*(\d{1,2})\s*[/.-]\s*(\d{4})/);
+  if (!m) return '';
+  const pad = n => String(n).padStart(2, '0');
+  return `${m[3]}-${pad(m[2])}-${pad(m[1])}`;
+}
+
 // Tự tính Ngày hoàn thành hợp đồng = Ngày bắt đầu thực hiện + Thời gian thực hiện
 function autoCalcContractEnd() {
   const startEl = document.getElementById('f-contractStartDate');
@@ -3234,6 +3242,10 @@ function getPackageFormHTML(pkg = null, catId = '') {
 
       <div class="form-section-title"><span class="material-symbols-rounded">payments</span> Tài chính</div>
       <div class="form-group">
+        <label>Giá trị theo Tổng mức đầu tư (VNĐ)</label>
+        <input type="number" id="f-investValue" value="${pkg?.investValue || ''}">
+      </div>
+      <div class="form-group">
         <label>Giá trị dự toán (VNĐ)</label>
         <input type="number" id="f-estimateValue" value="${pkg?.estimateValue || ''}">
       </div>
@@ -3242,11 +3254,23 @@ function getPackageFormHTML(pkg = null, catId = '') {
         <input type="number" id="f-bidValue" value="${pkg?.bidValue || ''}">
       </div>
       <div class="form-group">
+        <label>Lũy kế giá trị thực hiện (VNĐ)</label>
+        <input type="number" id="f-cumulativeValue" value="${pkg?.cumulativeValue || ''}">
+      </div>
+      <div class="form-group">
         <label>Lũy kế đã giải ngân (VNĐ)</label>
         <input type="number" id="f-cumulativeDisbursed" value="${pkg?.cumulativeDisbursed || ''}">
       </div>
+      <div class="form-group">
+        <label>Thất thoát, lãng phí được phát hiện (VNĐ)</label>
+        <input type="number" id="f-loss" value="${pkg?.loss || ''}">
+      </div>
 
       <div class="form-section-title"><span class="material-symbols-rounded">gavel</span> Lựa chọn nhà thầu & Hợp đồng</div>
+      <div class="form-group">
+        <label>Quyết định phê duyệt kết quả (số + ngày)</label>
+        <input type="text" id="f-bidDecision" value="${esc(pkg?.bidDecision || '')}" placeholder="VD: Số 250/QĐ-KTKT ngày 28/6/2023">
+      </div>
       <div class="form-group">
         <label>Hình thức lựa chọn nhà thầu</label>
         <select id="f-selectionMethod">
@@ -3282,6 +3306,10 @@ function getPackageFormHTML(pkg = null, catId = '') {
         <label>Phụ lục hợp đồng (số + ngày, nếu có)</label>
         <input type="text" id="f-contractExtension" value="${esc(pkg?.contractExtension || '')}" placeholder="VD: PL01/HĐ ngày 10/12/2023">
       </div>
+      <div class="form-group">
+        <label>Dự kiến thời gian hoàn thành</label>
+        <input type="text" id="f-expectedCompletion" value="${esc(pkg?.expectedCompletion || '')}" placeholder="VD: 20/12/2023">
+      </div>
 
       <div data-show="construction mixed" class="pkg-show">
         <div class="form-section-title"><span class="material-symbols-rounded">engineering</span> Đặc thù gói xây lắp / hỗn hợp</div>
@@ -3305,6 +3333,10 @@ function getPackageFormHTML(pkg = null, catId = '') {
 
       <div class="form-section-title"><span class="material-symbols-rounded">verified</span> Nghiệm thu hoàn thành</div>
       <div class="form-group">
+        <label>Biên bản nghiệm thu (số + ngày)</label>
+        <input type="text" id="f-acceptanceRecord" value="${esc(pkg?.acceptanceRecord || '')}" placeholder="VD: Số 01/BBNT ngày 24/12/2022">
+      </div>
+      <div class="form-group">
         <label>Giá trị nghiệm thu (VNĐ)</label>
         <input type="number" id="f-acceptanceValue" value="${pkg?.acceptanceValue || ''}">
       </div>
@@ -3313,10 +3345,6 @@ function getPackageFormHTML(pkg = null, catId = '') {
         <select id="f-acceptanceStatus">
           ${ACCEPTANCE_STATUSES.map(s => `<option value="${s}" ${(pkg?.acceptanceStatus || ACCEPTANCE_STATUSES[0]) === s ? 'selected' : ''}>${s}</option>`).join('')}
         </select>
-      </div>
-      <div class="form-group">
-        <label>Ngày nghiệm thu</label>
-        <input type="date" id="f-acceptanceDate" value="${pkg?.acceptanceDate || ''}">
       </div>
 
       <div class="form-section-title"><span class="material-symbols-rounded">sticky_note_2</span> Ghi chú & Hồ sơ đính kèm</div>
@@ -3367,9 +3395,13 @@ function getPackageFormData(pkg = null) {
     pkgScope,
     purchaseType: pkgScope === 'nonProject' ? gv('f-purchaseType', pkg?.purchaseType || '') : '',
     fundSource: gtxt('f-fundSource', pkg?.fundSource || ''),
+    investValue: gnum('f-investValue', pkg?.investValue),
     estimateValue: gnum('f-estimateValue', pkg?.estimateValue),
     bidValue: gnum('f-bidValue', pkg?.bidValue),
+    cumulativeValue: gnum('f-cumulativeValue', pkg?.cumulativeValue),
     cumulativeDisbursed: gnum('f-cumulativeDisbursed', pkg?.cumulativeDisbursed),
+    loss: gnum('f-loss', pkg?.loss),
+    bidDecision: gtxt('f-bidDecision', pkg?.bidDecision || ''),
     selectionMethod: gv('f-selectionMethod', pkg?.selectionMethod || ''),
     contractor: gtxt('f-contractor', pkg?.contractor || ''),
     contract: gtxt('f-contract', pkg?.contract || ''),
@@ -3377,16 +3409,17 @@ function getPackageFormData(pkg = null) {
     contractStartDate: giso('f-contractStartDate', pkg?.contractStartDate),
     contractEndDate: giso('f-contractEndDate', pkg?.contractEndDate),
     duration: gtxt('f-duration', pkg?.duration || ''),
+    expectedCompletion: gtxt('f-expectedCompletion', pkg?.expectedCompletion || ''),
     progress: gnum('f-progress', pkg?.progress),
     handoverDate: giso('f-handoverDate', pkg?.handoverDate),
     warrantyMonths,
+    acceptanceRecord: gtxt('f-acceptanceRecord', pkg?.acceptanceRecord || ''),
     acceptanceValue: gnum('f-acceptanceValue', pkg?.acceptanceValue),
     acceptanceStatus: gv('f-acceptanceStatus', pkg?.acceptanceStatus || ACCEPTANCE_STATUSES[0]),
-    acceptanceDate: giso('f-acceptanceDate', pkg?.acceptanceDate),
+    acceptanceDate: dateFromText(gtxt('f-acceptanceRecord', pkg?.acceptanceRecord || '')) || pkg?.acceptanceDate || '',
     notes: gtxt('f-notes', pkg?.notes || ''),
 
     // Trường pháp lý/chi tiết đã bỏ khỏi form: giữ nguyên giá trị cũ (không mất dữ liệu)
-    cumulativeValue: pkg?.cumulativeValue || 0,
     contractType: pkg?.contractType || '',
     contractExtension: gtxt('f-contractExtension', pkg?.contractExtension || ''),
     contractExtensionDate: giso('f-contractExtensionDate', pkg?.contractExtensionDate),
@@ -3412,7 +3445,6 @@ function getPackageFormData(pkg = null) {
     khlcntNumber: pkg?.khlcntNumber || '',
     khlcntDate: pkg?.khlcntDate || '',
     resultDocId: pkg?.resultDocId || '',
-    bidDecision: pkg?.bidDecision || '',
     resultApprovalDate: pkg?.resultApprovalDate || ''
   };
 }
@@ -3710,15 +3742,19 @@ function viewPackageDetail(catId, pkgId) {
       ${item('Nguồn vốn', esc(pkg.fundSource || '—'))}
 
       ${section('payments', 'Tài chính')}
+      ${item('Giá trị theo Tổng mức đầu tư', formatCurrency(pkg.investValue), true)}
       ${item('Giá trị dự toán', formatCurrency(pkg.estimateValue), true)}
       ${item('Giá trị trúng thầu', formatCurrency(pkg.bidValue), true)}
       ${item('Lũy kế giá trị thực hiện', formatCurrency(pkg.cumulativeValue), true)}
       ${item('Đã giải ngân', formatCurrency(pkg.cumulativeDisbursed), true)}
+      ${pkg.loss ? item('Thất thoát, lãng phí được phát hiện', formatCurrency(pkg.loss), true) : ''}
 
       ${section('gavel', 'Lựa chọn nhà thầu')}
+      ${item('Quyết định phê duyệt kết quả', esc(pkg.bidDecision || '—'))}
       ${item('Hình thức lựa chọn', esc(pkg.selectionMethod || '—'))}
       ${item('Đơn vị trúng thầu', esc(pkg.contractor || '—'))}
       ${item('Thời gian thực hiện', esc(pkg.duration || '—'))}
+      ${pkg.expectedCompletion ? item('Dự kiến thời gian hoàn thành', esc(pkg.expectedCompletion)) : ''}
 
       ${isConstructionLike || hasQuote || isDocType || (isGoodsLike) ? section('category', 'Đặc thù theo loại gói thầu') : ''}
       ${isConstructionLike ? item('Tiến độ thi công', `${pkg.progress || 0}%`) : ''}
@@ -3731,6 +3767,7 @@ function viewPackageDetail(catId, pkgId) {
       ${isDocType ? item('Nghiệm thu hồ sơ', `${esc(pkg.docAcceptRecord || '—')}${pkg.docAcceptDate ? ` — ${formatDateVN(pkg.docAcceptDate)}` : ''} · <span class="badge ${pkg.docAcceptStatus === 'Đã nghiệm thu' ? 'badge-success' : 'badge-warning'}">${esc(pkg.docAcceptStatus || 'Chưa nghiệm thu')}</span>`) : ''}
 
       ${section('verified', 'Nghiệm thu hoàn thành')}
+      ${pkg.acceptanceRecord ? item('Biên bản nghiệm thu', esc(pkg.acceptanceRecord)) : ''}
       ${item('Giá trị hợp đồng hiện hành', `<strong>${formatCurrency(st.contract)}</strong>`, true)}
       ${item('Phát sinh đã duyệt', formatCurrency(getApprovedVariationTotal(pkg)), true)}
       ${item('Giá trị nghiệm thu lũy kế', formatCurrency(st.accepted), true)}
