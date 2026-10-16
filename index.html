@@ -238,24 +238,28 @@
   </button>
   <div id="ai-chat-panel" class="ai-chat-panel hidden">
     <div class="ai-chat-header">
-      <span><svg class="ai-logo" viewBox="0 0 24 24" width="22" height="22" fill="none" style="vertical-align:middle;margin-right:6px">
-        <path d="M12 2a2 2 0 0 1 2 2v.07A7 7 0 0 1 19 11v6a3 3 0 0 1-3 3h-1v-2h-6v2H8a3 3 0 0 1-3-3v-6a7 7 0 0 1 5-6.93V4a2 2 0 0 1 2-2z" fill="#2563eb"/>
-        <circle cx="9" cy="13" r="1.5" fill="#fff"/>
-        <circle cx="15" cy="13" r="1.5" fill="#fff"/>
-        <path d="M9 17h6" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>
-        <rect x="8.5" y="6" width="2" height="2.5" rx="1" fill="#7c3aed"/>
-        <rect x="13.5" y="6" width="2" height="2.5" rx="1" fill="#7c3aed"/>
-      </svg> Trợ lý AI</span>
+      <div class="ai-chat-title">
+        <span class="ai-chat-title-main"><svg class="ai-logo" viewBox="0 0 24 24" width="22" height="22" fill="none" style="vertical-align:middle;margin-right:6px">
+          <path d="M12 2a2 2 0 0 1 2 2v.07A7 7 0 0 1 19 11v6a3 3 0 0 1-3 3h-1v-2h-6v2H8a3 3 0 0 1-3-3v-6a7 7 0 0 1 5-6.93V4a2 2 0 0 1 2-2z" fill="#2563eb"/>
+          <circle cx="9" cy="13" r="1.5" fill="#fff"/>
+          <circle cx="15" cy="13" r="1.5" fill="#fff"/>
+          <path d="M9 17h6" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>
+          <rect x="8.5" y="6" width="2" height="2.5" rx="1" fill="#7c3aed"/>
+          <rect x="13.5" y="6" width="2" height="2.5" rx="1" fill="#7c3aed"/>
+        </svg> Trợ lý AI</span>
+        <small class="ai-chat-title-sub">Trao đổi &amp; phân tích dự án, văn bản pháp luật</small>
+      </div>
       <button class="btn-icon" id="btn-ai-close"><span class="material-symbols-rounded">close</span></button>
     </div>
     <div class="ai-chat-body" id="ai-chat-messages">
-      <div class="ai-msg ai-msg-bot">Xin chào! Tôi là trợ lý AI quản lý dự án. Hỏi tôi bất cứ điều gì về dự án của bạn.</div>
+      <div class="ai-msg ai-msg-bot">Xin chào! Tôi là trợ lý AI. Bạn có thể <b>trao đổi với tôi</b> để phân tích dự án (tiến độ, giải ngân, rủi ro, hồ sơ còn thiếu…) hoặc <b>hỏi về văn bản pháp luật</b> (đấu thầu, xây dựng, thanh – quyết toán…). Tôi sẽ trả lời kèm căn cứ pháp lý để bạn đối chiếu.</div>
     </div>
     <div class="ai-chat-quick" id="ai-chat-quick">
       <button onclick="aiSend('Đánh giá tổng quan dự án hiện tại')">Đánh giá dự án</button>
-      <button onclick="aiSend('Gợi ý cải thiện tiến độ')">Gợi ý tiến độ</button>
-      <button onclick="aiSend('Hướng dẫn quy trình quyết toán')">Hướng dẫn quyết toán</button>
-      <button onclick="aiSend('Dự án này còn thiếu hồ sơ pháp lý nào theo quy định?')">Còn thiếu pháp lý gì?</button>
+      <button onclick="aiSend('Gói thầu nào đang chậm tiến độ hoặc chậm giải ngân?')">Gói thầu chậm tiến độ</button>
+      <button onclick="aiSend('Hồ sơ dự án hiện còn thiếu gì theo quy định?')">Còn thiếu hồ sơ gì?</button>
+      <button onclick="aiSend('Hướng dẫn trình tự, thủ tục quyết toán dự án hoàn thành')">Thủ tục quyết toán</button>
+      <button onclick="aiSend('Hạn mức và điều kiện chỉ định thầu hiện hành là gì?')">Chỉ định thầu</button>
     </div>
     <div class="ai-chat-input">
       <input type="text" id="ai-chat-input" placeholder="Nhập câu hỏi..." onkeydown="if(event.key==='Enter')aiSend()">
