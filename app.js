@@ -4676,6 +4676,9 @@ function openImportExcelModal() {
         Chọn file Excel theo mẫu <b>"TÌNH HÌNH THỰC HIỆN DỰ ÁN"</b> (giống file TONG HOP DU AN).
         App sẽ tự tạo dự án kèm danh mục (I–VI) và các gói thầu.
       </p>
+      <a class="btn btn-secondary btn-sm" href="/assets/Mau-Tinh-Hinh-Thuc-Hien-Du-An.xlsx" download style="align-self:flex-start">
+        <span class="material-symbols-rounded">download</span> Tải file mẫu (Excel)
+      </a>
       <div class="form-group">
         <label>File Excel (.xlsx)</label>
         <input type="file" id="import-excel-file" accept=".xlsx,.xls">

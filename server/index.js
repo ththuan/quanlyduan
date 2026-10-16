@@ -121,6 +121,7 @@ app.get('/assets/inter-vietnamese.woff2', (req, res) => res.sendFile(path.join(R
 app.get('/assets/inter-latin.woff2', (req, res) => res.sendFile(path.join(ROOT_DIR, 'assets', 'inter-latin.woff2'), { headers: { 'Cache-Control': 'public, max-age=31536000, immutable' } }));
 app.get('/assets/pdf.min.js', (req, res) => res.sendFile(path.join(ROOT_DIR, 'assets', 'pdf.min.js'), { headers: { 'Cache-Control': 'public, max-age=31536000, immutable' } }));
 app.get('/assets/pdf.worker.min.js', (req, res) => res.sendFile(path.join(ROOT_DIR, 'assets', 'pdf.worker.min.js'), { headers: { 'Cache-Control': 'public, max-age=31536000, immutable' } }));
+app.get('/assets/Mau-Tinh-Hinh-Thuc-Hien-Du-An.xlsx', (req, res) => res.sendFile(path.join(ROOT_DIR, 'assets', 'Mau-Tinh-Hinh-Thuc-Hien-Du-An.xlsx'), { headers: { 'Cache-Control': 'public, max-age=3600' } }));
 
 // ---- Auth API ----
 // Rate limiter đơn giản theo IP (in-memory)
