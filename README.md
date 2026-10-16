@@ -176,6 +176,10 @@ fetch('/api/admin/import-seed', { method:'POST', headers:{ Authorization:'Bearer
 
 > Dự án cùng `id` (vd `proj-day-de`) sẽ được cập nhật đầy đủ theo dữ liệu mẫu; các dự án khác giữ nguyên.
 
+**8. Nhập nhanh nhiều dự án từ Excel**
+
+Trong app, đăng nhập bằng tài khoản **admin**, bấm nút **Nhập dự án từ Excel** (biểu tượng `upload_file` trên thanh công cụ) và chọn file `.xlsx` theo mẫu **"TÌNH HÌNH THỰC HIỆN DỰ ÁN"** (giống file `TONG HOP DU AN.xlsx`). App tự tạo dự án kèm danh mục (I–VI) và toàn bộ gói thầu. Làm lần lượt từng file cho mỗi dự án.
+
 ### Cài đặt bằng Docker Desktop (Windows/Mac, dev/test nhanh)
 
 ```bash

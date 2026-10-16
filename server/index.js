@@ -13,6 +13,7 @@ const XLSX = require('xlsx');
 const db = require('./db');
 const legal = require('./legal');
 const wiki = require('./legal-wiki');
+const excelImport = require('./excel-import');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -423,6 +424,33 @@ app.post('/api/admin/import-seed', requireAuth, requireAdmin, (req, res) => {
     res.json({ ok: true, created, updated, totalProjects: state.projects.length });
   } catch (err) {
     res.status(500).json({ error: 'Lỗi nạp dự án mẫu: ' + err.message });
+  }
+});
+
+// Nhập dự án từ file Excel theo mẫu "TÌNH HÌNH THỰC HIỆN DỰ ÁN"
+app.post('/api/admin/import-project-excel', requireAuth, requireAdmin, (req, res) => {
+  try {
+    const { contentBase64, sheetName } = req.body || {};
+    if (!contentBase64) return res.status(400).json({ error: 'Thiếu nội dung file Excel' });
+    const buf = Buffer.from(String(contentBase64).replace(/^data:.*;base64,/, ''), 'base64');
+    if (!buf.length) return res.status(400).json({ error: 'File rỗng hoặc không hợp lệ' });
+    const project = excelImport.parseWorkbook(buf, sheetName || undefined);
+    if (!project) return res.status(400).json({ error: 'Không đọc được dự án. Cần đúng mẫu "TÌNH HÌNH THỰC HIỆN DỰ ÁN".' });
+    const state = db.getState();
+    state.projects = Array.isArray(state.projects) ? state.projects : [];
+    const dup = state.projects.find(p => (p.name || '').trim().toLowerCase() === (project.name || '').trim().toLowerCase());
+    if (dup) project.name = project.name + ' (nhập ' + new Date().toISOString().slice(0, 10) + ')';
+    project.fullName = project.fullName || project.name;
+    state.projects.push(project);
+    if (!state.currentProjectId) state.currentProjectId = project.id;
+    db.saveStateToDb(state);
+    res.json({
+      ok: true, projectId: project.id, name: project.name,
+      categories: project.categories.length,
+      packages: project.categories.reduce((a, c) => a + c.packages.length, 0)
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Lỗi nhập Excel: ' + err.message });
   }
 });
 

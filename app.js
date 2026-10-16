@@ -4652,6 +4652,7 @@ function renderAccountUI() {
   document.getElementById('btn-manage-users').classList.toggle('hidden', currentUser.role !== 'admin');
   document.getElementById('btn-backup-restore')?.classList.toggle('hidden', currentUser.role !== 'admin');
   document.getElementById('btn-sys-config')?.classList.toggle('hidden', currentUser.role !== 'admin');
+  document.getElementById('btn-import-excel')?.classList.toggle('hidden', currentUser.role !== 'admin');
   isReadOnly = currentUser.role !== 'admin';
   document.body.classList.toggle('read-only', isReadOnly);
 }
@@ -4664,7 +4665,62 @@ document.getElementById('btn-logout').addEventListener('click', async () => {
 document.getElementById('btn-manage-users').addEventListener('click', openUserManagement);
 document.getElementById('btn-backup-restore')?.addEventListener('click', openBackupRestoreModal);
 document.getElementById('btn-sys-config')?.addEventListener('click', openSysConfigModal);
+document.getElementById('btn-import-excel')?.addEventListener('click', openImportExcelModal);
 document.getElementById('btn-audit-log')?.addEventListener('click', renderAuditModal);
+
+// ---- Nhập dự án từ Excel (mẫu "TÌNH HÌNH THỰC HIỆN DỰ ÁN") ----
+function openImportExcelModal() {
+  openModal('Nhập dự án từ Excel', `
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <p style="font-size:0.85rem;color:var(--text-secondary);margin:0;line-height:1.5">
+        Chọn file Excel theo mẫu <b>"TÌNH HÌNH THỰC HIỆN DỰ ÁN"</b> (giống file TONG HOP DU AN).
+        App sẽ tự tạo dự án kèm danh mục (I–VI) và các gói thầu.
+      </p>
+      <div class="form-group">
+        <label>File Excel (.xlsx)</label>
+        <input type="file" id="import-excel-file" accept=".xlsx,.xls">
+      </div>
+      <div id="import-excel-result" style="font-size:0.85rem"></div>
+    </div>
+  `, `
+    <button class="btn btn-secondary" onclick="closeModal()">Đóng</button>
+    <button class="btn btn-primary" onclick="submitImportExcel()">
+      <span class="material-symbols-rounded">upload_file</span> Nhập
+    </button>
+  `);
+}
+
+async function submitImportExcel() {
+  const input = document.getElementById('import-excel-file');
+  const resultEl = document.getElementById('import-excel-result');
+  if (!input || !input.files || !input.files[0]) {
+    if (resultEl) resultEl.innerHTML = '<span style="color:var(--accent-red)">Vui lòng chọn file Excel.</span>';
+    return;
+  }
+  const file = input.files[0];
+  if (resultEl) resultEl.innerHTML = 'Đang xử lý...';
+  try {
+    const base64 = await new Promise((resolve, reject) => {
+      const fr = new FileReader();
+      fr.onload = () => resolve(String(fr.result).split(',')[1] || '');
+      fr.onerror = () => reject(new Error('Không đọc được file'));
+      fr.readAsDataURL(file);
+    });
+    const res = await fetch('/api/admin/import-project-excel', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contentBase64: base64 })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Lỗi nhập file');
+    if (resultEl) resultEl.innerHTML = `<span style="color:var(--accent-green)">Đã nhập dự án "${esc(data.name)}": ${data.categories} danh mục, ${data.packages} gói thầu.</span>`;
+    await loadState();
+    renderProjectSelector();
+    renderAll();
+    showToast('Đã nhập dự án: ' + data.name);
+  } catch (err) {
+    if (resultEl) resultEl.innerHTML = `<span style="color:var(--accent-red)">${esc(err.message)}</span>`;
+  }
+}
 
 function openBackupRestoreModal() {
   openModal('Sao lưu & Phục hồi dữ liệu', `
