@@ -1229,11 +1229,13 @@ function renderDashboard() {
 
   const totalInvest = project.totalInvestment;
   const totalBid = project.categories.reduce((s, c) => s + getCatBidTotal(c), 0);
+  const totalVariation = project.categories.reduce((s, c) => s + c.packages.reduce((a, p) => a + getVariationTotal(p), 0), 0);
+  const totalContract = totalBid + totalVariation;
   const totalDisbursed = project.categories.reduce((s, c) => s + getCatDisbursedTotal(c), 0);
   const totalCumulative = project.categories.reduce((s, c) => s + getCatCumulativeTotal(c), 0);
   const totalAcceptance = allPkgs.reduce((s, x) => s + (x.pkg.acceptanceValue || 0), 0);
 
-  const acceptRate = totalBid > 0 ? (totalAcceptance / totalBid) * 100 : 0;
+  const acceptRate = totalContract > 0 ? (totalAcceptance / totalContract) * 100 : 0;
 
   // ---- KPI cards ----
   kpiEl.innerHTML = `
@@ -1247,11 +1249,11 @@ function renderDashboard() {
     </div>
     <div class="kpi-card glass-card" data-color="purple">
       <div class="kpi-header">
-        <span class="kpi-label">Giá trị trúng thầu</span>
+        <span class="kpi-label">Giá trị hợp đồng</span>
         <div class="kpi-icon"><span class="material-symbols-rounded">gavel</span></div>
       </div>
-      <div class="kpi-value">${formatCurrency(totalBid, true)}</div>
-      <div class="kpi-sub">Lũy kế thực hiện: ${formatCurrency(totalCumulative, true)}</div>
+      <div class="kpi-value">${formatCurrency(totalContract, true)}</div>
+      <div class="kpi-sub">Trúng thầu ${formatCurrency(totalBid, true)} · Phát sinh ${formatCurrency(totalVariation, true)}</div>
     </div>
     <div class="kpi-card glass-card" data-color="green">
       <div class="kpi-header">
