@@ -404,6 +404,28 @@ app.post('/api/restore', requireAuth, requireAdmin, (req, res) => {
   }
 });
 
+// Nạp/đồng bộ dự án mẫu (seed) vào dữ liệu hiện tại — bổ sung dự án có sẵn (vd dự án D,E)
+// Không xóa các dự án khác; dự án cùng id sẽ được cập nhật đầy đủ theo seed.
+app.post('/api/admin/import-seed', requireAuth, requireAdmin, (req, res) => {
+  try {
+    const seed = require('./seed-data');
+    const state = db.getState();
+    state.projects = Array.isArray(state.projects) ? state.projects : [];
+    let created = 0, updated = 0;
+    for (const sp of seed) {
+      const clone = JSON.parse(JSON.stringify(sp));
+      const idx = state.projects.findIndex(p => p.id === sp.id);
+      if (idx >= 0) { state.projects[idx] = clone; updated += 1; }
+      else { state.projects.push(clone); created += 1; }
+    }
+    if (!state.currentProjectId) state.currentProjectId = state.projects[0]?.id || null;
+    db.saveStateToDb(state);
+    res.json({ ok: true, created, updated, totalProjects: state.projects.length });
+  } catch (err) {
+    res.status(500).json({ error: 'Lỗi nạp dự án mẫu: ' + err.message });
+  }
+});
+
 // ---- Tự động sao lưu định kỳ (bảo vệ chống mất dữ liệu) ----
 const BACKUP_DIR = path.join(__dirname, 'data', 'backups');
 const MAX_AUTO_BACKUPS = 1; // chỉ giữ bản sao lưu gần nhất, tự xóa bản cũ

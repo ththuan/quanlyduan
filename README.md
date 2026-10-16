@@ -156,6 +156,26 @@ if (user) {
 
 > **Mặc định**: `http://<ip-server>:8091`
 
+**7. Nạp dự án mẫu D,E (Khu giảng đường dãy D,E) vào app đang chạy**
+
+App tự nạp dự án D,E khi database còn rỗng (lần chạy đầu). Nếu muốn bổ sung/cập nhật dự án D,E (đầy đủ 35 gói thầu theo file `TONG HOP DU AN.xlsx`) vào dữ liệu hiện có **mà không xóa dự án khác**, gọi API (chỉ admin):
+
+```bash
+# Lấy access token: đăng nhập app -> DevTools (F12) -> Application -> Local Storage
+#   key "qlda_auth_session" -> copy giá trị accessToken
+curl -X POST http://localhost:8091/api/admin/import-seed \
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
+# -> {"ok":true,"created":0,"updated":1,"totalProjects":1}
+```
+
+Hoặc chạy trong Console của trình duyệt khi đang đăng nhập (admin):
+```js
+const t = JSON.parse(localStorage.getItem('qlda_auth_session')).accessToken;
+fetch('/api/admin/import-seed', { method:'POST', headers:{ Authorization:'Bearer '+t } }).then(r=>r.json()).then(console.log);
+```
+
+> Dự án cùng `id` (vd `proj-day-de`) sẽ được cập nhật đầy đủ theo dữ liệu mẫu; các dự án khác giữ nguyên.
+
 ### Cài đặt bằng Docker Desktop (Windows/Mac, dev/test nhanh)
 
 ```bash
