@@ -444,6 +444,24 @@ function getAcceptanceStats(pkg) {
   };
 }
 
+// Nhãn cảnh báo hạn (hợp đồng / bảo hành) cho bảng gói thầu
+function packageDeadlineBadges(pkg, project) {
+  const badges = [];
+  if (pkg.contractEndDate && (pkg.progress || 0) < 100 && !pkg.acceptanceDate) {
+    const d = daysUntil(pkg.contractEndDate);
+    if (d != null && d < 0) badges.push('<span class="badge badge-danger">Quá hạn HĐ</span>');
+    else if (d != null && d <= 30) badges.push('<span class="badge badge-warning">Sắp hạn HĐ</span>');
+  }
+  if (pkg.handoverDate && pkg.pkgType !== 'consulting' && pkg.pkgType !== 'nonConsulting') {
+    const months = pkg.warrantyMonths || computeWarrantyMonths(project?.buildingGrade);
+    const end = addMonths(pkg.handoverDate, months);
+    const d = daysUntil(end);
+    if (d != null && d < 0) badges.push('<span class="badge badge-danger">Hết bảo hành</span>');
+    else if (d != null && d <= 60) badges.push('<span class="badge badge-warning">Sắp hết bảo hành</span>');
+  }
+  return badges.length ? ' ' + badges.join(' ') : '';
+}
+
 // ---- Trạng thái vòng đời gói thầu ----
 const PKG_STATUSES = {
   notStarted: { label: 'Chưa triển khai', badge: 'badge-neutral' },
@@ -1385,7 +1403,7 @@ function renderPackages(searchTerm = document.getElementById('search-packages')?
       return `
                   <tr>
                     <td>${pi + 1}</td>
-                    <td class="pkg-name">${esc(pkg.name)}${pkg.pdfs?.length ? ' <span class="material-symbols-rounded" style="font-size:14px;color:var(--accent-amber)" title="Có file đính kèm">attach_file</span>' : ''}</td>
+                    <td class="pkg-name">${esc(pkg.name)}${packageDeadlineBadges(pkg, project)}${pkg.pdfs?.length ? ' <span class="material-symbols-rounded" style="font-size:14px;color:var(--accent-amber)" title="Có file đính kèm">attach_file</span>' : ''}</td>
                     <td class="text-right">${pkg.estimateValue ? formatCurrency(pkg.estimateValue, true) : '—'}</td>
                     <td class="text-right">${ast.contract ? formatCurrency(ast.contract, true) : '—'}${getApprovedVariationTotal(pkg) ? '<div style="font-size:0.7rem;color:var(--text-muted)">gồm phát sinh</div>' : ''}</td>
                     <td class="pkg-wrap">${esc(pkg.selectionMethod || '—')}</td>
@@ -3686,6 +3704,7 @@ function viewPackageDetail(catId, pkgId) {
       ${isConstructionLike && (pkg.pl03aValue || pkg.pl03aDate) ? item('Giá trị khối lượng (PL 03a)', `${pkg.pl03aValue ? formatCurrency(pkg.pl03aValue) : '—'}${pkg.pl03aDate ? ` — ${formatDateVN(pkg.pl03aDate)}` : ''}`, true) : ''}
       ${isGoodsLike ? item('Ngày bàn giao', formatDateVN(pkg.handoverDate)) : ''}
       ${isGoodsLike ? item('Thời hạn bảo hành', `${pkg.warrantyMonths || computeWarrantyMonths(project.buildingGrade)} tháng`) : ''}
+      ${isGoodsLike && pkg.handoverDate ? item('Ngày hết hạn bảo hành', formatDateVN(addMonths(pkg.handoverDate, pkg.warrantyMonths || computeWarrantyMonths(project.buildingGrade)))) : ''}
       ${isGoodsLike && hasWarranty ? item('Chứng thư bảo lãnh bảo hành', `${esc(pkg.warrantyGuaranteeNumber || '—')}${pkg.warrantyGuaranteeDate ? ` — ${formatDateVN(pkg.warrantyGuaranteeDate)}` : ''}${pkg.warrantyGuaranteeValue ? ` · ${formatCurrency(pkg.warrantyGuaranteeValue)}` : ''}`) : ''}
       ${hasQuote ? item('Báo giá', `${esc(pkg.quoteNumber || '—')}${pkg.quoteDate ? ` — đăng ${formatDateVN(pkg.quoteDate)}` : ''}${pkg.quoteCount ? ` · ${pkg.quoteCount} báo giá` : ''}`) : ''}
       ${isDocType ? item('Nghiệm thu hồ sơ', `${esc(pkg.docAcceptRecord || '—')}${pkg.docAcceptDate ? ` — ${formatDateVN(pkg.docAcceptDate)}` : ''} · <span class="badge ${pkg.docAcceptStatus === 'Đã nghiệm thu' ? 'badge-success' : 'badge-warning'}">${esc(pkg.docAcceptStatus || 'Chưa nghiệm thu')}</span>`) : ''}
@@ -3697,6 +3716,7 @@ function viewPackageDetail(catId, pkgId) {
       ${item('% nghiệm thu / hợp đồng', st.percent != null ? `<span class="${st.percent > 100 ? 'badge badge-danger' : ''}">${formatPercent(st.percent)}</span>` : '—')}
       ${item('Còn lại chưa nghiệm thu', st.remaining != null ? formatCurrency(st.remaining) : '—', true)}
       ${item('Chênh lệch dự toán - trúng thầu', st.saving != null ? formatCurrency(st.saving) : '—', true)}
+      ${st.saving != null && pkg.estimateValue > 0 ? item('% giảm giá so với dự toán', formatPercent(st.saving / pkg.estimateValue * 100)) : ''}
       ${item('Trạng thái nghiệm thu', `<span class="badge ${pkg.acceptanceStatus === 'Đã nghiệm thu' ? 'badge-success' : 'badge-warning'}">${esc(pkg.acceptanceStatus || 'Chưa nghiệm thu')}</span>`)}
       ${item('Ngày nghiệm thu gần nhất', formatDateVN(pkg.acceptanceDate))}
 
