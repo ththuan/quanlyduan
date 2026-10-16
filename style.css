@@ -845,6 +845,33 @@ body.read-only .edit-only { display: none !important; }
 .disb-donut {
   display: flex;
   justify-content: center;
+  position: relative;
+}
+
+.disb-hint {
+  margin: 0 0 12px;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.disb-tip {
+  position: absolute;
+  z-index: 20;
+  display: none;
+  pointer-events: none;
+  background: #0f172a;
+  color: #f8fafc;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  padding: 8px 10px;
+  border-radius: 8px;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.28);
+  max-width: 240px;
+}
+
+.disb-tip b {
+  color: #7dd3fc;
 }
 
 #chart-disburse {

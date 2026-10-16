@@ -932,12 +932,11 @@ function renderDonutChart() {
 // % giải ngân = lũy kế giải ngân / giá trị hợp đồng hiện hành
 // (giá trị hợp đồng hiện hành = trúng thầu + phát sinh)
 // ============================================================
-function disbColor(percent) {
-  if (percent >= 100) return '#34d399';
-  if (percent >= 60) return '#22d3ee';
-  if (percent >= 30) return '#fbbf24';
-  if (percent > 0) return '#f87171';
-  return '#cbd5e1';
+// Màu lát biểu đồ giải ngân: dải màu rực rỡ theo từng lát (nhìn đẹp, khác nhau)
+function disbColor(index, total) {
+  const n = Math.max(1, total);
+  const hue = Math.round((index / n) * 320 + 12);
+  return `hsl(${hue}, 68%, 56%)`;
 }
 
 function getDisbursementRows(project) {
@@ -989,14 +988,14 @@ function renderDisbursementChart() {
   const outerR = size / 2 - 26;
   const innerR = outerR * 0.62;
   let startAngle = -Math.PI / 2;
-  rows.forEach(r => {
+  rows.forEach((r, i) => {
     const slice = (r.contract / totalContract) * Math.PI * 2;
     const endAngle = startAngle + slice;
     ctx.beginPath();
     ctx.arc(cx, cy, outerR, startAngle, endAngle);
     ctx.arc(cx, cy, innerR, endAngle, startAngle, true);
     ctx.closePath();
-    ctx.fillStyle = disbColor(r.percent);
+    ctx.fillStyle = disbColor(i, rows.length);
     ctx.fill();
 
     ctx.beginPath();
@@ -1043,11 +1042,28 @@ function renderDisbursementChart() {
     }
     return null;
   };
+  const parent = canvas.parentElement;
+  if (parent && window.getComputedStyle(parent).position === 'static') parent.style.position = 'relative';
+  let tip = parent ? parent.querySelector('.disb-tip') : null;
+  if (parent && !tip) { tip = document.createElement('div'); tip.className = 'disb-tip'; parent.appendChild(tip); }
+
   canvas.style.cursor = 'default';
   canvas.onmousemove = (e) => {
     const rect = canvas.getBoundingClientRect();
-    canvas.style.cursor = sliceHit(e.clientX - rect.left, e.clientY - rect.top) ? 'pointer' : 'default';
+    const r = sliceHit(e.clientX - rect.left, e.clientY - rect.top);
+    canvas.style.cursor = r ? 'pointer' : 'default';
+    if (!tip) return;
+    if (r) {
+      tip.innerHTML = `<strong>${esc(r.pkg.name)}</strong><br>${esc((r.cat.code ? r.cat.code + '. ' : '') + r.cat.name)}<br>Giá trị HĐ: <b>${esc(formatCurrency(r.contract))}</b><br>Đã giải ngân: <b>${esc(formatCurrency(r.disbursed))}</b> (${r.percent.toFixed(1)}%)`;
+      tip.style.display = 'block';
+      const prect = parent.getBoundingClientRect();
+      tip.style.left = Math.min(e.clientX - prect.left + 14, Math.max(0, prect.width - 220)) + 'px';
+      tip.style.top = Math.max(e.clientY - prect.top - 10, 0) + 'px';
+    } else {
+      tip.style.display = 'none';
+    }
   };
+  canvas.onmouseleave = () => { if (tip) tip.style.display = 'none'; };
   canvas.onclick = (e) => {
     const rect = canvas.getBoundingClientRect();
     const r = sliceHit(e.clientX - rect.left, e.clientY - rect.top);
