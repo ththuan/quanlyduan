@@ -568,9 +568,6 @@ function computeContractAlerts(pkg) {
   if (!pkg) return alerts;
 
   const st = getAcceptanceStats(pkg);
-  const pays = pkg.payments || [];
-  const payTotal = pays.reduce((s, p) => s + (Number(p.value) || 0), 0);
-  const payPct = st.contract > 0 ? payTotal / st.contract * 100 : 0;
   if (st.contract > 0 && st.accepted > st.contract) {
     alerts.push({ level: 'danger', icon: 'error', message: `Gói "${pkg.name}": giá trị nghiệm thu (${formatCurrency(st.accepted, true)}) vượt giá trị hợp đồng hiện hành (${formatCurrency(st.contract, true)}).` });
   }
@@ -3729,6 +3726,9 @@ function viewPackageDetail(catId, pkgId) {
   const vars = pkg.variations || [];
   const varStatus = { pending: 'Chờ duyệt', approved: 'Đã duyệt', rejected: 'Từ chối' };
   const st = getAcceptanceStats(pkg);
+  const pays = pkg.payments || [];
+  const payTotal = pays.reduce((s, p) => s + (Number(p.value) || 0), 0);
+  const payPct = st.contract > 0 ? payTotal / st.contract * 100 : 0;
   const typeInfo = PKG_TYPE_INFO[pkg.pkgType] || PKG_TYPE_INFO.construction;
   const isConstructionLike = pkg.pkgType === 'construction' || pkg.pkgType === 'mixed';
   const isGoodsLike = pkg.pkgType === 'construction' || pkg.pkgType === 'goods' || pkg.pkgType === 'mixed';
