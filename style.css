@@ -2921,6 +2921,24 @@ canvas {
 .btn-ai-float:hover { transform: scale(1.08); box-shadow: 0 8px 24px rgba(124,58,237,0.5); }
 .btn-ai-float .ai-logo { filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15)); }
 
+.ai-float-hint {
+  position: fixed; bottom: 30px; right: 88px; z-index: 1000;
+  max-width: 290px; padding: 10px 14px;
+  background: #2563eb; color: #fff; border: none; border-radius: 14px;
+  font-size: 0.8rem; line-height: 1.4; text-align: left; cursor: pointer;
+  box-shadow: 0 6px 20px rgba(37,99,235,0.35);
+  animation: aiHintIn .4s ease;
+}
+.ai-float-hint::after {
+  content: ''; position: absolute; right: -5px; top: 50%;
+  width: 12px; height: 12px; background: #2563eb;
+  transform: translateY(-50%) rotate(45deg); border-radius: 2px;
+}
+.ai-float-hint:hover { filter: brightness(1.07); }
+.ai-float-hint.hidden { display: none; }
+@keyframes aiHintIn { from { opacity: 0; transform: translateX(10px); } to { opacity: 1; transform: none; } }
+@media (max-width: 600px) { .ai-float-hint { display: none; } }
+
 .ai-chat-panel {
   position: fixed; bottom: 90px; right: 24px; z-index: 1000;
   width: 540px; max-width: calc(100vw - 32px);

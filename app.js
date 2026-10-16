@@ -5231,12 +5231,20 @@ window.addEventListener('resize', () => {
 // ============================================================
 // AI CHAT (Gemini)
 // ============================================================
+const aiChatPanelEl = document.getElementById('ai-chat-panel');
+const aiFloatHintEl = document.getElementById('ai-float-hint');
+function openAiChatPanel() {
+  aiChatPanelEl?.classList.remove('hidden');
+  aiFloatHintEl?.classList.add('hidden');
+}
 document.getElementById('btn-ai-chat')?.addEventListener('click', function() {
-  document.getElementById('ai-chat-panel').classList.toggle('hidden');
+  if (aiChatPanelEl.classList.contains('hidden')) openAiChatPanel();
+  else aiChatPanelEl.classList.add('hidden');
 });
 document.getElementById('btn-ai-close')?.addEventListener('click', function() {
-  document.getElementById('ai-chat-panel').classList.add('hidden');
+  aiChatPanelEl.classList.add('hidden');
 });
+aiFloatHintEl?.addEventListener('click', openAiChatPanel);
 
 var aiHistory = [];
 
