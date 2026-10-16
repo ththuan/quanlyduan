@@ -568,6 +568,9 @@ function computeContractAlerts(pkg) {
   if (!pkg) return alerts;
 
   const st = getAcceptanceStats(pkg);
+  const pays = pkg.payments || [];
+  const payTotal = pays.reduce((s, p) => s + (Number(p.value) || 0), 0);
+  const payPct = st.contract > 0 ? payTotal / st.contract * 100 : 0;
   if (st.contract > 0 && st.accepted > st.contract) {
     alerts.push({ level: 'danger', icon: 'error', message: `Gói "${pkg.name}": giá trị nghiệm thu (${formatCurrency(st.accepted, true)}) vượt giá trị hợp đồng hiện hành (${formatCurrency(st.contract, true)}).` });
   }
@@ -3812,6 +3815,25 @@ function viewPackageDetail(catId, pkgId) {
         </tbody></table>` : '<p class="pdf-empty">Chưa có phát sinh</p>'}
       </div>
 
+      <div class="detail-section-title">Thanh toán
+        <button type="button" class="btn btn-secondary btn-sm edit-only" style="margin-left:8px" onclick="suggestPayments('${catId}','${pkgId}')"><span class="material-symbols-rounded">auto_awesome</span> Gợi ý theo loại</button>
+        <button type="button" class="btn btn-secondary btn-sm edit-only" style="margin-left:8px" onclick="addPayment('${catId}','${pkgId}')"><span class="material-symbols-rounded">add</span> Thêm đợt</button>
+      </div>
+      <div class="detail-item full-width">
+        ${pays.length ? `<table class="report-table"><thead><tr><th>Loại</th><th>Nội dung</th><th>Ngày</th><th class="text-right">Giá trị</th><th>Ghi chú</th><th></th></tr></thead><tbody>
+          ${pays.map(p => `<tr>
+            <td>${esc(p.type || '—')}</td>
+            <td>${esc(p.name || '')}</td>
+            <td>${formatDateVN(p.date)}</td>
+            <td class="text-right">${formatCurrency(p.value)}</td>
+            <td>${esc(p.note || '')}</td>
+            <td class="edit-only"><button class="btn-icon btn-sm" title="Xóa" onclick="deletePayment('${catId}','${pkgId}','${p.id}')"><span class="material-symbols-rounded">delete</span></button></td>
+          </tr>`).join('')}
+        </tbody></table>
+        <div style="margin-top:6px;font-size:0.82rem;color:var(--text-secondary)">Tổng đã thanh toán: <b>${formatCurrency(payTotal)}</b> (${payPct.toFixed(1)}% giá trị HĐ) · Còn lại: <b>${formatCurrency(Math.max(0, st.contract - payTotal))}</b></div>`
+      : '<p class="pdf-empty">Chưa có đợt thanh toán</p>'}
+      </div>
+
 
 
       ${(hasContract || hasKhlcnt || hasResult || hasLiquidation || invoices.length) ? section('folder_shared', 'Hợp đồng & Hồ sơ pháp lý') : ''}
@@ -4108,6 +4130,93 @@ function deleteVariation(catId, pkgId, varId) {
   viewPackageDetail(catId, pkgId);
   renderAll();
   showToast('Đã xóa phát sinh khối lượng', 'info');
+}
+
+// ---- Thanh toán (tạm ứng, các đợt thanh toán) ----
+const PAYMENT_TYPES = ['Tạm ứng', 'Thanh toán khối lượng', 'Thanh toán hoàn thành', 'Khác'];
+
+function addPayment(catId, pkgId) {
+  if (!requireEditPermission()) return;
+  openModal('Thêm đợt thanh toán', `
+    <div class="form-grid" style="grid-template-columns:1fr 1fr">
+      <div class="form-group"><label>Loại</label>
+        <select id="pay-type">${PAYMENT_TYPES.map(t => `<option value="${t}">${t}</option>`).join('')}</select>
+      </div>
+      <div class="form-group"><label>Ngày</label><input type="date" id="pay-date"></div>
+      <div class="form-group"><label>Giá trị (VNĐ)</label><input type="number" id="pay-value"></div>
+      <div class="form-group"><label>Ghi chú</label><input type="text" id="pay-note"></div>
+      <div class="form-group full-width"><label>Nội dung</label><input type="text" id="pay-name" placeholder="VD: Tạm ứng 30% giá trị hợp đồng"></div>
+    </div>
+  `, `
+    <button class="btn btn-secondary" onclick="closeModal()">Hủy</button>
+    <button class="btn btn-primary" onclick="savePayment('${catId}','${pkgId}')">Lưu</button>
+  `);
+}
+
+function savePayment(catId, pkgId) {
+  const project = getCurrentProject();
+  const cat = project.categories.find(c => c.id === catId);
+  const pkg = cat?.packages.find(p => p.id === pkgId);
+  if (!pkg) return;
+  pkg.payments = pkg.payments || [];
+  pkg.payments.push({
+    id: generateId(),
+    type: document.getElementById('pay-type').value,
+    name: document.getElementById('pay-name').value.trim(),
+    date: toIso(document.getElementById('pay-date').value),
+    value: Number(document.getElementById('pay-value').value) || 0,
+    note: document.getElementById('pay-note').value.trim()
+  });
+  addAudit(project, 'create', 'thanh toán', pkg.name);
+  saveState();
+  closeModal();
+  viewPackageDetail(catId, pkgId);
+  renderAll();
+  showToast('Đã thêm đợt thanh toán');
+}
+
+function deletePayment(catId, pkgId, payId) {
+  if (!requireEditPermission()) return;
+  const project = getCurrentProject();
+  const cat = project.categories.find(c => c.id === catId);
+  const pkg = cat?.packages.find(p => p.id === pkgId);
+  if (!pkg?.payments) return;
+  pkg.payments = pkg.payments.filter(p => p.id !== payId);
+  addAudit(project, 'delete', 'thanh toán', pkg.name);
+  saveState();
+  viewPackageDetail(catId, pkgId);
+  renderAll();
+  showToast('Đã xóa đợt thanh toán', 'info');
+}
+
+// Gợi ý lịch thanh toán theo loại gói thầu
+function suggestPayments(catId, pkgId) {
+  if (!requireEditPermission()) return;
+  const project = getCurrentProject();
+  const cat = project.categories.find(c => c.id === catId);
+  const pkg = cat?.packages.find(p => p.id === pkgId);
+  if (!pkg) return;
+  const contract = getCurrentContractValue(pkg);
+  const mk = (type, name, value) => ({ id: generateId(), type, name, date: '', value: Math.round(value), note: 'Gợi ý tự động' });
+  const nameLower = (pkg.name || '').toLowerCase();
+  const isBcktkt = pkg.pkgType === 'consulting' && (nameLower.includes('báo cáo kinh tế') || nameLower.includes('bcktkt') || nameLower.includes('báo cáo ktkt'));
+  const isConstructionLike = pkg.pkgType === 'construction' || pkg.pkgType === 'mixed' || pkg.pkgType === 'goods';
+  if (contract <= 0) { showToast('Cần nhập giá trị hợp đồng (trúng thầu) trước', 'error'); return; }
+  pkg.payments = pkg.payments || [];
+  if (isBcktkt) {
+    pkg.payments.push(mk('Thanh toán khối lượng', 'Thanh toán đợt 1 — trước khi hoàn thành bản vẽ thiết kế (90%)', contract * 0.9));
+    pkg.payments.push(mk('Thanh toán hoàn thành', 'Thanh toán đợt 2 — 10% còn lại sau khi hoàn thành thi công', contract * 0.1));
+  } else if (isConstructionLike) {
+    pkg.payments.push(mk('Tạm ứng', 'Tạm ứng 30% giá trị hợp đồng', contract * 0.3));
+  } else {
+    showToast('Chưa có mẫu gợi ý cho loại gói này', 'info');
+    return;
+  }
+  addAudit(project, 'create', 'thanh toán', pkg.name, 'Gợi ý tự động theo loại gói');
+  saveState();
+  viewPackageDetail(catId, pkgId);
+  renderAll();
+  showToast('Đã thêm gợi ý lịch thanh toán');
 }
 
 function renderConstructionLogHTML(pkg, catId, pkgId) {
