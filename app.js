@@ -284,6 +284,12 @@ async function loadState() {
         pkg.deliverables = pkg.deliverables || [];
         pkg.payments = pkg.payments || [];
         pkg.variations = pkg.variations || [];
+        // Chuyển phụ lục hợp đồng cũ (danh sách) sang trường 'số + ngày' nếu trống
+        if (!pkg.contractExtension && Array.isArray(pkg.appendices) && pkg.appendices.length) {
+          pkg.contractExtension = pkg.appendices
+            .map(a => [a.no, a.date ? 'ngày ' + formatDateVN(a.date) : ''].filter(Boolean).join(' '))
+            .filter(Boolean).join('; ');
+        }
         pkg.acceptances = pkg.acceptances || [];
         // Số nghiệm thu cũ (1 giá trị) -> đợt nghiệm thu đầu tiên
         if (!pkg.acceptances.length && (pkg.acceptanceValue || 0) > 0) {
@@ -1869,7 +1875,6 @@ function exportFullProjectReport() {
           <th style="width:30px">TT</th>
           <th>Tên gói thầu</th>
           <th>Nhà thầu trúng thầu</th>
-          <th>Loại HĐ</th>
           <th class="text-right">Giá trị trúng thầu</th>
           <th class="text-right">Lũy kế giải ngân</th>
           <th class="text-center">Tiến độ</th>
@@ -1881,7 +1886,6 @@ function exportFullProjectReport() {
           <td class="text-center">${i + 1}</td>
           <td>${esc(p.name)}</td>
           <td>${esc(p.contractor || '—')}</td>
-          <td class="text-center">${esc(p.contractType || '—')}</td>
           <td class="text-right">${formatCurrency(p.bidValue)}</td>
           <td class="text-right">${formatCurrency(p.cumulativeDisbursed)}</td>
           ${p.pkgType !== 'consulting' && p.pkgType !== 'nonConsulting' ? `<td class="text-center">${p.progress || 0}%</td>` : '<td class="text-center">—</td>'}
@@ -1921,7 +1925,7 @@ function buildQtda02Rows(project, inspectionText) {
     const numDate = /ngày/i.test(contractText) || !p.contractSignDate ? contractText : qtdaNumberDate(contractText, p.contractSignDate);
     contracts.push({ name: `Hợp đồng ${p.name}`, numDate, agency: p.contractor || '', note: p.bidValue > 0 ? `Giá trị HĐ: ${formatCurrency(p.bidValue)}` : '' });
     if (hasValue(p.contractExtension)) {
-      contracts.push({ name: `Phụ lục gia hạn hợp đồng ${p.name}`, numDate: p.contractExtension, agency: p.contractor || '', note: '' });
+      contracts.push({ name: `Phụ lục hợp đồng ${p.name}`, numDate: p.contractExtension, agency: p.contractor || '', note: '' });
     }
     (p.variations || []).filter(v => v.status === 'approved').forEach(v => {
       contracts.push({
@@ -3866,7 +3870,6 @@ function viewPackageDetail(catId, pkgId) {
 
       ${(hasContract || hasKhlcnt || hasResult || hasLiquidation || invoices.length) ? section('folder_shared', 'Hợp đồng & Hồ sơ pháp lý') : ''}
       ${hasContract ? item('Số hợp đồng', esc(pkg.contract || '—')) : ''}
-      ${hasContract ? item('Loại hợp đồng', esc(pkg.contractType || '—')) : ''}
       ${hasContract ? item('Ngày ký hợp đồng', formatDateVN(pkg.contractSignDate)) : ''}
       ${hasContract ? item('Ngày bắt đầu thực hiện', formatDateVN(pkg.contractStartDate)) : ''}
       ${hasContract ? item('Ngày hết hạn hợp đồng', `<span class="${pkg.contractEndDate && pkg.progress < 100 && daysUntil(pkg.contractEndDate) < 0 ? 'badge badge-danger' : ''}">${formatDateVN(pkg.contractEndDate)}</span>`) : ''}
