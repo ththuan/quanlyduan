@@ -1925,7 +1925,7 @@ function buildQtda02Rows(project, inspectionText) {
     const numDate = /ngày/i.test(contractText) || !p.contractSignDate ? contractText : qtdaNumberDate(contractText, p.contractSignDate);
     contracts.push({ name: `Hợp đồng ${p.name}`, numDate, agency: p.contractor || '', note: p.bidValue > 0 ? `Giá trị HĐ: ${formatCurrency(p.bidValue)}` : '' });
     if (hasValue(p.contractExtension)) {
-      contracts.push({ name: `Phụ lục hợp đồng ${p.name}`, numDate: p.contractExtension, agency: p.contractor || '', note: '' });
+      contracts.push({ name: `Phụ lục hợp đồng ${p.name}`, numDate: p.contractExtension, agency: p.contractor || '', note: p.contractExtensionContent || '' });
     }
     (p.variations || []).filter(v => v.status === 'approved').forEach(v => {
       contracts.push({
@@ -3329,6 +3329,10 @@ function getPackageFormHTML(pkg = null, catId = '') {
         <input type="text" id="f-contractExtension" value="${esc(pkg?.contractExtension || '')}" placeholder="VD: PL01/HĐ ngày 10/12/2023">
       </div>
       <div class="form-group">
+        <label>Nội dung phụ lục hợp đồng</label>
+        <textarea id="f-contractExtensionContent" placeholder="VD: Điều chỉnh khối lượng phát sinh; gia hạn thời gian thực hiện; điều chỉnh giá trị hợp đồng...">${pkg?.contractExtensionContent || ''}</textarea>
+      </div>
+      <div class="form-group">
         <label>Dự kiến thời gian hoàn thành</label>
         <input type="text" id="f-expectedCompletion" value="${esc(pkg?.expectedCompletion || '')}" placeholder="VD: 20/12/2023">
       </div>
@@ -3454,6 +3458,7 @@ function getPackageFormData(pkg = null) {
     // Trường pháp lý/chi tiết đã bỏ khỏi form: giữ nguyên giá trị cũ (không mất dữ liệu)
     contractType: pkg?.contractType || '',
     contractExtension: gtxt('f-contractExtension', pkg?.contractExtension || ''),
+    contractExtensionContent: gtxt('f-contractExtensionContent', pkg?.contractExtensionContent || ''),
     contractExtensionDate: giso('f-contractExtensionDate', pkg?.contractExtensionDate),
     pl02aDate: pkg?.pl02aDate || '',
     negotiation: pkg?.negotiation || '',
@@ -3874,6 +3879,7 @@ function viewPackageDetail(catId, pkgId) {
       ${hasContract ? item('Ngày bắt đầu thực hiện', formatDateVN(pkg.contractStartDate)) : ''}
       ${hasContract ? item('Ngày hết hạn hợp đồng', `<span class="${pkg.contractEndDate && pkg.progress < 100 && daysUntil(pkg.contractEndDate) < 0 ? 'badge badge-danger' : ''}">${formatDateVN(pkg.contractEndDate)}</span>`) : ''}
       ${hasContract && (pkg.contractExtension || pkg.contractExtensionDate) ? item('Phụ lục hợp đồng', `${esc(pkg.contractExtension || '—')}${pkg.contractExtensionDate ? ` — ${formatDateVN(pkg.contractExtensionDate)}` : ''}`) : ''}
+      ${hasContract && pkg.contractExtensionContent ? item('Nội dung phụ lục hợp đồng', esc(pkg.contractExtensionContent)) : ''}
       ${hasContract && pkg.pl02aDate ? item('Phụ lục 02a — Bảng thông tin HĐ', formatDateVN(pkg.pl02aDate)) : ''}
       ${hasContract && pkg.negotiation ? item('Biên bản thương thảo', esc(pkg.negotiation)) : ''}
       ${hasKhlcnt ? item('KHLCNT', `${esc(pkg.khlcntNumber || '—')}${pkg.khlcntDate ? ` — ${formatDateVN(pkg.khlcntDate)}` : ''}`) : ''}
