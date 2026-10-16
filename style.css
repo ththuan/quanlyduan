@@ -1709,6 +1709,34 @@ canvas {
   flex-shrink: 0;
 }
 
+.pay-row {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1.4fr) 130px 140px minmax(0, 1fr) 34px;
+  gap: 6px;
+  margin-bottom: 6px;
+  align-items: center;
+}
+
+.pay-row select,
+.pay-row input {
+  width: 100%;
+  padding: 7px 9px;
+  background: #f8fafc;
+  border: 1px solid var(--border-glass);
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 0.8rem;
+  color: var(--text-primary);
+  min-width: 0;
+}
+
+.pay-row select:focus,
+.pay-row input:focus {
+  outline: none;
+  border-color: var(--accent-blue);
+  background: #ffffff;
+}
+
 .form-section-title {
   grid-column: 1 / -1;
   font-size: 0.82rem;

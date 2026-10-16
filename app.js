@@ -3350,6 +3350,15 @@ function getPackageFormHTML(pkg = null, catId = '') {
         </select>
       </div>
 
+      <div class="form-section-title"><span class="material-symbols-rounded">account_balance_wallet</span> Thanh toán
+        <button type="button" class="btn btn-secondary btn-sm" style="margin-left:8px" onclick="suggestFormPayments()"><span class="material-symbols-rounded">auto_awesome</span> Gợi ý theo loại</button>
+        <button type="button" class="btn btn-secondary btn-sm" style="margin-left:8px" onclick="addFormPaymentRow()"><span class="material-symbols-rounded">add</span> Thêm đợt</button>
+      </div>
+      <div class="form-group full-width">
+        <div id="form-payment-rows">${(pkg?.payments || []).map(formPaymentRowHTML).join('')}</div>
+        <div id="form-payment-total" style="margin-top:6px;font-size:0.82rem;color:var(--text-secondary)"></div>
+      </div>
+
       <div class="form-section-title"><span class="material-symbols-rounded">sticky_note_2</span> Ghi chú & Hồ sơ đính kèm</div>
       <div class="form-group full-width">
         <label>Ghi chú</label>
@@ -3421,6 +3430,7 @@ function getPackageFormData(pkg = null) {
     acceptanceStatus: gv('f-acceptanceStatus', pkg?.acceptanceStatus || ACCEPTANCE_STATUSES[0]),
     acceptanceDate: dateFromText(gtxt('f-acceptanceRecord', pkg?.acceptanceRecord || '')) || pkg?.acceptanceDate || '',
     notes: gtxt('f-notes', pkg?.notes || ''),
+    payments: readFormPayments(),
 
     // Trường pháp lý/chi tiết đã bỏ khỏi form: giữ nguyên giá trị cũ (không mất dữ liệu)
     contractType: pkg?.contractType || '',
@@ -3521,7 +3531,7 @@ function addPackage(catId) {
       <span class="material-symbols-rounded">save</span> Lưu
     </button>
   `, 'lg');
-  setTimeout(togglePkgTypeFields, 50);
+  setTimeout(function () { togglePkgTypeFields(); updateFormPaymentTotal(); }, 50);
 }
 
 function saveNewPackage(catId) {
@@ -3556,7 +3566,7 @@ function editPackage(catId, pkgId) {
       <span class="material-symbols-rounded">save</span> Cập nhật
     </button>
   `, 'lg');
-  setTimeout(togglePkgTypeFields, 50);
+  setTimeout(function () { togglePkgTypeFields(); updateFormPaymentTotal(); }, 50);
 }
 
 function saveEditPackage(catId, pkgId) {
@@ -4217,6 +4227,73 @@ function suggestPayments(catId, pkgId) {
   viewPackageDetail(catId, pkgId);
   renderAll();
   showToast('Đã thêm gợi ý lịch thanh toán');
+}
+
+// ---- Thanh toán trong form Thêm/Sửa gói thầu ----
+function formPaymentRowHTML(pay) {
+  pay = pay || {};
+  const opts = PAYMENT_TYPES.map(t => `<option value="${t}" ${pay.type === t ? 'selected' : ''}>${t}</option>`).join('');
+  return `<div class="pay-row" data-id="${esc(pay.id || '')}">
+    <select class="pay-type" title="Loại"><option value="">— Loại —</option>${opts}</select>
+    <input class="pay-name" type="text" placeholder="Nội dung" value="${esc(pay.name || '')}">
+    <input class="pay-date" type="date" value="${pay.date || ''}">
+    <input class="pay-value" type="number" placeholder="Giá trị (VNĐ)" value="${pay.value || ''}">
+    <input class="pay-note" type="text" placeholder="Ghi chú" value="${esc(pay.note || '')}">
+    <button type="button" class="btn-icon btn-sm" title="Xóa đợt" onclick="removeFormPaymentRow(this)"><span class="material-symbols-rounded">close</span></button>
+  </div>`;
+}
+
+function addFormPaymentRow(pay) {
+  const box = document.getElementById('form-payment-rows');
+  if (!box) return;
+  box.insertAdjacentHTML('beforeend', formPaymentRowHTML(pay));
+  updateFormPaymentTotal();
+}
+
+function removeFormPaymentRow(btn) {
+  const row = btn.closest('.pay-row');
+  if (row) row.remove();
+  updateFormPaymentTotal();
+}
+
+function readFormPayments() {
+  const rows = document.querySelectorAll('#form-payment-rows .pay-row');
+  const out = [];
+  rows.forEach(row => {
+    const type = row.querySelector('.pay-type')?.value || '';
+    const name = row.querySelector('.pay-name')?.value.trim() || '';
+    const date = toIso(row.querySelector('.pay-date')?.value || '');
+    const value = Number(row.querySelector('.pay-value')?.value) || 0;
+    const note = row.querySelector('.pay-note')?.value.trim() || '';
+    if (!type && !name && !value && !date) return;
+    out.push({ id: row.dataset.id || generateId(), type, name, date, value, note });
+  });
+  return out;
+}
+
+function updateFormPaymentTotal() {
+  const el = document.getElementById('form-payment-total');
+  if (!el) return;
+  const total = readFormPayments().reduce((s, p) => s + (Number(p.value) || 0), 0);
+  const bid = Number(document.getElementById('f-bidValue')?.value) || 0;
+  el.textContent = 'Tổng đã thanh toán: ' + formatCurrency(total) + (bid > 0 ? ' (' + (total / bid * 100).toFixed(1) + '% giá trị trúng thầu)' : '');
+}
+
+function suggestFormPayments() {
+  const type = document.getElementById('f-pkgType')?.value || 'construction';
+  const bid = Number(document.getElementById('f-bidValue')?.value) || 0;
+  const nameLower = (document.getElementById('f-name')?.value || '').toLowerCase();
+  const isBcktkt = type === 'consulting' && (nameLower.includes('báo cáo kinh tế') || nameLower.includes('bcktkt') || nameLower.includes('báo cáo ktkt'));
+  const isConstructionLike = type === 'construction' || type === 'mixed' || type === 'goods';
+  if (bid <= 0) { showToast('Cần nhập Giá trị trúng thầu trước', 'error'); return; }
+  if (isBcktkt) {
+    addFormPaymentRow({ type: 'Thanh toán khối lượng', name: 'Thanh toán đợt 1 — trước khi hoàn thành bản vẽ thiết kế (90%)', value: Math.round(bid * 0.9) });
+    addFormPaymentRow({ type: 'Thanh toán hoàn thành', name: 'Thanh toán đợt 2 — 10% còn lại sau khi hoàn thành thi công', value: Math.round(bid * 0.1) });
+  } else if (isConstructionLike) {
+    addFormPaymentRow({ type: 'Tạm ứng', name: 'Tạm ứng 30% giá trị hợp đồng', value: Math.round(bid * 0.3) });
+  } else {
+    showToast('Chưa có mẫu gợi ý cho loại gói này', 'info');
+  }
 }
 
 function renderConstructionLogHTML(pkg, catId, pkgId) {
