@@ -3278,6 +3278,14 @@ function getPackageFormHTML(pkg = null, catId = '') {
         <label>Ngày hoàn thành hợp đồng <span style="font-weight:400;color:var(--text-muted)">— tự tính từ Ngày bắt đầu + Thời gian</span></label>
         <input type="date" id="f-contractEndDate" value="${pkg?.contractEndDate || ''}">
       </div>
+      <div class="form-group">
+        <label>Số phụ lục hợp đồng (nếu có)</label>
+        <input type="text" id="f-contractExtension" value="${esc(pkg?.contractExtension || '')}" placeholder="VD: PL01/HĐ">
+      </div>
+      <div class="form-group">
+        <label>Ngày phụ lục hợp đồng</label>
+        <input type="date" id="f-contractExtensionDate" value="${pkg?.contractExtensionDate || ''}">
+      </div>
 
       <div data-show="construction mixed" class="pkg-show">
         <div class="form-section-title"><span class="material-symbols-rounded">engineering</span> Đặc thù gói xây lắp / hỗn hợp</div>
@@ -3384,7 +3392,8 @@ function getPackageFormData(pkg = null) {
     // Trường pháp lý/chi tiết đã bỏ khỏi form: giữ nguyên giá trị cũ (không mất dữ liệu)
     cumulativeValue: pkg?.cumulativeValue || 0,
     contractType: pkg?.contractType || '',
-    contractExtension: pkg?.contractExtension || '',
+    contractExtension: gtxt('f-contractExtension', pkg?.contractExtension || ''),
+    contractExtensionDate: giso('f-contractExtensionDate', pkg?.contractExtensionDate),
     pl02aDate: pkg?.pl02aDate || '',
     negotiation: pkg?.negotiation || '',
     pl03aValue: pkg?.pl03aValue || 0,
@@ -3677,7 +3686,6 @@ function viewPackageDetail(catId, pkgId) {
 
   const accs = [...(pkg.acceptances || [])].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
   const vars = pkg.variations || [];
-  const appxs = pkg.appendices || [];
   const varStatus = { pending: 'Chờ duyệt', approved: 'Đã duyệt', rejected: 'Từ chối' };
   const st = getAcceptanceStats(pkg);
   const typeInfo = PKG_TYPE_INFO[pkg.pkgType] || PKG_TYPE_INFO.construction;
@@ -3771,21 +3779,6 @@ function viewPackageDetail(catId, pkgId) {
         </tbody></table>` : '<p class="pdf-empty">Chưa có phát sinh</p>'}
       </div>
 
-      <div class="detail-section-title">Phụ lục hợp đồng
-        <button type="button" class="btn btn-secondary btn-sm edit-only" style="margin-left:8px" onclick="addAppendix('${catId}','${pkgId}')"><span class="material-symbols-rounded">add</span> Thêm phụ lục</button>
-      </div>
-      <div class="detail-item full-width">
-        ${appxs.length ? `<table class="report-table"><thead><tr><th>Số phụ lục</th><th>Ngày</th><th>Loại</th><th class="text-right">Giá trị ĐC</th><th>Nội dung</th><th></th></tr></thead><tbody>
-          ${appxs.map(a => `<tr>
-            <td>${esc(a.no || '—')}</td>
-            <td>${formatDateVN(a.date)}</td>
-            <td>${esc(a.type || '—')}</td>
-            <td class="text-right">${a.value ? formatCurrency(a.value) : '—'}</td>
-            <td>${esc(a.content || '')}</td>
-            <td class="edit-only"><button class="btn-icon btn-sm" title="Xóa" onclick="deleteAppendix('${catId}','${pkgId}','${a.id}')"><span class="material-symbols-rounded">delete</span></button></td>
-          </tr>`).join('')}
-        </tbody></table>` : '<p class="pdf-empty">Chưa có phụ lục hợp đồng</p>'}
-      </div>
 
 
       ${(hasContract || hasKhlcnt || hasResult || hasLiquidation || invoices.length) ? section('folder_shared', 'Hợp đồng & Hồ sơ pháp lý') : ''}
@@ -3794,7 +3787,7 @@ function viewPackageDetail(catId, pkgId) {
       ${hasContract ? item('Ngày ký hợp đồng', formatDateVN(pkg.contractSignDate)) : ''}
       ${hasContract ? item('Ngày bắt đầu thực hiện', formatDateVN(pkg.contractStartDate)) : ''}
       ${hasContract ? item('Ngày hết hạn hợp đồng', `<span class="${pkg.contractEndDate && pkg.progress < 100 && daysUntil(pkg.contractEndDate) < 0 ? 'badge badge-danger' : ''}">${formatDateVN(pkg.contractEndDate)}</span>`) : ''}
-      ${hasContract && pkg.contractExtension ? item('Phụ lục hợp đồng', esc(pkg.contractExtension)) : ''}
+      ${hasContract && (pkg.contractExtension || pkg.contractExtensionDate) ? item('Phụ lục hợp đồng', `${esc(pkg.contractExtension || '—')}${pkg.contractExtensionDate ? ` — ${formatDateVN(pkg.contractExtensionDate)}` : ''}`) : ''}
       ${hasContract && pkg.pl02aDate ? item('Phụ lục 02a — Bảng thông tin HĐ', formatDateVN(pkg.pl02aDate)) : ''}
       ${hasContract && pkg.negotiation ? item('Biên bản thương thảo', esc(pkg.negotiation)) : ''}
       ${hasKhlcnt ? item('KHLCNT', `${esc(pkg.khlcntNumber || '—')}${pkg.khlcntDate ? ` — ${formatDateVN(pkg.khlcntDate)}` : ''}`) : ''}
@@ -4082,66 +4075,6 @@ function deleteVariation(catId, pkgId, varId) {
   viewPackageDetail(catId, pkgId);
   renderAll();
   showToast('Đã xóa phát sinh khối lượng', 'info');
-}
-
-// ---- Phụ lục hợp đồng (tổng quát: gia hạn, điều chỉnh phạm vi, giá trị, khác) ----
-const APPENDIX_TYPES = ['Gia hạn thời gian thực hiện', 'Điều chỉnh phạm vi công việc', 'Điều chỉnh giá trị hợp đồng', 'Thay đổi điều kiện thanh toán', 'Khác'];
-
-function addAppendix(catId, pkgId) {
-  if (!requireEditPermission()) return;
-  openModal('Thêm phụ lục hợp đồng', `
-    <div class="form-grid" style="grid-template-columns:1fr 1fr">
-      <div class="form-group"><label>Số phụ lục</label><input type="text" id="app-no" placeholder="VD: PL01/HĐ"></div>
-      <div class="form-group"><label>Ngày phụ lục</label><input type="date" id="app-date"></div>
-      <div class="form-group"><label>Loại phụ lục</label>
-        <select id="app-type">
-          ${APPENDIX_TYPES.map(t => `<option value="${t}">${t}</option>`).join('')}
-        </select>
-      </div>
-      <div class="form-group"><label>Giá trị điều chỉnh (VNĐ, nếu có)</label><input type="number" id="app-value" placeholder="Để trống/0 nếu không điều chỉnh giá"></div>
-      <div class="form-group full-width"><label>Nội dung phụ lục</label><textarea id="app-content" placeholder="VD: Gia hạn thời gian thực hiện thêm 60 ngày..."></textarea></div>
-    </div>
-  `, `
-    <button class="btn btn-secondary" onclick="closeModal()">Hủy</button>
-    <button class="btn btn-primary" onclick="saveAppendix('${catId}','${pkgId}')">Lưu</button>
-  `);
-}
-
-function saveAppendix(catId, pkgId) {
-  const project = getCurrentProject();
-  const cat = project.categories.find(c => c.id === catId);
-  const pkg = cat?.packages.find(p => p.id === pkgId);
-  if (!pkg) return;
-  pkg.appendices = pkg.appendices || [];
-  const entry = {
-    id: generateId(),
-    no: document.getElementById('app-no').value.trim(),
-    date: toIso(document.getElementById('app-date').value),
-    type: document.getElementById('app-type').value,
-    value: Number(document.getElementById('app-value').value) || 0,
-    content: document.getElementById('app-content').value.trim()
-  };
-  pkg.appendices.push(entry);
-  addAudit(project, 'create', 'phụ lục hợp đồng', pkg.name, entry.no || `Phụ lục #${pkg.appendices.length}`);
-  saveState();
-  closeModal();
-  viewPackageDetail(catId, pkgId);
-  renderAll();
-  showToast('Đã thêm phụ lục hợp đồng');
-}
-
-function deleteAppendix(catId, pkgId, appId) {
-  if (!requireEditPermission()) return;
-  const project = getCurrentProject();
-  const cat = project.categories.find(c => c.id === catId);
-  const pkg = cat?.packages.find(p => p.id === pkgId);
-  if (!pkg?.appendices) return;
-  pkg.appendices = pkg.appendices.filter(a => a.id !== appId);
-  addAudit(project, 'delete', 'phụ lục hợp đồng', pkg.name);
-  saveState();
-  viewPackageDetail(catId, pkgId);
-  renderAll();
-  showToast('Đã xóa phụ lục hợp đồng', 'info');
 }
 
 function renderConstructionLogHTML(pkg, catId, pkgId) {
