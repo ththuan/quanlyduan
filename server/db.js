@@ -85,18 +85,36 @@ function getState() {
   return state;
 }
 
-// Gộp dự án mẫu còn thiếu (vd dự án D,E - Khu giảng đường dãy D,E) vào CSDL hiện có.
-// Chạy 1 lần theo phiên bản migration để không ghi đè/khôi phục dự án người dùng đã xoá.
-const SEED_MERGE_VERSION = 1;
+// Gộp dự án mẫu còn thiếu (vd dự án D,E - Khu giảng đường dãy D,E) vào CSDL hiện có
+// và đưa dự án mẫu lên đầu danh sách. Chạy 1 lần theo phiên bản migration.
+const SEED_MERGE_VERSION = 2;
 function mergeMissingSeedProjects(state) {
   state.migrations = state.migrations || {};
-  if ((state.migrations.seedMerge || 0) >= SEED_MERGE_VERSION) return false;
+  const done = state.migrations.seedMerge || 0;
+  if (done >= SEED_MERGE_VERSION) return false;
   state.projects = Array.isArray(state.projects) ? state.projects : [];
+
+  const seedIds = new Set(seedData.map(s => s.id));
+  const seedNames = new Set(seedData.map(s => (s.name || '').trim().toLowerCase()));
+
+  // 1) Thêm dự án mẫu còn thiếu
   for (const sp of seedData) {
     const exists = state.projects.some(p =>
-      p.id === sp.id || (p.name || '').trim().toLowerCase() === (sp.name || '').trim().toLowerCase());
+      p.id === sp.id || seedNames.has((p.name || '').trim().toLowerCase()));
     if (!exists) state.projects.push(JSON.parse(JSON.stringify(sp)));
   }
+
+  // 2) Đưa dự án mẫu (D,E) lên đầu danh sách
+  if (done < 2) {
+    const head = [];
+    const rest = [];
+    for (const p of state.projects) {
+      if (seedIds.has(p.id) || seedNames.has((p.name || '').trim().toLowerCase())) head.push(p);
+      else rest.push(p);
+    }
+    state.projects = head.concat(rest);
+  }
+
   if (!state.currentProjectId) state.currentProjectId = state.projects[0]?.id || null;
   state.migrations.seedMerge = SEED_MERGE_VERSION;
   return true;
