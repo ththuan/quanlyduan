@@ -53,6 +53,20 @@ function extractYear(text) {
   return m ? m[0] : '';
 }
 
+// Chuyển tên VIẾT HOA HẾT về dạng chữ thường đúng chuẩn (Title Case)
+function toTitleCase(s) {
+  return String(s == null ? '' : s)
+    .toLowerCase()
+    .replace(/(^|[\s([/,.\-])(\p{L})/gu, (m, p, c) => p + c.toUpperCase());
+}
+function normalizeName(s) {
+  const str = String(s == null ? '' : s).trim();
+  const letters = str.replace(/[^\p{L}]/gu, '');
+  const uppers = str.replace(/[^\p{Lu}]/gu, '');
+  if (letters.length >= 4 && uppers.length / letters.length > 0.6) return toTitleCase(str);
+  return str;
+}
+
 // Header: STT | THIẾT BỊ (nhãn hiệu, quy cách) | ĐVT | SL | ĐƠN GIÁ | THÀNH TIỀN | ĐẶT Ở | GHI CHÚ
 function findHeaderRow(rows) {
   for (let i = 0; i < rows.length; i++) {
@@ -127,7 +141,7 @@ function parseSheet(ws) {
   };
 
   const newProject = (name, code) => {
-    name = uniqueName(name);
+    name = uniqueName(normalizeName(name));
     const p = {
       id: 'proj-' + crypto.randomUUID(),
       name,
