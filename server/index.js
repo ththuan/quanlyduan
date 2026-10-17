@@ -14,6 +14,7 @@ const db = require('./db');
 const legal = require('./legal');
 const wiki = require('./legal-wiki');
 const excelImport = require('./excel-import');
+const assetImport = require('./asset-import');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -452,6 +453,34 @@ app.post('/api/admin/import-project-excel', requireAuth, requireAdmin, (req, res
     });
   } catch (err) {
     res.status(500).json({ error: 'Lỗi nhập Excel: ' + err.message });
+  }
+});
+
+// Nhập danh mục tài sản từ Excel "BÁO CÁO TĂNG TÀI SẢN ..." (sheet "TB CÁC DỰ ÁN")
+// Phân cấp: A/B/C... = dự án; I/II/... = gói thầu; dòng STT = tài sản
+app.post('/api/admin/import-asset-excel', requireAuth, requireAdmin, (req, res) => {
+  try {
+    const { contentBase64, sheetName } = req.body || {};
+    if (!contentBase64) return res.status(400).json({ error: 'Thiếu nội dung file Excel' });
+    const buf = Buffer.from(String(contentBase64).replace(/^data:.*;base64,/, ''), 'base64');
+    if (!buf.length) return res.status(400).json({ error: 'File rỗng hoặc không hợp lệ' });
+    const projects = assetImport.parseWorkbook(buf, sheetName || undefined);
+    if (!projects || !projects.length) return res.status(400).json({ error: 'Không đọc được dữ liệu. Cần sheet "TB CÁC DỰ ÁN".' });
+    const state = db.getState();
+    state.projects = Array.isArray(state.projects) ? state.projects : [];
+    let created = 0, updated = 0, assets = 0, packages = 0;
+    for (const np of projects) {
+      const idx = state.projects.findIndex(p => (p.name || '').trim().toLowerCase() === (np.name || '').trim().toLowerCase() && (p.code || '') === (np.code || ''));
+      if (idx >= 0) { state.projects[idx] = np; updated += 1; }
+      else { state.projects.push(np); created += 1; }
+      assets += (np.assets || []).length;
+      packages += np.categories.reduce((a, c) => a + c.packages.length, 0);
+    }
+    if (!state.currentProjectId) state.currentProjectId = state.projects[0]?.id || null;
+    db.saveStateToDb(state);
+    res.json({ ok: true, created, updated, assets, packages, totalProjects: state.projects.length });
+  } catch (err) {
+    res.status(500).json({ error: 'Lỗi nhập Excel tài sản: ' + err.message });
   }
 });
 

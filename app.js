@@ -5058,6 +5058,7 @@ function switchView(viewName) {
 
   if (viewName === 'dashboard') renderDashboard();
   else if (viewName === 'packages') renderPackages();
+  else if (viewName === 'assets') renderAssetsView();
   else if (viewName === 'initiation') renderInitiationView();
   else if (viewName === 'qtda') renderQtdaView();
   else if (viewName === 'reports') renderReports();
@@ -5067,6 +5068,7 @@ function renderAll() {
   renderProjectInfoBar();
   if (state.currentView === 'dashboard') renderDashboard();
   else if (state.currentView === 'packages') renderPackages();
+  else if (state.currentView === 'assets') renderAssetsView();
   else if (state.currentView === 'initiation') renderInitiationView();
   else if (state.currentView === 'qtda') renderQtdaView();
   else if (state.currentView === 'reports') renderReports();
@@ -5093,6 +5095,7 @@ document.getElementById('project-selector').addEventListener('change', (e) => {
 document.getElementById('search-packages')?.addEventListener('input', (e) => {
   renderPackages(e.target.value);
 });
+document.getElementById('search-assets')?.addEventListener('input', () => renderAssetsView());
 ['filter-pkg-status', 'filter-pkg-type'].forEach(id => {
   document.getElementById(id)?.addEventListener('change', () => renderPackages());
 });
@@ -5101,6 +5104,263 @@ function setPkgStatusFilter(code) {
   const sel = document.getElementById('filter-pkg-status');
   if (sel) sel.value = sel.value === code ? '' : code;
   renderPackages();
+}
+
+// ============================================================
+// SECTION 8b: DANH MỤC TÀI SẢN (mua sắm)
+// ============================================================
+const ASSET_STATUSES = ['Đang sử dụng', 'Chưa sử dụng', 'Hỏng', 'Điều chuyển', 'Thanh lý', 'Mất'];
+
+function getAssetList() {
+  const project = getCurrentProject();
+  if (!project) return [];
+  project.assets = project.assets || [];
+  return project.assets;
+}
+
+function renderAssetsView() {
+  const container = document.getElementById('assets-container');
+  const summaryEl = document.getElementById('assets-summary');
+  if (!container) return;
+  const project = getCurrentProject();
+  if (!project) { container.innerHTML = ''; if (summaryEl) summaryEl.innerHTML = ''; return; }
+  const assets = getAssetList();
+  const term = (document.getElementById('search-assets')?.value || '').trim().toLowerCase();
+  const match = a => [a.code, a.name, a.group, a.supplier, a.location, a.note, a.status].some(v => String(v || '').toLowerCase().includes(term));
+  const list = term ? assets.filter(match) : assets;
+  const total = assets.reduce((s, a) => s + (Number(a.amount) || 0), 0);
+  const totalQty = assets.reduce((s, a) => s + (Number(a.quantity) || 0), 0);
+
+  if (summaryEl) {
+    summaryEl.innerHTML = `
+      <div class="kpi-grid" style="margin-bottom:14px">
+        <div class="glass-card kpi-card"><div class="kpi-label">Số tài sản</div><div class="kpi-value">${formatNumberVN(assets.length)}</div></div>
+        <div class="glass-card kpi-card"><div class="kpi-label">Tổng số lượng</div><div class="kpi-value">${formatNumberVN(totalQty)}</div></div>
+        <div class="glass-card kpi-card"><div class="kpi-label">Tổng nguyên giá</div><div class="kpi-value">${formatCurrency(total)}</div></div>
+      </div>`;
+  }
+
+  if (!assets.length) {
+    container.innerHTML = `<p style="padding:24px;text-align:center;color:var(--text-muted)">Chưa có tài sản cho dự án này. Dùng <b>Nhập Excel</b> (quản trị) hoặc <b>Thêm tài sản</b>.</p>`;
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="report-table-wrapper">
+      <table class="report-table">
+        <thead><tr>
+          <th style="width:90px">Mã</th><th>Tên tài sản</th><th>Nhóm / Gói thầu</th>
+          <th style="width:52px">ĐVT</th><th class="text-right" style="width:60px">SL</th>
+          <th class="text-right">Đơn giá</th><th class="text-right">Thành tiền</th>
+          <th>Nơi sử dụng</th><th style="width:56px">Năm</th><th>Trạng thái</th><th class="edit-only" style="width:84px"></th>
+        </tr></thead>
+        <tbody>
+          ${list.map(a => `<tr>
+            <td>${esc(a.code || '')}</td>
+            <td>${esc(a.name || '')}</td>
+            <td>${esc(a.group || '')}${a.supplier ? `<div style="font-size:0.75rem;color:var(--text-muted)">${esc(a.supplier)}</div>` : ''}</td>
+            <td class="text-center">${esc(a.unit || '')}</td>
+            <td class="text-right">${formatNumberVN(a.quantity || 0)}</td>
+            <td class="text-right">${formatCurrency(a.unitPrice || 0)}</td>
+            <td class="text-right">${formatCurrency(a.amount || 0)}</td>
+            <td>${esc(a.location || '')}</td>
+            <td class="text-center">${esc(a.year || '')}</td>
+            <td>${esc(a.status || '')}</td>
+            <td class="edit-only">
+              <button class="btn-icon btn-sm" title="Sửa" onclick="openAssetForm('${a.id}')"><span class="material-symbols-rounded">edit</span></button>
+              <button class="btn-icon btn-sm" title="Xóa" onclick="deleteAsset('${a.id}')"><span class="material-symbols-rounded">delete</span></button>
+            </td>
+          </tr>`).join('')}
+          <tr class="total-row"><td colspan="4" class="text-center">TỔNG CỘNG</td>
+            <td class="text-right">${formatNumberVN(list.reduce((s, a) => s + (Number(a.quantity) || 0), 0))}</td>
+            <td></td>
+            <td class="text-right">${formatCurrency(list.reduce((s, a) => s + (Number(a.amount) || 0), 0))}</td>
+            <td colspan="4"></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="font-size:0.8rem;color:var(--text-muted);margin-top:8px">Hiển thị ${list.length}/${assets.length} tài sản${term ? ` (lọc: "${esc(term)}")` : ''}.</p>`;
+}
+
+function calcAssetAmount() {
+  const q = Number(document.getElementById('f-asset-qty')?.value) || 0;
+  const p = Number(document.getElementById('f-asset-price')?.value) || 0;
+  const el = document.getElementById('f-asset-amount');
+  if (el) el.value = Math.round(q * p);
+}
+
+function openAssetForm(assetId) {
+  if (!requireEditPermission()) return;
+  const project = getCurrentProject();
+  if (!project) return;
+  const a = assetId ? getAssetList().find(x => x.id === assetId) : null;
+  const opts = ASSET_STATUSES.map(s => `<option value="${s}" ${(a?.status || ASSET_STATUSES[0]) === s ? 'selected' : ''}>${s}</option>`).join('');
+  openModal(a ? 'Sửa tài sản' : 'Thêm tài sản', `
+    <div class="form-grid form-single">
+      <div class="form-group"><label>Mã tài sản</label><input type="text" id="f-asset-code" value="${esc(a?.code || '')}" placeholder="Để trống sẽ tự sinh"></div>
+      <div class="form-group"><label>Tên tài sản *</label><input type="text" id="f-asset-name" value="${esc(a?.name || '')}"></div>
+      <div class="form-group"><label>Nhóm / Gói thầu</label><input type="text" id="f-asset-group" value="${esc(a?.group || '')}"></div>
+      <div class="form-group"><label>Nhà cung cấp / Nhà thầu</label><input type="text" id="f-asset-supplier" value="${esc(a?.supplier || '')}"></div>
+      <div class="form-group"><label>Đơn vị tính</label><input type="text" id="f-asset-unit" value="${esc(a?.unit || '')}"></div>
+      <div class="form-group"><label>Số lượng</label><input type="number" id="f-asset-qty" value="${a?.quantity ?? ''}" oninput="calcAssetAmount()"></div>
+      <div class="form-group"><label>Đơn giá (VNĐ)</label><input type="number" id="f-asset-price" value="${a?.unitPrice ?? ''}" oninput="calcAssetAmount()"></div>
+      <div class="form-group"><label>Thành tiền (VNĐ)</label><input type="number" id="f-asset-amount" value="${a?.amount ?? ''}"></div>
+      <div class="form-group"><label>Nơi sử dụng</label><input type="text" id="f-asset-location" value="${esc(a?.location || '')}"></div>
+      <div class="form-group"><label>Năm đưa vào sử dụng</label><input type="text" id="f-asset-year" value="${esc(a?.year || '')}"></div>
+      <div class="form-group"><label>Trạng thái</label><select id="f-asset-status">${opts}</select></div>
+      <div class="form-group full-width"><label>Ghi chú</label><textarea id="f-asset-note">${esc(a?.note || '')}</textarea></div>
+    </div>
+  `, `
+    <button class="btn btn-secondary" onclick="closeModal()">Hủy</button>
+    <button class="btn btn-primary" onclick="saveAsset('${a?.id || ''}')"><span class="material-symbols-rounded">save</span> Lưu</button>
+  `, 'lg');
+}
+
+function saveAsset(assetId) {
+  if (!requireEditPermission()) return;
+  const project = getCurrentProject();
+  if (!project) return;
+  const name = (document.getElementById('f-asset-name')?.value || '').trim();
+  if (!name) { showToast('Vui lòng nhập tên tài sản', 'error'); return; }
+  project.assets = project.assets || [];
+  const num = id => Number(document.getElementById(id)?.value) || 0;
+  const txt = id => (document.getElementById(id)?.value || '').trim();
+  const qty = num('f-asset-qty');
+  const price = num('f-asset-price');
+  let amount = num('f-asset-amount');
+  if (!amount && qty && price) amount = Math.round(qty * price);
+  const data = {
+    name, group: txt('f-asset-group'), supplier: txt('f-asset-supplier'),
+    unit: txt('f-asset-unit'), quantity: qty, unitPrice: price, amount,
+    location: txt('f-asset-location'), year: txt('f-asset-year'),
+    status: txt('f-asset-status') || ASSET_STATUSES[0], note: txt('f-asset-note')
+  };
+  if (assetId) {
+    const a = project.assets.find(x => x.id === assetId);
+    if (a) {
+      Object.assign(a, data);
+      const code = txt('f-asset-code');
+      if (code) a.code = code;
+    }
+  } else {
+    const prefix = project.code || 'TS';
+    const code = txt('f-asset-code') || `${prefix}-${String(project.assets.length + 1).padStart(4, '0')}`;
+    project.assets.push({ id: 'asset-' + generateId(), code, stt: '', projectId: project.id, ...data });
+  }
+  addAudit(project, assetId ? 'update' : 'create', 'tài sản', name);
+  saveState(); closeModal(); renderAssetsView();
+  showToast(assetId ? 'Đã cập nhật tài sản' : 'Đã thêm tài sản');
+}
+
+function deleteAsset(assetId) {
+  if (!requireEditPermission()) return;
+  const project = getCurrentProject();
+  if (!project) return;
+  const a = (project.assets || []).find(x => x.id === assetId);
+  if (!a) return;
+  if (!confirm(`Xóa tài sản "${a.name}"?`)) return;
+  project.assets = project.assets.filter(x => x.id !== assetId);
+  addAudit(project, 'delete', 'tài sản', a.name);
+  saveState(); renderAssetsView();
+  showToast('Đã xóa tài sản', 'info');
+}
+
+function buildAssetsTableHTML(list) {
+  const rows = list.map((a, i) => `<tr>
+    <td class="text-center">${i + 1}</td>
+    <td>${esc(a.code || '')}</td>
+    <td>${esc(a.name || '')}${a.group ? `<br><em style="font-size:11px">${esc(a.group)}</em>` : ''}</td>
+    <td class="text-center">${esc(a.unit || '')}</td>
+    <td class="text-right">${formatNumberVN(a.quantity || 0)}</td>
+    <td class="text-right">${formatCurrency(a.unitPrice || 0)}</td>
+    <td class="text-right">${formatCurrency(a.amount || 0)}</td>
+    <td>${esc(a.location || '')}</td>
+    <td class="text-center">${esc(a.year || '')}</td>
+  </tr>`).join('');
+  const total = list.reduce((s, a) => s + (Number(a.amount) || 0), 0);
+  return `<table>
+    <thead><tr><th style="width:32px">TT</th><th style="width:70px">Mã</th><th>Tên tài sản</th><th>ĐVT</th><th class="text-right">SL</th><th class="text-right">Đơn giá</th><th class="text-right">Thành tiền</th><th>Nơi sử dụng</th><th style="width:52px">Năm</th></tr></thead>
+    <tbody>${rows}
+      <tr class="total-row"><td colspan="6" class="text-center">TỔNG CỘNG</td><td class="text-right">${formatCurrency(total)}</td><td colspan="2"></td></tr>
+    </tbody></table>`;
+}
+
+function exportAssets(mode) {
+  const project = getCurrentProject();
+  if (!project) return;
+  const assets = getAssetList();
+  if (!assets.length) { showToast('Chưa có tài sản để xuất', 'info'); return; }
+  const term = (document.getElementById('search-assets')?.value || '').trim().toLowerCase();
+  const list = term ? assets.filter(a => [a.code, a.name, a.group, a.supplier, a.location, a.note, a.status].some(v => String(v || '').toLowerCase().includes(term))) : assets;
+  const title = 'DANH MỤC TÀI SẢN';
+  const bodyHTML = `
+    <div class="print-header">
+      <h2>${esc(project.owner || 'TRƯỜNG CAO ĐẲNG KINH TẾ - KỸ THUẬT CẦN THƠ')}</h2>
+      <h3>DỰ ÁN: ${esc(project.fullName || project.name)}</h3>
+      <hr style="width:30%;margin:8px auto;border:0.5px solid #000;">
+    </div>
+    <div class="print-title">${title}</div>
+    <div class="print-subtitle">Tổng: ${list.length} tài sản</div>
+    ${buildAssetsTableHTML(list)}
+    <div class="sign-row">
+      <div class="sign-col"><p><strong>NGƯỜI LẬP BIỂU</strong></p><p style="margin-top:60px">(Ký, ghi rõ họ tên)</p></div>
+      <div class="sign-col"><p><strong>THỦ TRƯỞNG ĐƠN VỊ</strong></p><p style="margin-top:60px">(Ký, ghi rõ họ tên)</p></div>
+    </div>`;
+  if (mode === 'word') downloadWordDoc(project, 'DANH-MUC-TAI-SAN', title, bodyHTML);
+  else openPrintWindow(title, bodyHTML);
+}
+
+function openImportAssetModal() {
+  if (!requireEditPermission()) return;
+  openModal('Nhập danh mục tài sản từ Excel', `
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <p style="font-size:0.85rem;color:var(--text-secondary);margin:0;line-height:1.5">
+        Chọn file Excel <b>"Báo cáo tăng tài sản ..."</b> (đọc sheet <b>"TB CÁC DỰ ÁN"</b>).
+        App tự tách: <b>A/B/C... = dự án</b>, <b>I/II/III... = gói thầu</b>, các dòng STT = tài sản.
+      </p>
+      <div class="form-group">
+        <label>File Excel (.xlsx)</label>
+        <input type="file" id="import-asset-file" accept=".xlsx,.xls">
+      </div>
+      <div id="import-asset-result" style="font-size:0.85rem"></div>
+    </div>
+  `, `
+    <button class="btn btn-secondary" onclick="closeModal()">Đóng</button>
+    <button class="btn btn-primary" onclick="submitImportAsset()"><span class="material-symbols-rounded">upload_file</span> Nhập</button>
+  `);
+}
+
+async function submitImportAsset() {
+  const input = document.getElementById('import-asset-file');
+  const resultEl = document.getElementById('import-asset-result');
+  if (!input || !input.files || !input.files[0]) {
+    if (resultEl) resultEl.innerHTML = '<span style="color:var(--accent-red)">Vui lòng chọn file Excel.</span>';
+    return;
+  }
+  const file = input.files[0];
+  if (resultEl) resultEl.innerHTML = 'Đang xử lý...';
+  try {
+    const base64 = await new Promise((resolve, reject) => {
+      const fr = new FileReader();
+      fr.onload = () => resolve(String(fr.result).split(',')[1] || '');
+      fr.onerror = () => reject(new Error('Không đọc được file'));
+      fr.readAsDataURL(file);
+    });
+    const res = await fetch('/api/admin/import-asset-excel', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contentBase64: base64 })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Lỗi nhập file');
+    if (resultEl) resultEl.innerHTML = `<span style="color:var(--accent-green)">Đã nhập: ${data.created} dự án mới, ${data.updated} cập nhật, ${data.packages} gói thầu, ${data.assets} tài sản.</span>`;
+    await loadState();
+    renderProjectSelector();
+    renderAll();
+    showToast('Đã nhập danh mục tài sản');
+  } catch (err) {
+    if (resultEl) resultEl.innerHTML = `<span style="color:var(--accent-red)">${esc(err.message)}</span>`;
+  }
 }
 
 // ============================================================

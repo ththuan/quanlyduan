@@ -52,6 +52,10 @@
           <span class="material-symbols-rounded">inventory_2</span>
           <span>Gói thầu</span>
         </button>
+        <button class="nav-tab" data-view="assets">
+          <span class="material-symbols-rounded">inventory</span>
+          <span>Tài sản</span>
+        </button>
         <button class="nav-tab" data-view="qtda">
           <span class="material-symbols-rounded">account_balance</span>
           <span>Quyết toán</span>
@@ -166,6 +170,25 @@
       </div>
       <div id="pkg-status-summary" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px"></div>
       <div id="categories-container"></div>
+    </section>
+
+    <!-- Assets View (Danh mục tài sản mua sắm) -->
+    <section id="view-assets" class="view">
+      <div class="section-header">
+        <h2><span class="material-symbols-rounded">inventory</span> Danh mục tài sản</h2>
+        <div class="header-actions">
+          <div class="search-box">
+            <span class="material-symbols-rounded">search</span>
+            <input type="text" id="search-assets" placeholder="Tìm theo mã / tên / nhóm / nơi dùng...">
+          </div>
+          <button class="btn btn-secondary" onclick="exportAssets('print')"><span class="material-symbols-rounded">print</span> In / PDF</button>
+          <button class="btn btn-secondary" onclick="exportAssets('word')"><span class="material-symbols-rounded">description</span> Xuất Word</button>
+          <button class="btn btn-secondary edit-only" onclick="openImportAssetModal()"><span class="material-symbols-rounded">upload_file</span> Nhập Excel</button>
+          <button class="btn btn-primary edit-only" onclick="openAssetForm()"><span class="material-symbols-rounded">add</span> Thêm tài sản</button>
+        </div>
+      </div>
+      <div id="assets-summary"></div>
+      <div id="assets-container"></div>
     </section>
 
     <!-- Initiation View (Module 1: Pháp lý - Quyết định & Công văn) -->
