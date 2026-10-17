@@ -3202,6 +3202,9 @@ function getPackageFormHTML(pkg = null, catId = '') {
   const methods = SELECTION_METHODS;
   const type = pkg?.pkgType || 'construction';
   const effectiveScope = pkg ? (pkg.pkgScope || 'project') : (getCurrentProject()?.projectScope || 'project');
+  const legalDocs = getCurrentProject()?.initiations || [];
+  const resultDocs = legalDocs.filter(d => d.type === 'Quyết định phê duyệt kết quả');
+  const resultDocOptions = resultDocs.map(d => `<option value="${esc(d.id)}" ${pkg?.resultDocId === d.id ? 'selected' : ''}>${esc([d.number, d.title].filter(Boolean).join(' — ') || '—')}</option>`).join('');
   const fundOptions = FUND_SOURCES.map(f => `<option value="${f}" ${(pkg?.fundSource || '') === f ? 'selected' : ''}>${f}</option>`).join('');
   const legacyFund = pkg?.fundSource && !FUND_SOURCES.includes(pkg.fundSource) ? `<option value="${esc(pkg.fundSource)}" selected>${esc(pkg.fundSource)}</option>` : '';
   const pdfs = pkg ? (pkg.pdfs || []) : tempUploadedPDFs;
@@ -3290,8 +3293,12 @@ function getPackageFormHTML(pkg = null, catId = '') {
 
       <div class="form-section-title"><span class="material-symbols-rounded">gavel</span> Lựa chọn nhà thầu & Hợp đồng</div>
       <div class="form-group">
-        <label>Quyết định phê duyệt kết quả (số + ngày)</label>
-        <input type="text" id="f-bidDecision" value="${esc(pkg?.bidDecision || '')}" placeholder="VD: Số 250/QĐ-KTKT ngày 28/6/2023">
+        <label>Quyết định phê duyệt kết quả (chọn từ Pháp lý)</label>
+        <select id="f-resultDoc">
+          <option value="">— Chọn từ mục Pháp lý —</option>
+          ${resultDocOptions}
+        </select>
+        ${resultDocs.length ? '' : '<small style="color:var(--text-muted)">Chưa có văn bản loại “Quyết định phê duyệt kết quả” trong mục Pháp lý.</small>'}
       </div>
       <div class="form-group">
         <label>Hình thức lựa chọn nhà thầu</label>
@@ -3438,6 +3445,9 @@ function getPackageFormData(pkg = null) {
 
   const pkgType = gv('f-pkgType', pkg?.pkgType || 'construction');
   const pkgScope = gv('f-pkgScope', pkg?.pkgScope || 'project');
+  const legalDocs = getCurrentProject()?.initiations || [];
+  const resultDocId = gv('f-resultDoc', pkg?.resultDocId || '');
+  const resultDoc = legalDocs.find(d => d.id === resultDocId);
   const warrantyEl = el('f-warrantyMonths');
   const warrantyMonths = warrantyEl
     ? (warrantyEl.value ? Number(warrantyEl.value) : null)
@@ -3456,7 +3466,9 @@ function getPackageFormData(pkg = null) {
     cumulativeValue: gnum('f-cumulativeValue', pkg?.cumulativeValue),
     cumulativeDisbursed: gnum('f-cumulativeDisbursed', pkg?.cumulativeDisbursed),
     loss: gnum('f-loss', pkg?.loss),
-    bidDecision: gtxt('f-bidDecision', pkg?.bidDecision || ''),
+    bidDecision: resultDoc ? [resultDoc.number, resultDoc.title].filter(Boolean).join(' — ') : (pkg?.bidDecision || ''),
+    resultDocId,
+    resultApprovalDate: resultDoc ? (resultDoc.date || '') : (pkg?.resultApprovalDate || ''),
     selectionMethod: gv('f-selectionMethod', pkg?.selectionMethod || ''),
     contractor: gtxt('f-contractor', pkg?.contractor || ''),
     contract: gtxt('f-contract', pkg?.contract || ''),
@@ -3504,9 +3516,7 @@ function getPackageFormData(pkg = null) {
     docAcceptStatus: pkg?.docAcceptStatus || '',
     khlcntDocId: pkg?.khlcntDocId || '',
     khlcntNumber: pkg?.khlcntNumber || '',
-    khlcntDate: pkg?.khlcntDate || '',
-    resultDocId: pkg?.resultDocId || '',
-    resultApprovalDate: pkg?.resultApprovalDate || ''
+    khlcntDate: pkg?.khlcntDate || ''
   };
 }
 
