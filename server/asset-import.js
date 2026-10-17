@@ -83,6 +83,7 @@ function mapColumns(headerRow) {
 }
 
 const RE_ROMAN_GROUP = /^(I|II|III|IV|V|VI|VII|VIII|IX|X)\.\s+/;
+const ROMAN_SET = new Set(['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X']);
 const RE_PROJECT = /^([A-Z])\.\s+/;
 
 function splitSupplier(title) {
@@ -117,7 +118,16 @@ function parseSheet(ws) {
     return '';
   };
 
+  const usedNames = new Map();
+  const uniqueName = (name) => {
+    const key = (name || '').trim().toLowerCase();
+    const c = (usedNames.get(key) || 0) + 1;
+    usedNames.set(key, c);
+    return c === 1 ? name : `${name} (${c})`;
+  };
+
   const newProject = (name, code) => {
+    name = uniqueName(name);
     const p = {
       id: 'proj-' + crypto.randomUUID(),
       name,
@@ -197,11 +207,26 @@ function parseSheet(ws) {
       continue;
     }
 
-    // Cụm cuối sheet: mỗi "Gói thầu ..." = 1 dự án riêng
+    // Cụm cuối sheet: mỗi "Gói thầu ..." = 1 dự án riêng (sau mốc "Tổng cộng")
     if (isNamed && afterTotal) {
       const { name, supplier } = splitSupplier(B);
       project = newProject(name || B, '');
       group = newGroup(name || B, supplier, toNum(F));
+      lastAsset = null;
+      continue;
+    }
+
+    // Nửa sau sheet: ký hiệu ở CỘT A — chữ cái = dự án (G,H,M,N,O,Ô...), số La Mã = gói
+    const isGroupColA = ROMAN_SET.has(A) && B;
+    const isProjectColA = A && !isGroupColA && !/^\d+$/.test(A) && B;
+    if (isProjectColA) {
+      project = newProject(B, A);
+      group = null; lastAsset = null; afterTotal = false;
+      continue;
+    }
+    if (isGroupColA) {
+      const { name, supplier } = splitSupplier(B);
+      group = newGroup(name, supplier, toNum(F));
       lastAsset = null;
       continue;
     }

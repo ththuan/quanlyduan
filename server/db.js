@@ -88,7 +88,7 @@ function getState() {
 
 // Gộp dự án mẫu còn thiếu (vd dự án D,E - Khu giảng đường dãy D,E) vào CSDL hiện có
 // và đưa dự án mẫu lên đầu danh sách. Chạy 1 lần theo phiên bản migration.
-const SEED_MERGE_VERSION = 5;
+const SEED_MERGE_VERSION = 6;
 function mergeMissingSeedProjects(state) {
   state.migrations = state.migrations || {};
   const done = state.migrations.seedMerge || 0;
@@ -132,7 +132,7 @@ function mergeMissingSeedProjects(state) {
   }
 
   // 4) Nạp danh mục tài sản mua sắm (từ file Báo cáo tăng tài sản), thay thế bản cũ nếu có
-  if (done < 5 && Array.isArray(assetSeedData)) {
+  if (done < 6 && Array.isArray(assetSeedData)) {
     const names = new Set(assetSeedData.map(p => (p.name || '').trim().toLowerCase()));
     state.projects = state.projects.filter(p =>
       p.source !== 'asset-seed' && !names.has((p.name || '').trim().toLowerCase()));
