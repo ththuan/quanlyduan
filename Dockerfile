@@ -4,9 +4,16 @@ FROM node:22-alpine
 
 WORKDIR /app
 
+ENV NPM_CONFIG_FUND=false \
+    NPM_CONFIG_AUDIT=false \
+    NPM_CONFIG_FETCH_RETRIES=5 \
+    NPM_CONFIG_FETCH_RETRY_MINTIMEOUT=20000 \
+    NPM_CONFIG_FETCH_RETRY_MAXTIMEOUT=120000
+
 # Install backend deps first for better layer caching
 COPY server/package.json server/package-lock.json ./server/
-RUN cd server && npm ci --omit=dev
+COPY server/vendor ./server/vendor
+RUN cd server && npm install --omit=dev --no-audit --no-fund
 
 # Copy the rest of the app (frontend files + backend source)
 COPY index.html style.css app.js legal-ui.js wiki-ui.js login.html login.js logoCTEC.png manifest.json sw.js ./
