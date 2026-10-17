@@ -2339,7 +2339,48 @@ function renderQtdaView() {
           <tbody>${qtda04BodyRows(d4, true)}</tbody>
         </table>
       </div>
+    </div>
+
+    ${(() => {
+      const rows = pkgs.map(p => {
+        const contract = getCurrentContractValue(p);
+        const paid = (p.payments || []).reduce((s, x) => s + (Number(x.value) || 0), 0);
+        return { p, contract, paid, remaining: contract - paid };
+      });
+      const totalContract = rows.reduce((s, r) => s + r.contract, 0);
+      const totalPaid = rows.reduce((s, r) => s + r.paid, 0);
+      return `
+    <div class="report-section">
+      <h3><span class="material-symbols-rounded">account_balance_wallet</span> Tổng hợp thanh toán theo gói thầu</h3>
+      <p style="font-size:0.82rem;color:var(--text-muted);margin:4px 0 10px">Giá trị thanh toán từng gói lấy từ các đợt thanh toán đã nhập (mục Thanh toán trong Xem chi tiết gói thầu).</p>
+      <div class="report-table-wrapper">
+        <table class="report-table">
+          <thead>
+            <tr><th style="width:48px">TT</th><th>Tên gói thầu</th><th>Nhà thầu</th><th class="text-right">Giá trị HĐ hiện hành</th><th class="text-right">Đã thanh toán</th><th class="text-right">Còn lại</th><th class="text-center">% thanh toán</th></tr>
+          </thead>
+          <tbody>
+            ${rows.length ? rows.map((r, i) => `<tr>
+              <td class="text-center">${i + 1}</td>
+              <td>${esc(r.p.name)}</td>
+              <td>${esc(r.p.contractor || '—')}</td>
+              <td class="text-right">${formatCurrency(r.contract)}</td>
+              <td class="text-right">${formatCurrency(r.paid)}</td>
+              <td class="text-right">${formatCurrency(r.remaining)}</td>
+              <td class="text-center">${r.contract > 0 ? (r.paid / r.contract * 100).toFixed(1) + '%' : '—'}</td>
+            </tr>`).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:14px">Chưa có gói thầu.</td></tr>'}
+            <tr class="total-row">
+              <td colspan="3" class="text-center">TỔNG CỘNG</td>
+              <td class="text-right">${formatCurrency(totalContract)}</td>
+              <td class="text-right">${formatCurrency(totalPaid)}</td>
+              <td class="text-right">${formatCurrency(totalContract - totalPaid)}</td>
+              <td class="text-center">${totalContract > 0 ? (totalPaid / totalContract * 100).toFixed(1) + '%' : '—'}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p style="font-size:0.95rem;margin-top:12px">Giá trị thanh toán cuối cùng của toàn dự án: <strong style="color:var(--accent-green)">${formatCurrency(totalPaid)}</strong></p>
     </div>`;
+    })()}`;
 }
 
 function exportPackageAcceptanceReport() {
