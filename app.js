@@ -652,15 +652,15 @@ function autoCalcContractEnd() {
   const durEl = document.getElementById('f-duration');
   const endEl = document.getElementById('f-contractEndDate');
   if (!startEl || !durEl || !endEl) return;
-  const start = startEl.value;
+  const startIso = toIso(startEl.value);
   const dur = parseDuration(durEl.value);
-  if (!start || !dur) return;
-  const d = new Date(start + 'T00:00:00');
+  if (!startIso || !dur) return;
+  const d = new Date(startIso + 'T00:00:00');
   if (isNaN(d)) return;
   if (dur.months) d.setMonth(d.getMonth() + Math.round(dur.months));
   else if (dur.days) d.setDate(d.getDate() + Math.round(dur.days));
   const pad = n => String(n).padStart(2, '0');
-  endEl.value = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+  endEl.value = toDmy(d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()));
 }
 
 function daysUntil(dateStr) {
@@ -3156,7 +3156,7 @@ function saveCloseoutStatus() {
   project.settlement = project.settlement || {};
   project.settlement.status = document.getElementById('co-status').value;
   project.settlement.totalValue = Number(document.getElementById('co-value').value) || 0;
-  project.settlement.approvedDate = document.getElementById('co-date').value;
+  project.settlement.approvedDate = toIso(document.getElementById('co-date').value);
   addAudit(project, 'update', 'project', 'Trạng thái quyết toán hoàn thành');
   saveState(); closeModal(); renderSettlementView();
   showToast('Đã cập nhật trạng thái quyết toán dự án');
@@ -3177,18 +3177,29 @@ function openModal(title, bodyHTML, footerHTML = '', size = '') {
   convertDateInputs();
 }
 
-// Đổi ô nhập ngày sang định dạng dd/mm/yyyy (độc lập với ngôn ngữ trình duyệt)
-function convertDateInputs() {
-  document.querySelectorAll('#modal input[type="date"]').forEach(inp => {
-    const text = document.createElement('input');
-    text.type = 'text';
-    text.inputMode = 'numeric';
-    text.placeholder = 'dd/mm/yyyy';
-    text.id = inp.id;
-    text.value = toDmy(inp.value);
-    text.readOnly = inp.readOnly;
-    text.setAttribute('autocomplete', 'off');
-    inp.replaceWith(text);
+// Tự chèn dấu "/" khi gõ ngày (dd/mm/yyyy)
+function maskDmyInput(e) {
+  const el = e.target;
+  const digits = el.value.replace(/\D/g, '').slice(0, 8);
+  let out = digits;
+  if (digits.length > 2) out = digits.slice(0, 2) + '/' + digits.slice(2);
+  if (digits.length > 4) out = digits.slice(0, 2) + '/' + digits.slice(2, 4) + '/' + digits.slice(4);
+  if (el.value !== out) el.value = out;
+}
+
+// Đổi ô nhập ngày sang định dạng dd/mm/yyyy (độc lập với ngôn ngữ trình duyệt) + tự thêm dấu "/"
+function convertDateInputs(root) {
+  (root || document).querySelectorAll('input[type="date"]').forEach(inp => {
+    if (inp.dataset.dmyReady) return;
+    inp.type = 'text';
+    inp.inputMode = 'numeric';
+    inp.placeholder = 'dd/mm/yyyy';
+    inp.maxLength = 10;
+    inp.value = toDmy(inp.value);
+    inp.setAttribute('autocomplete', 'off');
+    inp.dataset.dmyReady = '1';
+    inp.addEventListener('input', maskDmyInput);
+    inp.addEventListener('blur', maskDmyInput);
   });
 }
 
@@ -4044,7 +4055,7 @@ function saveDeliverable(catId, pkgId) {
     isSignedDigital: document.getElementById('del-signed').checked,
     approvalStatus: document.getElementById('del-status').value,
     approvedBy: document.getElementById('del-approvedBy').value.trim(),
-    approvedAt: document.getElementById('del-approvedAt').value
+    approvedAt: toIso(document.getElementById('del-approvedAt').value)
   });
   addAudit(proj, 'create', 'sản phẩm tư vấn', pkg.name, `Đợt ${pkg.deliverables.length}`);
   saveState(); closeModal();
@@ -5630,6 +5641,21 @@ async function init() {
 }
 
 document.addEventListener('DOMContentLoaded', init);
+
+// Tự động đổi mọi ô ngày sang dd/mm/yyyy (kể cả render ngoài modal)
+document.addEventListener('DOMContentLoaded', () => {
+  convertDateInputs();
+  new MutationObserver(muts => {
+    for (const m of muts) {
+      for (const n of m.addedNodes) {
+        if (n.nodeType === 1 && (n.matches?.('input[type="date"]') || n.querySelector?.('input[type="date"]'))) {
+          convertDateInputs();
+          return;
+        }
+      }
+    }
+  }).observe(document.body, { childList: true, subtree: true });
+});
 
 // Service Worker — PWA offline support
 if ('serviceWorker' in navigator) {
