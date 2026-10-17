@@ -11,6 +11,7 @@ const fs = require('node:fs');
 const crypto = require('node:crypto');
 const { DatabaseSync } = require('node:sqlite');
 const seedData = require('./seed-data');
+const assetSeedData = require('./asset-seed-data');
 
 const DATA_DIR = path.join(__dirname, 'data');
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
@@ -87,7 +88,7 @@ function getState() {
 
 // Gộp dự án mẫu còn thiếu (vd dự án D,E - Khu giảng đường dãy D,E) vào CSDL hiện có
 // và đưa dự án mẫu lên đầu danh sách. Chạy 1 lần theo phiên bản migration.
-const SEED_MERGE_VERSION = 3;
+const SEED_MERGE_VERSION = 4;
 function mergeMissingSeedProjects(state) {
   state.migrations = state.migrations || {};
   const done = state.migrations.seedMerge || 0;
@@ -128,6 +129,15 @@ function mergeMissingSeedProjects(state) {
       });
       p.assets = orphans;
     });
+  }
+
+  // 4) Nạp danh mục tài sản mua sắm (từ file Báo cáo tăng tài sản) nếu chưa có
+  if (done < 4 && Array.isArray(assetSeedData)) {
+    for (const ap of assetSeedData) {
+      const exists = state.projects.some(p =>
+        p.id === ap.id || (p.name || '').trim().toLowerCase() === (ap.name || '').trim().toLowerCase());
+      if (!exists) state.projects.push(JSON.parse(JSON.stringify(ap)));
+    }
   }
 
   if (!state.currentProjectId) state.currentProjectId = state.projects[0]?.id || null;
