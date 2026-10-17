@@ -3980,7 +3980,7 @@ function viewPackageDetail(catId, pkgId) {
             </td>
           </tr>`).join('')}
         </tbody></table>
-        <div style="margin-top:6px;font-size:0.82rem;color:var(--text-secondary)">Tổng nguyên giá tài sản: <b>${formatCurrency(pkgAssets.reduce((s, a) => s + (Number(a.amount) || 0), 0))}</b></div>`
+        <div style="margin-top:6px;font-size:0.82rem;color:var(--text-secondary)">Số lượng theo ĐVT: <b>${esc(formatQtyByUnit(pkgAssets))}</b> · Tổng nguyên giá: <b>${formatCurrency(pkgAssets.reduce((s, a) => s + (Number(a.amount) || 0), 0))}</b></div>`
       : '<p class="pdf-empty">Chưa có tài sản</p>'}
       </div>
 
@@ -5169,6 +5169,16 @@ function findAsset(project, assetId) {
   return null;
 }
 
+// Số lượng gộp theo từng đơn vị tính (không cộng chéo các ĐVT khác nhau)
+function formatQtyByUnit(assets) {
+  const map = new Map();
+  (assets || []).forEach(a => {
+    const u = (a.unit || '').trim() || '(không ĐVT)';
+    map.set(u, (map.get(u) || 0) + (Number(a.quantity) || 0));
+  });
+  return [...map.entries()].filter(([, v]) => v).map(([u, v]) => `${formatNumberVN(v)} ${u}`).join(' · ');
+}
+
 function renderAssetsView() {
   const container = document.getElementById('assets-container');
   const summaryEl = document.getElementById('assets-summary');
@@ -5177,24 +5187,7 @@ function renderAssetsView() {
   if (!project) { container.innerHTML = ''; if (summaryEl) summaryEl.innerHTML = ''; return; }
   const all = getAllProjectAssets(project);
   const term = (document.getElementById('search-assets')?.value || '').trim().toLowerCase();
-  const match = r => [r.asset.code, r.asset.name, r.pkg?.name, r.cat?.name, r.asset.location, r.asset.note, r.asset.status].some(v => String(v || '').toLowerCase().includes(term));
-  const list = term ? all.filter(match) : all;
   const total = all.reduce((s, r) => s + (Number(r.asset.amount) || 0), 0);
-  const totalQty = all.reduce((s, r) => s + (Number(r.asset.quantity) || 0), 0);
-
-  if (summaryEl) {
-    summaryEl.innerHTML = `
-      <div class="kpi-grid" style="margin-bottom:14px">
-        <div class="glass-card kpi-card"><div class="kpi-label">Số tài sản</div><div class="kpi-value">${formatNumberVN(all.length)}</div></div>
-        <div class="glass-card kpi-card"><div class="kpi-label">Tổng số lượng</div><div class="kpi-value">${formatNumberVN(totalQty)}</div></div>
-        <div class="glass-card kpi-card"><div class="kpi-label">Tổng nguyên giá</div><div class="kpi-value">${formatCurrency(total)}</div></div>
-      </div>`;
-  }
-
-  if (!all.length) {
-    container.innerHTML = `<p style="padding:24px;text-align:center;color:var(--text-muted)">Chưa có tài sản. Vào <b>Gói thầu</b> → mở gói → <b>Thêm tài sản</b>, hoặc dùng <b>Nhập Excel</b> (quản trị).</p>`;
-    return;
-  }
 
   const matchA = a => [a.code, a.name, a.location, a.note, a.status].some(v => String(v || '').toLowerCase().includes(term));
   const groups = [];
@@ -5208,15 +5201,30 @@ function renderAssetsView() {
 
   const shownCount = groups.reduce((s, g) => s + g.assets.length, 0);
 
+  if (summaryEl) {
+    const units = formatQtyByUnit(all.map(r => r.asset));
+    summaryEl.innerHTML = `
+      <div class="kpi-grid" style="margin-bottom:8px">
+        <div class="glass-card kpi-card"><div class="kpi-label">Số tài sản</div><div class="kpi-value">${formatNumberVN(all.length)}</div></div>
+        <div class="glass-card kpi-card"><div class="kpi-label">Số gói thầu</div><div class="kpi-value">${formatNumberVN(groups.length)}</div></div>
+        <div class="glass-card kpi-card"><div class="kpi-label">Tổng nguyên giá</div><div class="kpi-value">${formatCurrency(total)}</div></div>
+      </div>
+      ${units ? `<p style="font-size:0.82rem;color:var(--text-secondary);margin:0 0 12px">Số lượng theo đơn vị tính: <b>${esc(units)}</b></p>` : ''}`;
+  }
+
+  if (!all.length) {
+    container.innerHTML = `<p style="padding:24px;text-align:center;color:var(--text-muted)">Chưa có tài sản. Vào <b>Gói thầu</b> → mở gói → <b>Thêm tài sản</b>, hoặc dùng <b>Nhập Excel</b> (quản trị).</p>`;
+    return;
+  }
+
   container.innerHTML = groups.map(g => {
     const sum = g.assets.reduce((s, a) => s + (Number(a.amount) || 0), 0);
-    const qty = g.assets.reduce((s, a) => s + (Number(a.quantity) || 0), 0);
     return `
     <div style="margin-bottom:20px">
       <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;background:var(--bg-secondary,#f3f4f6);margin-bottom:8px;flex-wrap:wrap">
         <span class="material-symbols-rounded" style="color:var(--accent-cyan)">inventory_2</span>
         <span>${g.catName ? `<span style="color:var(--text-muted)">${esc(g.catName)} › </span>` : ''}<strong>${esc(g.pkgName)}</strong></span>
-        <span style="font-size:0.8rem;color:var(--text-muted)">(${g.assets.length} tài sản · SL ${formatNumberVN(qty)} · ${formatCurrency(sum)})</span>
+        <span style="font-size:0.8rem;color:var(--text-muted)">(${g.assets.length} tài sản · ${formatQtyByUnit(g.assets)} · ${formatCurrency(sum)})</span>
       </div>
       <div class="report-table-wrapper">
         <table class="asset-table">
