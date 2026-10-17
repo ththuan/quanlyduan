@@ -107,6 +107,15 @@ function parseSheet(ws) {
   let project = null;
   let group = null;
   let lastAsset = null;
+  let afterTotal = false;
+
+  const nextA = (i) => {
+    for (let k = i + 1; k < rows.length; k++) {
+      const a = toText((rows[k] || [])[0]);
+      if (a) return a;
+    }
+    return '';
+  };
 
   const newProject = (name, code) => {
     const p = {
@@ -119,6 +128,7 @@ function parseSheet(ws) {
       totalInvestment: 0,
       projectScope: 'nonProject',
       purchaseType: 'Mua sắm tài sản',
+      source: 'asset-seed',
       initiations: [],
       categories: [],
       assets: [],
@@ -127,8 +137,8 @@ function parseSheet(ws) {
     };
     const cat = {
       id: 'cat-' + crypto.randomUUID(),
-      code: 'TB',
-      name: 'Thiết bị mua sắm',
+      code: 'MS',
+      name: 'Mua sắm',
       color: CAT_COLORS[projects.length % CAT_COLORS.length],
       packages: []
     };
@@ -138,52 +148,78 @@ function parseSheet(ws) {
     return p;
   };
 
+  const newGroup = (name, supplier, amount) => {
+    if (!project) project = newProject('Mua sắm tài sản', '');
+    const g = {
+      id: 'pkg-' + crypto.randomUUID(),
+      name,
+      contractor: supplier,
+      pkgType: 'goods',
+      pkgScope: 'nonProject',
+      purchaseType: 'Mua sắm tài sản',
+      bidValue: amount,
+      selectionMethod: '',
+      payments: [],
+      assets: [],
+      pdfs: []
+    };
+    project._cat.packages.push(g);
+    return g;
+  };
+
+  const EXCLUDE = /(thuế|hoá đơn|hóa đơn|tổng cộng|tổng tiền)/i;
+  const RE_TITLE_GROUP = /^(thiet bi|thang may|cung cap|phat sinh|goi thau|mua sam|he thong|sach)/;
+
   for (let i = headerRowIndex + 1; i < rows.length; i++) {
     const row = rows[i] || [];
     const A = toText(cell(row, map.stt));
     const B = toText(cell(row, map.name));
+    const D = toText(cell(row, map.quantity));
+    const F = cell(row, map.amount);
     const nB = norm(B);
     if (!A && !B) continue;
-    if (nB.includes('tong cong')) break;
     if (nB.startsWith('cong hoa') || nB.includes('doc lap') || nB.includes('danh muc thiet bi cac du an')) continue;
+    if (nB === 'tong cong') { afterTotal = true; continue; }
 
-    // Gói thầu (nhóm) — ưu tiên kiểm tra trước để không nhầm C./D. là dự án
-    if (!A && RE_ROMAN_GROUP.test(B)) {
-      const raw = B.replace(RE_ROMAN_GROUP, '').trim();
-      const { name, supplier } = splitSupplier(raw);
-      group = {
-        id: 'pkg-' + crypto.randomUUID(),
-        name,
-        contractor: supplier,
-        pkgType: 'goods',
-        pkgScope: 'nonProject',
-        purchaseType: 'Mua sắm tài sản',
-        bidValue: toNum(cell(row, map.amount)),
-        selectionMethod: '',
-        payments: [],
-        assets: [],
-        pdfs: []
-      };
-      if (!project) project = newProject('Dự án mua sắm tài sản', '');
-      project._cat.packages.push(group);
-      lastAsset = null;
-      continue;
-    }
+    const aIsNum = /^\d+$/.test(A);
+    const isRoman = RE_ROMAN_GROUP.test(B);
+    const isNamed = !aIsNum && /^(goi thau|mua sam|he thong)/.test(nB) && toNum(F) > 0 && !EXCLUDE.test(B);
+    const isAmountGroup = !A && !D && toNum(F) > 0 && B && nextA(i) === '1' && !EXCLUDE.test(B);
+    const isTitleGroup = !A && !D && B && nextA(i) === '1' && !EXCLUDE.test(B) && RE_TITLE_GROUP.test(nB);
+    const isProject = !A && RE_PROJECT.test(B) && !isRoman;
 
-    // Dự án
-    if (!A && RE_PROJECT.test(B)) {
+    // Dự án mới (A., B., C. ...)
+    if (isProject) {
       const letter = B.match(RE_PROJECT)[1];
       const name = B.replace(RE_PROJECT, '').replace(/:$/, '').trim();
       project = newProject(name, letter);
-      group = null;
+      group = null; lastAsset = null; afterTotal = false;
+      continue;
+    }
+
+    // Cụm cuối sheet: mỗi "Gói thầu ..." = 1 dự án riêng
+    if (isNamed && afterTotal) {
+      const { name, supplier } = splitSupplier(B);
+      project = newProject(name || B, '');
+      group = newGroup(name || B, supplier, toNum(F));
       lastAsset = null;
       continue;
     }
 
-    // Tài sản: có STT (kể cả dạng text) hoặc có SL
+    // Gói thầu (nhóm) trong dự án
+    if (isRoman || isNamed || isAmountGroup || isTitleGroup) {
+      const raw = isRoman ? B.replace(RE_ROMAN_GROUP, '').trim() : B;
+      const { name, supplier } = splitSupplier(raw);
+      group = newGroup(name, supplier, toNum(F));
+      lastAsset = null;
+      continue;
+    }
+
+    // Tài sản
     const hasQty = isNumCell(cell(row, map.quantity));
     if (A || hasQty) {
-      if (!project) project = newProject('Dự án mua sắm tài sản', '');
+      if (!project) project = newProject('Mua sắm tài sản', '');
+      if (!group) group = newGroup(project.name, '', 0);
       const noteRaw = toText(cell(row, map.note));
       const yearRaw = map.year != null ? toText(cell(row, map.year)) : '';
       const asset = {
@@ -191,8 +227,8 @@ function parseSheet(ws) {
         code: '',
         stt: A,
         name: B,
-        group: group ? group.name : '',
-        supplier: group ? group.contractor : '',
+        group: group.name,
+        supplier: group.contractor,
         unit: toText(cell(row, map.unit)),
         quantity: toNum(cell(row, map.quantity)),
         unitPrice: toNum(cell(row, map.unitPrice)),
@@ -203,13 +239,12 @@ function parseSheet(ws) {
         status: 'Đang sử dụng'
       };
       if (!asset.amount && asset.quantity && asset.unitPrice) asset.amount = Math.round(asset.quantity * asset.unitPrice);
-      if (group) group.assets.push(asset);
-      else project.assets.push(asset);
+      group.assets.push(asset);
       lastAsset = asset;
       continue;
     }
 
-    // Dòng phụ (quy cách, phụ kiện, địa điểm...) -> nối vào ghi chú tài sản trước
+    // Dòng phụ (quy cách, phụ kiện...) -> nối vào ghi chú tài sản trước
     if (B && lastAsset) {
       lastAsset.note = (lastAsset.note ? lastAsset.note + '; ' : '') + B;
     }
@@ -231,13 +266,12 @@ function parseSheet(ws) {
       if (!pk.bidValue) pk.bidValue = pk.assets.reduce((s, a) => s + (a.amount || 0), 0);
     });
     p.assets = p.assets || [];
-    p.assets.forEach((a, idx) => { a.code = `${prefix}-X${String(idx + 1).padStart(3, '0')}`; a.projectId = p.id; });
     const total = (p.categories[0]?.packages || []).reduce((s, pk) => s + pk.assets.reduce((x, a) => x + (a.amount || 0), 0), 0)
       + p.assets.reduce((s, a) => s + (a.amount || 0), 0);
     p.totalInvestment = total;
   });
 
-  return projects.filter(p => p.assets.length || p.categories[0].packages.length);
+  return projects.filter(p => p.categories[0].packages.some(pk => (pk.assets || []).length) || p.assets.length);
 }
 
 function pickSheet(wb, sheetName) {

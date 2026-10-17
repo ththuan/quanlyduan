@@ -5195,42 +5195,59 @@ function renderAssetsView() {
     return;
   }
 
-  container.innerHTML = `
-    <div class="report-table-wrapper">
-      <table class="report-table">
-        <thead><tr>
-          <th style="width:90px">Mã</th><th>Tên tài sản</th><th>Gói thầu</th>
-          <th style="width:52px">ĐVT</th><th class="text-right" style="width:60px">SL</th>
-          <th class="text-right">Đơn giá</th><th class="text-right">Thành tiền</th>
-          <th>Nơi sử dụng</th><th style="width:56px">Năm</th><th>Trạng thái</th><th class="edit-only" style="width:84px"></th>
-        </tr></thead>
-        <tbody>
-          ${list.map(r => { const a = r.asset; const cid = r.cat ? r.cat.id : ''; const pid = r.pkg ? r.pkg.id : ''; return `<tr>
-            <td>${esc(a.code || '')}</td>
-            <td>${esc(a.name || '')}</td>
-            <td>${esc(r.pkg ? r.pkg.name : '—')}${r.cat ? `<div style="font-size:0.75rem;color:var(--text-muted)">${esc(r.cat.name)}</div>` : ''}</td>
-            <td class="text-center">${esc(a.unit || '')}</td>
-            <td class="text-right">${formatNumberVN(a.quantity || 0)}</td>
-            <td class="text-right">${formatCurrency(a.unitPrice || 0)}</td>
-            <td class="text-right">${formatCurrency(a.amount || 0)}</td>
-            <td>${esc(a.location || '')}</td>
-            <td class="text-center">${esc(a.year || '')}</td>
-            <td>${esc(a.status || '')}</td>
-            <td class="edit-only">
-              <button class="btn-icon btn-sm" title="Sửa" onclick="openAssetForm('${a.id}','${cid}','${pid}')"><span class="material-symbols-rounded">edit</span></button>
-              <button class="btn-icon btn-sm" title="Xóa" onclick="deleteAsset('${a.id}')"><span class="material-symbols-rounded">delete</span></button>
-            </td>
-          </tr>`; }).join('')}
-          <tr class="total-row"><td colspan="4" class="text-center">TỔNG CỘNG</td>
-            <td class="text-right">${formatNumberVN(list.reduce((s, r) => s + (Number(r.asset.quantity) || 0), 0))}</td>
-            <td></td>
-            <td class="text-right">${formatCurrency(list.reduce((s, r) => s + (Number(r.asset.amount) || 0), 0))}</td>
-            <td colspan="4"></td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-    <p style="font-size:0.8rem;color:var(--text-muted);margin-top:8px">Hiển thị ${list.length}/${all.length} tài sản${term ? ` (lọc: "${esc(term)}")` : ''}.</p>`;
+  const matchA = a => [a.code, a.name, a.location, a.note, a.status].some(v => String(v || '').toLowerCase().includes(term));
+  const groups = [];
+  (project.categories || []).forEach(cat => (cat.packages || []).forEach(pkg => {
+    const pkgHit = term && (`${cat.name} ${pkg.name}`).toLowerCase().includes(term);
+    const assets = (pkg.assets || []).filter(a => !term || pkgHit || matchA(a));
+    if (assets.length) groups.push({ catName: cat.name, pkgName: pkg.name || '(không tên)', assets });
+  }));
+  const legacy = (project.assets || []).filter(a => !term || matchA(a));
+  if (legacy.length) groups.push({ catName: '', pkgName: '(Chưa gán gói thầu)', assets: legacy });
+
+  const shownCount = groups.reduce((s, g) => s + g.assets.length, 0);
+
+  container.innerHTML = groups.map(g => {
+    const sum = g.assets.reduce((s, a) => s + (Number(a.amount) || 0), 0);
+    const qty = g.assets.reduce((s, a) => s + (Number(a.quantity) || 0), 0);
+    return `
+    <div style="margin-bottom:20px">
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;background:var(--bg-secondary,#f3f4f6);margin-bottom:8px;flex-wrap:wrap">
+        <span class="material-symbols-rounded" style="color:var(--accent-cyan)">inventory_2</span>
+        <span>${g.catName ? `<span style="color:var(--text-muted)">${esc(g.catName)} › </span>` : ''}<strong>${esc(g.pkgName)}</strong></span>
+        <span style="font-size:0.8rem;color:var(--text-muted)">(${g.assets.length} tài sản · SL ${formatNumberVN(qty)} · ${formatCurrency(sum)})</span>
+      </div>
+      <div class="report-table-wrapper">
+        <table class="report-table">
+          <thead><tr>
+            <th style="width:80px">Mã</th><th>Tên tài sản</th>
+            <th style="width:52px">ĐVT</th><th class="text-right" style="width:60px">SL</th>
+            <th class="text-right">Đơn giá</th><th class="text-right">Thành tiền</th>
+            <th>Nơi sử dụng</th><th style="width:56px">Năm</th><th class="edit-only" style="width:80px"></th>
+          </tr></thead>
+          <tbody>
+            ${g.assets.map(a => `<tr>
+              <td>${esc(a.code || '')}</td>
+              <td>${esc(a.name || '')}</td>
+              <td class="text-center">${esc(a.unit || '')}</td>
+              <td class="text-right">${formatNumberVN(a.quantity || 0)}</td>
+              <td class="text-right">${formatCurrency(a.unitPrice || 0)}</td>
+              <td class="text-right">${formatCurrency(a.amount || 0)}</td>
+              <td>${esc(a.location || '')}</td>
+              <td class="text-center">${esc(a.year || '')}</td>
+              <td class="edit-only" style="white-space:nowrap">
+                <button class="btn-icon btn-sm" title="Sửa" onclick="openAssetForm('${a.id}')"><span class="material-symbols-rounded">edit</span></button>
+                <button class="btn-icon btn-sm" title="Xóa" onclick="deleteAsset('${a.id}')"><span class="material-symbols-rounded">delete</span></button>
+              </td>
+            </tr>`).join('')}
+            <tr class="total-row"><td colspan="4" class="text-center">Cộng gói</td>
+              <td class="text-right">${formatNumberVN(qty)}</td><td></td>
+              <td class="text-right">${formatCurrency(sum)}</td><td colspan="2"></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+  }).join('') + `<p style="font-size:0.8rem;color:var(--text-muted);margin-top:8px">${groups.length} gói · hiển thị ${shownCount}/${all.length} tài sản${term ? ` (lọc: "${esc(term)}")` : ''}.</p>`;
 }
 
 function calcAssetAmount() {
