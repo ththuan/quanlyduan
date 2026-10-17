@@ -5372,6 +5372,7 @@ function renderAccountUI() {
   document.getElementById('btn-backup-restore')?.classList.toggle('hidden', currentUser.role !== 'admin');
   document.getElementById('btn-sys-config')?.classList.toggle('hidden', currentUser.role !== 'admin');
   document.getElementById('btn-import-excel')?.classList.toggle('hidden', currentUser.role !== 'admin');
+  document.getElementById('btn-import-seed')?.classList.toggle('hidden', currentUser.role !== 'admin');
   isReadOnly = currentUser.role !== 'admin';
   document.body.classList.toggle('read-only', isReadOnly);
 }
@@ -5385,6 +5386,7 @@ document.getElementById('btn-manage-users').addEventListener('click', openUserMa
 document.getElementById('btn-backup-restore')?.addEventListener('click', openBackupRestoreModal);
 document.getElementById('btn-sys-config')?.addEventListener('click', openSysConfigModal);
 document.getElementById('btn-import-excel')?.addEventListener('click', openImportExcelModal);
+document.getElementById('btn-import-seed')?.addEventListener('click', importSeedProjects);
 document.getElementById('btn-audit-log')?.addEventListener('click', renderAuditModal);
 
 // ---- Nhập dự án từ Excel (mẫu "TÌNH HÌNH THỰC HIỆN DỰ ÁN") ----
@@ -5441,6 +5443,22 @@ async function submitImportExcel() {
     showToast('Đã nhập dự án: ' + data.name);
   } catch (err) {
     if (resultEl) resultEl.innerHTML = `<span style="color:var(--accent-red)">${esc(err.message)}</span>`;
+  }
+}
+
+// Nạp dự án mẫu D,E (Khu giảng đường dãy D,E) từ seed có sẵn
+async function importSeedProjects() {
+  if (!confirm('Nạp dự án mẫu D,E (Khu giảng đường dãy D,E) vào app?\nDự án trùng sẽ được cập nhật theo dữ liệu mẫu.')) return;
+  try {
+    const res = await fetch('/api/admin/import-seed', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Lỗi nạp dự án mẫu');
+    await loadState();
+    renderProjectSelector();
+    renderAll();
+    showToast(`Đã nạp dự án mẫu: ${data.created} mới, ${data.updated} cập nhật`);
+  } catch (err) {
+    showToast(err.message, 'error');
   }
 }
 
