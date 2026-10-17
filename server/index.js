@@ -260,7 +260,8 @@ app.put('/api/state', requireAuth, requireAdmin, (req, res) => {
   if (projects.length === 0 && (existing.projects || []).length > 0) {
     return res.status(409).json({ error: 'Từ chối ghi đè dữ liệu hiện có bằng danh sách rỗng' });
   }
-  db.saveStateToDb({ projects, currentProjectId: currentProjectId || null });
+  // Giữ nguyên các trường khác của state (vd migrations) để không chạy lại seed/migration
+  db.saveStateToDb({ ...existing, projects, currentProjectId: currentProjectId || null });
   res.json({ ok: true });
 });
 
