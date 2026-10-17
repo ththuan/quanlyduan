@@ -80,7 +80,26 @@ function getState() {
     saveStateToDb(initial);
     return initial;
   }
-  return JSON.parse(row.data);
+  const state = JSON.parse(row.data);
+  if (mergeMissingSeedProjects(state)) saveStateToDb(state);
+  return state;
+}
+
+// Gộp dự án mẫu còn thiếu (vd dự án D,E - Khu giảng đường dãy D,E) vào CSDL hiện có.
+// Chạy 1 lần theo phiên bản migration để không ghi đè/khôi phục dự án người dùng đã xoá.
+const SEED_MERGE_VERSION = 1;
+function mergeMissingSeedProjects(state) {
+  state.migrations = state.migrations || {};
+  if ((state.migrations.seedMerge || 0) >= SEED_MERGE_VERSION) return false;
+  state.projects = Array.isArray(state.projects) ? state.projects : [];
+  for (const sp of seedData) {
+    const exists = state.projects.some(p =>
+      p.id === sp.id || (p.name || '').trim().toLowerCase() === (sp.name || '').trim().toLowerCase());
+    if (!exists) state.projects.push(JSON.parse(JSON.stringify(sp)));
+  }
+  if (!state.currentProjectId) state.currentProjectId = state.projects[0]?.id || null;
+  state.migrations.seedMerge = SEED_MERGE_VERSION;
+  return true;
 }
 
 function addPdfRecord(id, name, size) {
