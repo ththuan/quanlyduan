@@ -3443,10 +3443,6 @@ function getPackageFormHTML(pkg = null, catId = '') {
 
       <div class="form-section-title"><span class="material-symbols-rounded">calculate</span> Quyết toán A-B</div>
       <div class="form-group">
-        <label>Số biên bản quyết toán A-B</label>
-        <input type="text" id="f-settlementRecord" value="${esc(pkg?.settlementRecord || '')}" placeholder="VD: Số 05/BBQT-AB ngày 10/01/2024">
-      </div>
-      <div class="form-group">
         <label>Giá trị quyết toán A-B (VNĐ)</label>
         <input type="number" id="f-settlementValue" value="${pkg?.settlementValue || ''}" placeholder="Giá trị cuối cùng hai bên ký">
       </div>
@@ -3901,8 +3897,7 @@ function viewPackageDetail(catId, pkgId) {
       ${item('Trạng thái nghiệm thu', `<span class="badge ${pkg.acceptanceStatus === 'Đã nghiệm thu' ? 'badge-success' : 'badge-warning'}">${esc(pkg.acceptanceStatus || 'Chưa nghiệm thu')}</span>`)}
       ${item('Ngày nghiệm thu gần nhất', formatDateVN(pkg.acceptanceDate))}
 
-      ${(pkg.settlementValue || pkg.settlementDate || pkg.settlementRecord) ? section('calculate', 'Quyết toán A-B') : ''}
-      ${pkg.settlementRecord ? item('Số biên bản quyết toán A-B', esc(pkg.settlementRecord)) : ''}
+      ${(pkg.settlementValue || pkg.settlementDate) ? section('calculate', 'Quyết toán A-B') : ''}
       ${pkg.settlementValue ? item('Giá trị quyết toán A-B', formatCurrency(pkg.settlementValue), true) : ''}
       ${pkg.settlementDate ? item('Ngày quyết toán A-B', formatDateVN(pkg.settlementDate)) : ''}
       ${pkg.settlementStatus ? item('Trạng thái quyết toán', `<span class="badge ${pkg.settlementStatus === 'Đã quyết toán' ? 'badge-success' : (pkg.settlementStatus === 'Đang quyết toán' ? 'badge-warning' : 'badge-neutral')}">${esc(pkg.settlementStatus)}</span>`) : ''}
