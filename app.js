@@ -3964,15 +3964,16 @@ function viewPackageDetail(catId, pkgId) {
         <button type="button" class="btn btn-secondary btn-sm edit-only" style="margin-left:8px" onclick="openAssetForm('','${catId}','${pkgId}')"><span class="material-symbols-rounded">add</span> Thêm tài sản</button>
       </div>
       <div class="detail-item full-width">
-        ${pkgAssets.length ? `<table class="report-table"><thead><tr><th>Mã</th><th>Tên tài sản</th><th>ĐVT</th><th class="text-right">SL</th><th class="text-right">Đơn giá</th><th class="text-right">Thành tiền</th><th>Nơi sử dụng</th><th></th></tr></thead><tbody>
-          ${pkgAssets.map(a => `<tr>
-            <td>${esc(a.code || '')}</td>
-            <td>${esc(a.name || '')}</td>
+        ${pkgAssets.length ? `<table class="asset-table"><thead><tr><th class="text-center" style="width:42px">TT</th><th style="width:86px">Mã</th><th>Tên tài sản</th><th class="text-center" style="width:56px">ĐVT</th><th class="text-right" style="width:64px">SL</th><th class="text-right" style="width:112px">Đơn giá</th><th class="text-right" style="width:124px">Thành tiền</th><th style="width:150px">Nơi sử dụng</th><th></th></tr></thead><tbody>
+          ${pkgAssets.map((a, i) => `<tr>
+            <td class="text-center">${i + 1}</td>
+            <td class="mono">${esc(a.code || '')}</td>
+            <td class="wrap">${esc(a.name || '')}</td>
             <td class="text-center">${esc(a.unit || '')}</td>
             <td class="text-right">${formatNumberVN(a.quantity || 0)}</td>
             <td class="text-right">${formatCurrency(a.unitPrice || 0)}</td>
             <td class="text-right">${formatCurrency(a.amount || 0)}</td>
-            <td>${esc(a.location || '')}</td>
+            <td class="wrap">${esc(a.location || '')}</td>
             <td class="edit-only" style="white-space:nowrap">
               <button class="btn-icon btn-sm" title="Sửa" onclick="openAssetForm('${a.id}','${catId}','${pkgId}')"><span class="material-symbols-rounded">edit</span></button>
               <button class="btn-icon btn-sm" title="Xóa" onclick="deleteAsset('${a.id}','${catId}','${pkgId}')"><span class="material-symbols-rounded">delete</span></button>
@@ -5218,31 +5219,39 @@ function renderAssetsView() {
         <span style="font-size:0.8rem;color:var(--text-muted)">(${g.assets.length} tài sản · SL ${formatNumberVN(qty)} · ${formatCurrency(sum)})</span>
       </div>
       <div class="report-table-wrapper">
-        <table class="report-table">
+        <table class="asset-table">
           <thead><tr>
-            <th style="width:80px">Mã</th><th>Tên tài sản</th>
-            <th style="width:52px">ĐVT</th><th class="text-right" style="width:60px">SL</th>
-            <th class="text-right">Đơn giá</th><th class="text-right">Thành tiền</th>
-            <th>Nơi sử dụng</th><th style="width:56px">Năm</th><th class="edit-only" style="width:80px"></th>
+            <th class="text-center" style="width:42px">TT</th>
+            <th style="width:86px">Mã</th>
+            <th>Tên tài sản</th>
+            <th class="text-center" style="width:56px">ĐVT</th>
+            <th class="text-right" style="width:64px">SL</th>
+            <th class="text-right" style="width:112px">Đơn giá</th>
+            <th class="text-right" style="width:124px">Thành tiền</th>
+            <th style="width:150px">Nơi sử dụng</th>
+            <th class="text-center" style="width:52px">Năm</th>
+            <th class="edit-only" style="width:78px"></th>
           </tr></thead>
           <tbody>
-            ${g.assets.map(a => `<tr>
-              <td>${esc(a.code || '')}</td>
-              <td>${esc(a.name || '')}</td>
+            ${g.assets.map((a, i) => `<tr>
+              <td class="text-center">${i + 1}</td>
+              <td class="mono">${esc(a.code || '')}</td>
+              <td class="wrap">${esc(a.name || '')}</td>
               <td class="text-center">${esc(a.unit || '')}</td>
               <td class="text-right">${formatNumberVN(a.quantity || 0)}</td>
               <td class="text-right">${formatCurrency(a.unitPrice || 0)}</td>
               <td class="text-right">${formatCurrency(a.amount || 0)}</td>
-              <td>${esc(a.location || '')}</td>
+              <td class="wrap">${esc(a.location || '')}</td>
               <td class="text-center">${esc(a.year || '')}</td>
               <td class="edit-only" style="white-space:nowrap">
                 <button class="btn-icon btn-sm" title="Sửa" onclick="openAssetForm('${a.id}')"><span class="material-symbols-rounded">edit</span></button>
                 <button class="btn-icon btn-sm" title="Xóa" onclick="deleteAsset('${a.id}')"><span class="material-symbols-rounded">delete</span></button>
               </td>
             </tr>`).join('')}
-            <tr class="total-row"><td colspan="4" class="text-center">Cộng gói</td>
-              <td class="text-right">${formatNumberVN(qty)}</td><td></td>
-              <td class="text-right">${formatCurrency(sum)}</td><td colspan="2"></td></tr>
+            <tr class="total-row"><td colspan="5" class="text-center">Cộng gói</td>
+              <td></td>
+              <td class="text-right">${formatCurrency(sum)}</td>
+              <td colspan="3"></td></tr>
           </tbody>
         </table>
       </div>
