@@ -4322,6 +4322,20 @@ function deletePayment(catId, pkgId, payId) {
 }
 
 // Gợi ý lịch thanh toán theo loại gói thầu
+// Lịch thanh toán cho gói có tạm ứng: 2 đợt khối lượng (40% KL, thu hồi 50% tạm ứng) + đợt hoàn thành (số còn lại)
+function buildAdvanceSchedule(contract, advance) {
+  const rec = Math.round(advance * 0.5);
+  const r1 = Math.round(contract * 0.4 - rec);
+  const r2 = Math.round(contract * 0.4 - rec);
+  const r3 = Math.round(contract - advance - r1 - r2);
+  const note = `Thu hồi tạm ứng ${formatCurrency(rec)}`;
+  return [
+    { type: 'Thanh toán khối lượng', name: 'Thanh toán đợt 1 — 40% khối lượng, thu hồi 50% tạm ứng', value: r1, note },
+    { type: 'Thanh toán khối lượng', name: 'Thanh toán đợt 2 — 40% khối lượng, thu hồi 50% tạm ứng', value: r2, note },
+    { type: 'Thanh toán hoàn thành', name: 'Thanh toán hoàn thành — số còn lại', value: r3, note: 'Gợi ý tự động' }
+  ];
+}
+
 function suggestPayments(catId, pkgId) {
   if (!requireEditPermission()) return;
   const project = getCurrentProject();
@@ -4329,7 +4343,7 @@ function suggestPayments(catId, pkgId) {
   const pkg = cat?.packages.find(p => p.id === pkgId);
   if (!pkg) return;
   const contract = getCurrentContractValue(pkg);
-  const mk = (type, name, value) => ({ id: generateId(), type, name, date: '', value: Math.round(value), note: 'Gợi ý tự động' });
+  const mk = (type, name, value, note) => ({ id: generateId(), type, name, date: '', value: Math.round(value), note: note || 'Gợi ý tự động' });
   const nameLower = (pkg.name || '').toLowerCase();
   const isBcktkt = pkg.pkgType === 'consulting' && (nameLower.includes('báo cáo kinh tế') || nameLower.includes('bcktkt') || nameLower.includes('báo cáo ktkt'));
   const isConstructionLike = pkg.pkgType === 'construction' || pkg.pkgType === 'mixed' || pkg.pkgType === 'goods';
@@ -4339,7 +4353,14 @@ function suggestPayments(catId, pkgId) {
     pkg.payments.push(mk('Thanh toán khối lượng', 'Thanh toán đợt 1 — trước khi hoàn thành bản vẽ thiết kế (90%)', contract * 0.9));
     pkg.payments.push(mk('Thanh toán hoàn thành', 'Thanh toán đợt 2 — 10% còn lại sau khi hoàn thành thi công', contract * 0.1));
   } else if (isConstructionLike) {
-    pkg.payments.push(mk('Tạm ứng', 'Tạm ứng 30% giá trị hợp đồng', contract * 0.3));
+    let advRow = pkg.payments.find(x => x.type === 'Tạm ứng');
+    if (!advRow) {
+      advRow = mk('Tạm ứng', 'Tạm ứng 30% giá trị hợp đồng', contract * 0.3);
+      pkg.payments.push(advRow);
+    }
+    buildAdvanceSchedule(contract, Number(advRow.value) || 0).forEach(s => {
+      if (!pkg.payments.some(x => x.name === s.name)) pkg.payments.push(mk(s.type, s.name, s.value, s.note));
+    });
   } else {
     showToast('Chưa có mẫu gợi ý cho loại gói này', 'info');
     return;
@@ -4412,7 +4433,18 @@ function suggestFormPayments() {
     addFormPaymentRow({ type: 'Thanh toán khối lượng', name: 'Thanh toán đợt 1 — trước khi hoàn thành bản vẽ thiết kế (90%)', value: Math.round(bid * 0.9) });
     addFormPaymentRow({ type: 'Thanh toán hoàn thành', name: 'Thanh toán đợt 2 — 10% còn lại sau khi hoàn thành thi công', value: Math.round(bid * 0.1) });
   } else if (isConstructionLike) {
-    addFormPaymentRow({ type: 'Tạm ứng', name: 'Tạm ứng 30% giá trị hợp đồng', value: Math.round(bid * 0.3) });
+    let adv = 0;
+    document.querySelectorAll('#form-payment-rows .pay-row').forEach(row => {
+      if ((row.querySelector('.pay-type')?.value || '') === 'Tạm ứng') adv += Number(row.querySelector('.pay-value')?.value) || 0;
+    });
+    if (adv <= 0) {
+      adv = Math.round(bid * 0.3);
+      addFormPaymentRow({ type: 'Tạm ứng', name: 'Tạm ứng 30% giá trị hợp đồng', value: adv });
+    }
+    const existing = new Set([...document.querySelectorAll('#form-payment-rows .pay-name')].map(i => i.value));
+    buildAdvanceSchedule(bid, adv).forEach(s => {
+      if (!existing.has(s.name)) addFormPaymentRow({ type: s.type, name: s.name, value: s.value, note: s.note });
+    });
   } else {
     showToast('Chưa có mẫu gợi ý cho loại gói này', 'info');
   }
