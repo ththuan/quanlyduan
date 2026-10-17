@@ -3868,10 +3868,11 @@ function viewPackageDetail(catId, pkgId) {
         <button type="button" class="btn btn-secondary btn-sm edit-only" style="margin-left:8px" onclick="addVariation('${catId}','${pkgId}')"><span class="material-symbols-rounded">add</span> Thêm phát sinh</button>
       </div>
       <div class="detail-item full-width">
-        ${vars.length ? `<table class="report-table"><thead><tr><th>Ngày</th><th class="text-right">Giá trị</th><th>Trạng thái</th><th>Người duyệt</th><th>Lý do</th><th></th></tr></thead><tbody>
+        ${vars.length ? `<table class="report-table"><thead><tr><th>Ngày</th><th>Loại</th><th class="text-right">Giá trị</th><th>Trạng thái</th><th>Người duyệt</th><th>Lý do</th><th></th></tr></thead><tbody>
           ${vars.map(v => `<tr>
             <td>${formatDateVN(v.date)}</td>
-            <td class="text-right">${formatCurrency(v.amount)}</td>
+            <td>${Number(v.amount) < 0 ? '<span class="badge badge-danger">Giảm</span>' : '<span class="badge badge-success">Tăng</span>'}</td>
+            <td class="text-right" style="${Number(v.amount) < 0 ? 'color:var(--accent-red)' : ''}">${formatCurrency(v.amount)}</td>
             <td>${varStatus[v.status] || esc(v.status || '')}</td>
             <td>${esc(v.approvedBy || '—')}</td>
             <td>${esc(v.reason || '')}</td>
@@ -4144,7 +4145,13 @@ function addVariation(catId, pkgId) {
   openModal('Thêm phát sinh khối lượng', `
     <div class="form-grid" style="grid-template-columns:1fr 1fr">
       <div class="form-group"><label>Ngày</label><input type="date" id="var-date"></div>
-      <div class="form-group"><label>Giá trị (VNĐ)</label><input type="number" id="var-amount"></div>
+      <div class="form-group"><label>Loại phát sinh</label>
+        <select id="var-kind">
+          <option value="increase">Tăng giá trị</option>
+          <option value="decrease">Giảm giá trị</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Giá trị (VNĐ)</label><input type="number" id="var-amount" min="0"></div>
       <div class="form-group"><label>Trạng thái</label>
         <select id="var-status">
           <option value="approved">Đã duyệt</option>
@@ -4166,16 +4173,19 @@ function saveVariation(catId, pkgId) {
   const cat = project.categories.find(c => c.id === catId);
   const pkg = cat?.packages.find(p => p.id === pkgId);
   if (!pkg) return;
+  const kind = document.getElementById('var-kind').value;
+  const mag = Math.abs(Number(document.getElementById('var-amount').value) || 0);
   pkg.variations = pkg.variations || [];
   pkg.variations.push({
     id: generateId(),
     date: toIso(document.getElementById('var-date').value),
-    amount: Number(document.getElementById('var-amount').value) || 0,
+    kind: kind,
+    amount: kind === 'decrease' ? -mag : mag,
     status: document.getElementById('var-status').value,
     approvedBy: document.getElementById('var-approvedBy').value.trim(),
     reason: document.getElementById('var-reason').value.trim()
   });
-  addAudit(project, 'create', 'phát sinh', pkg.name, `Phát sinh #${pkg.variations.length}`);
+  addAudit(project, 'create', 'phát sinh', pkg.name, (kind === 'decrease' ? 'Giảm ' : 'Tăng ') + formatCurrency(mag));
   saveState();
   closeModal();
   viewPackageDetail(catId, pkgId);
