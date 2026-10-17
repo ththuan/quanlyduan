@@ -3836,6 +3836,7 @@ function viewPackageDetail(catId, pkgId) {
   const varStatus = { pending: 'Chờ duyệt', approved: 'Đã duyệt', rejected: 'Từ chối' };
   const st = getAcceptanceStats(pkg);
   const pays = pkg.payments || [];
+  const pkgAssets = pkg.assets || [];
   const payTotal = pays.reduce((s, p) => s + (Number(p.value) || 0), 0);
   const payPct = st.contract > 0 ? payTotal / st.contract * 100 : 0;
   const typeInfo = PKG_TYPE_INFO[pkg.pkgType] || PKG_TYPE_INFO.construction;
@@ -3958,6 +3959,29 @@ function viewPackageDetail(catId, pkgId) {
       </div>
 
 
+
+      <div class="detail-section-title"><span class="material-symbols-rounded">inventory</span> Danh mục tài sản (${pkgAssets.length})
+        <button type="button" class="btn btn-secondary btn-sm edit-only" style="margin-left:8px" onclick="openAssetForm('','${catId}','${pkgId}')"><span class="material-symbols-rounded">add</span> Thêm tài sản</button>
+      </div>
+      <div class="detail-item full-width">
+        ${pkgAssets.length ? `<table class="report-table"><thead><tr><th>Mã</th><th>Tên tài sản</th><th>ĐVT</th><th class="text-right">SL</th><th class="text-right">Đơn giá</th><th class="text-right">Thành tiền</th><th>Nơi sử dụng</th><th></th></tr></thead><tbody>
+          ${pkgAssets.map(a => `<tr>
+            <td>${esc(a.code || '')}</td>
+            <td>${esc(a.name || '')}</td>
+            <td class="text-center">${esc(a.unit || '')}</td>
+            <td class="text-right">${formatNumberVN(a.quantity || 0)}</td>
+            <td class="text-right">${formatCurrency(a.unitPrice || 0)}</td>
+            <td class="text-right">${formatCurrency(a.amount || 0)}</td>
+            <td>${esc(a.location || '')}</td>
+            <td class="edit-only" style="white-space:nowrap">
+              <button class="btn-icon btn-sm" title="Sửa" onclick="openAssetForm('${a.id}','${catId}','${pkgId}')"><span class="material-symbols-rounded">edit</span></button>
+              <button class="btn-icon btn-sm" title="Xóa" onclick="deleteAsset('${a.id}','${catId}','${pkgId}')"><span class="material-symbols-rounded">delete</span></button>
+            </td>
+          </tr>`).join('')}
+        </tbody></table>
+        <div style="margin-top:6px;font-size:0.82rem;color:var(--text-secondary)">Tổng nguyên giá tài sản: <b>${formatCurrency(pkgAssets.reduce((s, a) => s + (Number(a.amount) || 0), 0))}</b></div>`
+      : '<p class="pdf-empty">Chưa có tài sản</p>'}
+      </div>
 
       ${(hasContract || hasKhlcnt || hasResult || hasLiquidation || invoices.length) ? section('folder_shared', 'Hợp đồng & Hồ sơ pháp lý') : ''}
       ${hasContract ? item('Số hợp đồng', esc(pkg.contract || '—')) : ''}
@@ -4693,7 +4717,12 @@ function saveNewProject() {
   const data = getProjectFormData();
   if (!data.name) { showToast('Vui lòng nhập tên dự án', 'error'); return; }
   if (!validateProjectYears(data)) return;
-  const proj = { id: generateId(), ...data, categories: data.projectScope === 'nonProject' ? [] : createDefaultCategories() };
+  const proj = {
+    id: generateId(), ...data,
+    categories: data.projectScope === 'nonProject'
+      ? [{ id: generateId(), code: 'MS', name: 'Mua sắm', color: '#3b82f6', packages: [] }]
+      : createDefaultCategories()
+  };
   state.projects.push(proj);
   state.currentProjectId = proj.id;
   addAudit(proj, 'create', 'project', data.name);
@@ -5111,11 +5140,32 @@ function setPkgStatusFilter(code) {
 // ============================================================
 const ASSET_STATUSES = ['Đang sử dụng', 'Chưa sử dụng', 'Hỏng', 'Điều chuyển', 'Thanh lý', 'Mất'];
 
-function getAssetList() {
-  const project = getCurrentProject();
-  if (!project) return [];
-  project.assets = project.assets || [];
-  return project.assets;
+function getAllProjectAssets(project) {
+  const out = [];
+  if (!project) return out;
+  (project.categories || []).forEach(cat => (cat.packages || []).forEach(pkg => {
+    (pkg.assets || []).forEach(a => out.push({ asset: a, pkg, cat }));
+  }));
+  (project.assets || []).forEach(a => out.push({ asset: a, pkg: null, cat: null }));
+  return out;
+}
+
+function getPkgAssets(pkg) {
+  if (!pkg) return [];
+  pkg.assets = pkg.assets || [];
+  return pkg.assets;
+}
+
+function findAsset(project, assetId) {
+  for (const cat of (project.categories || [])) {
+    for (const pkg of (cat.packages || [])) {
+      const a = (pkg.assets || []).find(x => x.id === assetId);
+      if (a) return { asset: a, pkg, cat };
+    }
+  }
+  const legacy = (project.assets || []).find(x => x.id === assetId);
+  if (legacy) return { asset: legacy, pkg: null, cat: null };
+  return null;
 }
 
 function renderAssetsView() {
@@ -5124,24 +5174,24 @@ function renderAssetsView() {
   if (!container) return;
   const project = getCurrentProject();
   if (!project) { container.innerHTML = ''; if (summaryEl) summaryEl.innerHTML = ''; return; }
-  const assets = getAssetList();
+  const all = getAllProjectAssets(project);
   const term = (document.getElementById('search-assets')?.value || '').trim().toLowerCase();
-  const match = a => [a.code, a.name, a.group, a.supplier, a.location, a.note, a.status].some(v => String(v || '').toLowerCase().includes(term));
-  const list = term ? assets.filter(match) : assets;
-  const total = assets.reduce((s, a) => s + (Number(a.amount) || 0), 0);
-  const totalQty = assets.reduce((s, a) => s + (Number(a.quantity) || 0), 0);
+  const match = r => [r.asset.code, r.asset.name, r.pkg?.name, r.cat?.name, r.asset.location, r.asset.note, r.asset.status].some(v => String(v || '').toLowerCase().includes(term));
+  const list = term ? all.filter(match) : all;
+  const total = all.reduce((s, r) => s + (Number(r.asset.amount) || 0), 0);
+  const totalQty = all.reduce((s, r) => s + (Number(r.asset.quantity) || 0), 0);
 
   if (summaryEl) {
     summaryEl.innerHTML = `
       <div class="kpi-grid" style="margin-bottom:14px">
-        <div class="glass-card kpi-card"><div class="kpi-label">Số tài sản</div><div class="kpi-value">${formatNumberVN(assets.length)}</div></div>
+        <div class="glass-card kpi-card"><div class="kpi-label">Số tài sản</div><div class="kpi-value">${formatNumberVN(all.length)}</div></div>
         <div class="glass-card kpi-card"><div class="kpi-label">Tổng số lượng</div><div class="kpi-value">${formatNumberVN(totalQty)}</div></div>
         <div class="glass-card kpi-card"><div class="kpi-label">Tổng nguyên giá</div><div class="kpi-value">${formatCurrency(total)}</div></div>
       </div>`;
   }
 
-  if (!assets.length) {
-    container.innerHTML = `<p style="padding:24px;text-align:center;color:var(--text-muted)">Chưa có tài sản cho dự án này. Dùng <b>Nhập Excel</b> (quản trị) hoặc <b>Thêm tài sản</b>.</p>`;
+  if (!all.length) {
+    container.innerHTML = `<p style="padding:24px;text-align:center;color:var(--text-muted)">Chưa có tài sản. Vào <b>Gói thầu</b> → mở gói → <b>Thêm tài sản</b>, hoặc dùng <b>Nhập Excel</b> (quản trị).</p>`;
     return;
   }
 
@@ -5149,16 +5199,16 @@ function renderAssetsView() {
     <div class="report-table-wrapper">
       <table class="report-table">
         <thead><tr>
-          <th style="width:90px">Mã</th><th>Tên tài sản</th><th>Nhóm / Gói thầu</th>
+          <th style="width:90px">Mã</th><th>Tên tài sản</th><th>Gói thầu</th>
           <th style="width:52px">ĐVT</th><th class="text-right" style="width:60px">SL</th>
           <th class="text-right">Đơn giá</th><th class="text-right">Thành tiền</th>
           <th>Nơi sử dụng</th><th style="width:56px">Năm</th><th>Trạng thái</th><th class="edit-only" style="width:84px"></th>
         </tr></thead>
         <tbody>
-          ${list.map(a => `<tr>
+          ${list.map(r => { const a = r.asset; const cid = r.cat ? r.cat.id : ''; const pid = r.pkg ? r.pkg.id : ''; return `<tr>
             <td>${esc(a.code || '')}</td>
             <td>${esc(a.name || '')}</td>
-            <td>${esc(a.group || '')}${a.supplier ? `<div style="font-size:0.75rem;color:var(--text-muted)">${esc(a.supplier)}</div>` : ''}</td>
+            <td>${esc(r.pkg ? r.pkg.name : '—')}${r.cat ? `<div style="font-size:0.75rem;color:var(--text-muted)">${esc(r.cat.name)}</div>` : ''}</td>
             <td class="text-center">${esc(a.unit || '')}</td>
             <td class="text-right">${formatNumberVN(a.quantity || 0)}</td>
             <td class="text-right">${formatCurrency(a.unitPrice || 0)}</td>
@@ -5167,20 +5217,20 @@ function renderAssetsView() {
             <td class="text-center">${esc(a.year || '')}</td>
             <td>${esc(a.status || '')}</td>
             <td class="edit-only">
-              <button class="btn-icon btn-sm" title="Sửa" onclick="openAssetForm('${a.id}')"><span class="material-symbols-rounded">edit</span></button>
+              <button class="btn-icon btn-sm" title="Sửa" onclick="openAssetForm('${a.id}','${cid}','${pid}')"><span class="material-symbols-rounded">edit</span></button>
               <button class="btn-icon btn-sm" title="Xóa" onclick="deleteAsset('${a.id}')"><span class="material-symbols-rounded">delete</span></button>
             </td>
-          </tr>`).join('')}
+          </tr>`; }).join('')}
           <tr class="total-row"><td colspan="4" class="text-center">TỔNG CỘNG</td>
-            <td class="text-right">${formatNumberVN(list.reduce((s, a) => s + (Number(a.quantity) || 0), 0))}</td>
+            <td class="text-right">${formatNumberVN(list.reduce((s, r) => s + (Number(r.asset.quantity) || 0), 0))}</td>
             <td></td>
-            <td class="text-right">${formatCurrency(list.reduce((s, a) => s + (Number(a.amount) || 0), 0))}</td>
+            <td class="text-right">${formatCurrency(list.reduce((s, r) => s + (Number(r.asset.amount) || 0), 0))}</td>
             <td colspan="4"></td>
           </tr>
         </tbody>
       </table>
     </div>
-    <p style="font-size:0.8rem;color:var(--text-muted);margin-top:8px">Hiển thị ${list.length}/${assets.length} tài sản${term ? ` (lọc: "${esc(term)}")` : ''}.</p>`;
+    <p style="font-size:0.8rem;color:var(--text-muted);margin-top:8px">Hiển thị ${list.length}/${all.length} tài sản${term ? ` (lọc: "${esc(term)}")` : ''}.</p>`;
 }
 
 function calcAssetAmount() {
@@ -5190,17 +5240,29 @@ function calcAssetAmount() {
   if (el) el.value = Math.round(q * p);
 }
 
-function openAssetForm(assetId) {
+function buildPkgOptions(project, selCatId, selPkgId) {
+  const items = [];
+  (project.categories || []).forEach(cat => (cat.packages || []).forEach(pkg => items.push({ catId: cat.id, pkgId: pkg.id, label: `${cat.name} › ${pkg.name}` })));
+  if (!items.length) return '<option value="">— Chưa có gói thầu —</option>';
+  return items.map(it => `<option value="${it.catId}|${it.pkgId}" ${(selCatId === it.catId && selPkgId === it.pkgId) ? 'selected' : ''}>${esc(it.label)}</option>`).join('');
+}
+
+function openAssetForm(assetId, catId, pkgId) {
   if (!requireEditPermission()) return;
   const project = getCurrentProject();
   if (!project) return;
-  const a = assetId ? getAssetList().find(x => x.id === assetId) : null;
+  let a = null;
+  if (assetId) {
+    const found = findAsset(project, assetId);
+    if (found) { a = found.asset; catId = found.cat ? found.cat.id : catId; pkgId = found.pkg ? found.pkg.id : pkgId; }
+  }
   const opts = ASSET_STATUSES.map(s => `<option value="${s}" ${(a?.status || ASSET_STATUSES[0]) === s ? 'selected' : ''}>${s}</option>`).join('');
+  const pkgOptionsHTML = buildPkgOptions(project, catId, pkgId);
   openModal(a ? 'Sửa tài sản' : 'Thêm tài sản', `
     <div class="form-grid form-single">
+      <div class="form-group full-width"><label>Thuộc gói thầu *</label><select id="f-asset-pkg">${pkgOptionsHTML}</select></div>
       <div class="form-group"><label>Mã tài sản</label><input type="text" id="f-asset-code" value="${esc(a?.code || '')}" placeholder="Để trống sẽ tự sinh"></div>
       <div class="form-group"><label>Tên tài sản *</label><input type="text" id="f-asset-name" value="${esc(a?.name || '')}"></div>
-      <div class="form-group"><label>Nhóm / Gói thầu</label><input type="text" id="f-asset-group" value="${esc(a?.group || '')}"></div>
       <div class="form-group"><label>Nhà cung cấp / Nhà thầu</label><input type="text" id="f-asset-supplier" value="${esc(a?.supplier || '')}"></div>
       <div class="form-group"><label>Đơn vị tính</label><input type="text" id="f-asset-unit" value="${esc(a?.unit || '')}"></div>
       <div class="form-group"><label>Số lượng</label><input type="number" id="f-asset-qty" value="${a?.quantity ?? ''}" oninput="calcAssetAmount()"></div>
@@ -5213,17 +5275,21 @@ function openAssetForm(assetId) {
     </div>
   `, `
     <button class="btn btn-secondary" onclick="closeModal()">Hủy</button>
-    <button class="btn btn-primary" onclick="saveAsset('${a?.id || ''}')"><span class="material-symbols-rounded">save</span> Lưu</button>
+    <button class="btn btn-primary" onclick="saveAsset('${a?.id || ''}','${catId || ''}','${pkgId || ''}')"><span class="material-symbols-rounded">save</span> Lưu</button>
   `, 'lg');
 }
 
-function saveAsset(assetId) {
+function saveAsset(assetId, ctxCatId, ctxPkgId) {
   if (!requireEditPermission()) return;
   const project = getCurrentProject();
   if (!project) return;
   const name = (document.getElementById('f-asset-name')?.value || '').trim();
   if (!name) { showToast('Vui lòng nhập tên tài sản', 'error'); return; }
-  project.assets = project.assets || [];
+  const sel = (document.getElementById('f-asset-pkg')?.value || '').split('|');
+  const cat = (project.categories || []).find(c => c.id === sel[0]);
+  const pkg = cat?.packages.find(p => p.id === sel[1]);
+  if (!pkg) { showToast('Vui lòng chọn gói thầu', 'error'); return; }
+  pkg.assets = pkg.assets || [];
   const num = id => Number(document.getElementById(id)?.value) || 0;
   const txt = id => (document.getElementById(id)?.value || '').trim();
   const qty = num('f-asset-qty');
@@ -5231,68 +5297,81 @@ function saveAsset(assetId) {
   let amount = num('f-asset-amount');
   if (!amount && qty && price) amount = Math.round(qty * price);
   const data = {
-    name, group: txt('f-asset-group'), supplier: txt('f-asset-supplier'),
+    name, supplier: txt('f-asset-supplier'),
     unit: txt('f-asset-unit'), quantity: qty, unitPrice: price, amount,
     location: txt('f-asset-location'), year: txt('f-asset-year'),
     status: txt('f-asset-status') || ASSET_STATUSES[0], note: txt('f-asset-note')
   };
+  const code = txt('f-asset-code');
   if (assetId) {
-    const a = project.assets.find(x => x.id === assetId);
-    if (a) {
-      Object.assign(a, data);
-      const code = txt('f-asset-code');
-      if (code) a.code = code;
+    const found = findAsset(project, assetId);
+    if (found) {
+      if (found.pkg && found.pkg.id === pkg.id) {
+        Object.assign(found.asset, data);
+        if (code) found.asset.code = code;
+        found.asset.packageId = pkg.id;
+      } else {
+        if (found.pkg) found.pkg.assets = found.pkg.assets.filter(x => x.id !== assetId);
+        else project.assets = (project.assets || []).filter(x => x.id !== assetId);
+        pkg.assets.push({ ...found.asset, ...data, id: assetId, code: code || found.asset.code, projectId: project.id, packageId: pkg.id });
+      }
     }
   } else {
     const prefix = project.code || 'TS';
-    const code = txt('f-asset-code') || `${prefix}-${String(project.assets.length + 1).padStart(4, '0')}`;
-    project.assets.push({ id: 'asset-' + generateId(), code, stt: '', projectId: project.id, ...data });
+    const n = getAllProjectAssets(project).length;
+    pkg.assets.push({ id: 'asset-' + generateId(), code: code || `${prefix}-${String(n + 1).padStart(4, '0')}`, stt: '', projectId: project.id, packageId: pkg.id, ...data });
   }
   addAudit(project, assetId ? 'update' : 'create', 'tài sản', name);
-  saveState(); closeModal(); renderAssetsView();
+  saveState(); closeModal();
+  if (ctxCatId && ctxPkgId) viewPackageDetail(ctxCatId, ctxPkgId);
+  else renderAssetsView();
   showToast(assetId ? 'Đã cập nhật tài sản' : 'Đã thêm tài sản');
 }
 
-function deleteAsset(assetId) {
+function deleteAsset(assetId, ctxCatId, ctxPkgId) {
   if (!requireEditPermission()) return;
   const project = getCurrentProject();
   if (!project) return;
-  const a = (project.assets || []).find(x => x.id === assetId);
-  if (!a) return;
-  if (!confirm(`Xóa tài sản "${a.name}"?`)) return;
-  project.assets = project.assets.filter(x => x.id !== assetId);
-  addAudit(project, 'delete', 'tài sản', a.name);
-  saveState(); renderAssetsView();
+  const found = findAsset(project, assetId);
+  if (!found) return;
+  if (!confirm(`Xóa tài sản "${found.asset.name}"?`)) return;
+  if (found.pkg) found.pkg.assets = found.pkg.assets.filter(x => x.id !== assetId);
+  else project.assets = (project.assets || []).filter(x => x.id !== assetId);
+  addAudit(project, 'delete', 'tài sản', found.asset.name);
+  saveState();
+  if (ctxCatId && ctxPkgId) viewPackageDetail(ctxCatId, ctxPkgId);
+  else renderAssetsView();
   showToast('Đã xóa tài sản', 'info');
 }
 
-function buildAssetsTableHTML(list) {
-  const rows = list.map((a, i) => `<tr>
+function buildAssetsTableHTML(rows) {
+  const body = rows.map((r, i) => { const a = r.asset; return `<tr>
     <td class="text-center">${i + 1}</td>
     <td>${esc(a.code || '')}</td>
-    <td>${esc(a.name || '')}${a.group ? `<br><em style="font-size:11px">${esc(a.group)}</em>` : ''}</td>
+    <td>${esc(a.name || '')}</td>
+    <td>${esc(r.pkg ? r.pkg.name : '')}</td>
     <td class="text-center">${esc(a.unit || '')}</td>
     <td class="text-right">${formatNumberVN(a.quantity || 0)}</td>
     <td class="text-right">${formatCurrency(a.unitPrice || 0)}</td>
     <td class="text-right">${formatCurrency(a.amount || 0)}</td>
     <td>${esc(a.location || '')}</td>
     <td class="text-center">${esc(a.year || '')}</td>
-  </tr>`).join('');
-  const total = list.reduce((s, a) => s + (Number(a.amount) || 0), 0);
+  </tr>`; }).join('');
+  const total = rows.reduce((s, r) => s + (Number(r.asset.amount) || 0), 0);
   return `<table>
-    <thead><tr><th style="width:32px">TT</th><th style="width:70px">Mã</th><th>Tên tài sản</th><th>ĐVT</th><th class="text-right">SL</th><th class="text-right">Đơn giá</th><th class="text-right">Thành tiền</th><th>Nơi sử dụng</th><th style="width:52px">Năm</th></tr></thead>
-    <tbody>${rows}
-      <tr class="total-row"><td colspan="6" class="text-center">TỔNG CỘNG</td><td class="text-right">${formatCurrency(total)}</td><td colspan="2"></td></tr>
+    <thead><tr><th style="width:32px">TT</th><th style="width:70px">Mã</th><th>Tên tài sản</th><th>Gói thầu</th><th>ĐVT</th><th class="text-right">SL</th><th class="text-right">Đơn giá</th><th class="text-right">Thành tiền</th><th>Nơi sử dụng</th><th style="width:52px">Năm</th></tr></thead>
+    <tbody>${body}
+      <tr class="total-row"><td colspan="7" class="text-center">TỔNG CỘNG</td><td class="text-right">${formatCurrency(total)}</td><td colspan="2"></td></tr>
     </tbody></table>`;
 }
 
 function exportAssets(mode) {
   const project = getCurrentProject();
   if (!project) return;
-  const assets = getAssetList();
-  if (!assets.length) { showToast('Chưa có tài sản để xuất', 'info'); return; }
+  const all = getAllProjectAssets(project);
+  if (!all.length) { showToast('Chưa có tài sản để xuất', 'info'); return; }
   const term = (document.getElementById('search-assets')?.value || '').trim().toLowerCase();
-  const list = term ? assets.filter(a => [a.code, a.name, a.group, a.supplier, a.location, a.note, a.status].some(v => String(v || '').toLowerCase().includes(term))) : assets;
+  const list = term ? all.filter(r => [r.asset.code, r.asset.name, r.pkg?.name, r.cat?.name, r.asset.location, r.asset.note, r.asset.status].some(v => String(v || '').toLowerCase().includes(term))) : all;
   const title = 'DANH MỤC TÀI SẢN';
   const bodyHTML = `
     <div class="print-header">

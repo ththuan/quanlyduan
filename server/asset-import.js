@@ -161,6 +161,7 @@ function parseSheet(ws) {
         bidValue: toNum(cell(row, map.amount)),
         selectionMethod: '',
         payments: [],
+        assets: [],
         pdfs: []
       };
       if (!project) project = newProject('Dự án mua sắm tài sản', '');
@@ -202,7 +203,8 @@ function parseSheet(ws) {
         status: 'Đang sử dụng'
       };
       if (!asset.amount && asset.quantity && asset.unitPrice) asset.amount = Math.round(asset.quantity * asset.unitPrice);
-      project.assets.push(asset);
+      if (group) group.assets.push(asset);
+      else project.assets.push(asset);
       lastAsset = asset;
       continue;
     }
@@ -213,22 +215,26 @@ function parseSheet(ws) {
     }
   }
 
-  // Sinh mã tài sản & tổng hợp
+  // Sinh mã tài sản & tổng hợp (tài sản nằm trong từng gói thầu)
   projects.forEach(p => {
     delete p._cat;
     const prefix = p.code || 'TS';
-    p.assets.forEach((a, idx) => {
-      a.code = `${prefix}-${String(idx + 1).padStart(4, '0')}`;
-      a.projectId = p.id;
-    });
-    const total = p.assets.reduce((s, a) => s + (a.amount || 0), 0);
-    p.totalInvestment = total;
-    // gán tổng gói thầu nếu thiếu
+    let n = 0;
     (p.categories[0]?.packages || []).forEach(pk => {
-      if (!pk.bidValue) {
-        pk.bidValue = p.assets.filter(a => a.group === pk.name).reduce((s, a) => s + (a.amount || 0), 0);
-      }
+      pk.assets = pk.assets || [];
+      pk.assets.forEach(a => {
+        n += 1;
+        a.code = `${prefix}-${String(n).padStart(4, '0')}`;
+        a.projectId = p.id;
+        a.packageId = pk.id;
+      });
+      if (!pk.bidValue) pk.bidValue = pk.assets.reduce((s, a) => s + (a.amount || 0), 0);
     });
+    p.assets = p.assets || [];
+    p.assets.forEach((a, idx) => { a.code = `${prefix}-X${String(idx + 1).padStart(3, '0')}`; a.projectId = p.id; });
+    const total = (p.categories[0]?.packages || []).reduce((s, pk) => s + pk.assets.reduce((x, a) => x + (a.amount || 0), 0), 0)
+      + p.assets.reduce((s, a) => s + (a.amount || 0), 0);
+    p.totalInvestment = total;
   });
 
   return projects.filter(p => p.assets.length || p.categories[0].packages.length);

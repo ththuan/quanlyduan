@@ -87,7 +87,7 @@ function getState() {
 
 // Gộp dự án mẫu còn thiếu (vd dự án D,E - Khu giảng đường dãy D,E) vào CSDL hiện có
 // và đưa dự án mẫu lên đầu danh sách. Chạy 1 lần theo phiên bản migration.
-const SEED_MERGE_VERSION = 2;
+const SEED_MERGE_VERSION = 3;
 function mergeMissingSeedProjects(state) {
   state.migrations = state.migrations || {};
   const done = state.migrations.seedMerge || 0;
@@ -113,6 +113,21 @@ function mergeMissingSeedProjects(state) {
       else rest.push(p);
     }
     state.projects = head.concat(rest);
+  }
+
+  // 3) Chuyển tài sản cấp dự án (nếu có) vào gói thầu theo nhóm
+  if (done < 3) {
+    state.projects.forEach(p => {
+      if (!Array.isArray(p.assets) || !p.assets.length) return;
+      const pkgs = (p.categories || []).flatMap(c => c.packages || []);
+      const orphans = [];
+      p.assets.forEach(a => {
+        const pk = pkgs.find(x => x.name === a.group) || (pkgs.length === 1 ? pkgs[0] : null);
+        if (pk) { pk.assets = pk.assets || []; a.packageId = pk.id; pk.assets.push(a); }
+        else orphans.push(a);
+      });
+      p.assets = orphans;
+    });
   }
 
   if (!state.currentProjectId) state.currentProjectId = state.projects[0]?.id || null;
