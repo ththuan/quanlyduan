@@ -2960,7 +2960,7 @@ canvas {
    PWA standalone / fullscreen tweaks
    ============================================================ */
 @media all and (display-mode: standalone) {
-  #navbar { padding-top: env(safe-area-inset-top); }
+  #navbar { padding-top: max(10px, env(safe-area-inset-top)); }
   #main-content { padding-bottom: env(safe-area-inset-bottom); }
 }
 
