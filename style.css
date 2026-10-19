@@ -109,9 +109,7 @@ body.read-only .edit-only { display: none !important; }
   align-items: stretch;
   justify-content: flex-start;
   padding: 10px 24px;
-  background: var(--bg-glass);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  background: var(--bg-card);
   border-bottom: 1px solid var(--border-glass);
   box-shadow: var(--shadow-sm);
   z-index: 1000;
