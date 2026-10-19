@@ -53,7 +53,7 @@ app.use((req, res, next) => {
     "style-src 'self' 'unsafe-inline'; " +
     "font-src 'self'; " +
     "img-src 'self' data: blob:; " +
-    "connect-src 'self' https://static.cloudflareinsights.com; " +
+    "connect-src 'self' https://static.cloudflareinsights.com https://cloudflareinsights.com; " +
     "object-src 'none'; base-uri 'self'; " +
     "frame-ancestors 'none'; " +
     "frame-src 'self' blob: data:"

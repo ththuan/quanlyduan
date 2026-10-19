@@ -351,6 +351,8 @@ function applyConfig() {
 
 function saveState() {
   if (!state.loaded) return;
+  // Tài khoản chỉ đọc (user) không lưu lên server để tránh 403; UI vẫn cập nhật cục bộ
+  if (currentUser && currentUser.role !== 'admin') return;
   apiSaveState({
     projects: state.projects,
     currentProjectId: state.currentProjectId
