@@ -5177,6 +5177,7 @@ function switchView(viewName) {
   else if (viewName === 'packages') renderPackages();
   else if (viewName === 'assets') renderAssetsView();
   else if (viewName === 'initiation') renderInitiationView();
+  else if (viewName === 'legal') { if (typeof renderLegalLibrary === 'function') renderLegalLibrary(); }
   else if (viewName === 'qtda') renderQtdaView();
   else if (viewName === 'reports') renderReports();
 }
@@ -5187,6 +5188,7 @@ function renderAll() {
   else if (state.currentView === 'packages') renderPackages();
   else if (state.currentView === 'assets') renderAssetsView();
   else if (state.currentView === 'initiation') renderInitiationView();
+  else if (state.currentView === 'legal') { if (typeof renderLegalLibrary === 'function') renderLegalLibrary(); }
   else if (state.currentView === 'qtda') renderQtdaView();
   else if (state.currentView === 'reports') renderReports();
 }
