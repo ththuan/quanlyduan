@@ -702,6 +702,13 @@ function toIso(dmy) {
   return `${m[3]}-${mo}-${d}`;
 }
 
+// Chỉ lấy phần số ký hiệu (bỏ tên văn bản sau dấu —)
+function decisionNumber(text) {
+  const t = String(text || '').trim();
+  const i = t.indexOf(' — ');
+  return i >= 0 ? t.slice(0, i).trim() : t;
+}
+
 // Hiển thị "số + ngày" (không lặp ngày nếu số đã chứa)
 function numDateText(text, date) {
   const t = String(text || '').trim();
@@ -1776,11 +1783,12 @@ function openPrintWindow(title, bodyHTML, opts) {
         .info-box { border: 1px solid #000; padding: 10px 14px; margin-bottom: 20px; background: #fafafa; }
         .info-box table { border: none !important; margin: 0 !important; }
         .info-box td { border: none !important; padding: 3px 8px !important; }
+        .info-box strong { white-space: nowrap; }
         table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 12px; }
         table, th, td { border: 1px solid #000; }
         th { background: #f2f2f2; text-align: center; padding: 6px; font-weight: bold; }
         td { padding: 5px 8px; text-align: left; }
-        td.text-right, th.text-right { text-align: right; }
+        td.text-right, th.text-right { text-align: right; white-space: nowrap; }
         td.text-center, th.text-center { text-align: center; }
         .total-row td { font-weight: bold; background: #f9f9f9; }
         .section-heading { font-weight: bold; font-size: 14px; margin-top: 20px; margin-bottom: 6px; text-transform: uppercase; color: #111; }
@@ -1907,7 +1915,7 @@ function exportFullProjectReport() {
           <td class="text-center">${i + 1}</td>
           <td>${esc(p.name)}</td>
           <td>${esc(p.contractor || '—')}</td>
-          <td>${esc(numDateText(p.bidDecision, p.resultApprovalDate) || '—')}</td>
+          <td>${esc(numDateText(decisionNumber(p.bidDecision), p.resultApprovalDate) || '—')}</td>
           <td>${esc(numDateText(p.contract, p.contractSignDate) || '—')}</td>
           <td class="text-right">${formatCurrency(p.estimateValue)}</td>
           <td class="text-right">${formatCurrency(p.bidValue)}</td>
