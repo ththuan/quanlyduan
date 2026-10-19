@@ -79,6 +79,19 @@ body::before {
   z-index: -1;
 }
 
+/* Phủ kín vùng an toàn trên (status bar iOS) bằng nền đục — tránh lớp mờ che thanh công cụ */
+body::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: env(safe-area-inset-top, 0px);
+  background: var(--bg-card);
+  z-index: 1001;
+  pointer-events: none;
+}
+
 /* ---- Scrollbar ---- */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
