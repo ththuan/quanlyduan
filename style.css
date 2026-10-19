@@ -3224,3 +3224,41 @@ canvas {
   gap: 8px;
   margin-top: 10px;
 }
+
+/* ===== Khung in/xem báo cáo trong ứng dụng (không mở cửa sổ mới) ===== */
+.print-overlay { position: fixed; inset: 0; z-index: 4000; background: #fff; overflow: auto; }
+.print-toolbar {
+  position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; background: #f8fafc; border-bottom: 1px solid #e5e7eb; flex-wrap: wrap;
+}
+.print-toolbar .print-overlay-title { flex: 1; text-align: center; font-weight: 600; min-width: 120px; }
+.print-doc {
+  font-family: 'Times New Roman', serif; font-size: 13px; color: #000; line-height: 1.5;
+  padding: 24px; max-width: 1200px; width: 100%; margin: 0 auto; box-sizing: border-box;
+}
+.print-doc .print-header { text-align: center; margin-bottom: 20px; }
+.print-doc .print-header h2 { margin: 2px 0; font-size: 15px; text-transform: uppercase; }
+.print-doc .print-header h3 { margin: 2px 0; font-size: 14px; font-weight: normal; }
+.print-doc .print-title { text-align: center; font-weight: bold; font-size: 16px; text-transform: uppercase; margin: 20px 0 10px 0; }
+.print-doc .print-subtitle { text-align: center; font-style: italic; font-size: 13px; margin-bottom: 20px; }
+.print-doc .info-box { border: 1px solid #000; padding: 10px 14px; margin-bottom: 20px; background: #fafafa; }
+.print-doc .info-box table { border: none; margin: 0; }
+.print-doc .info-box td { border: none; padding: 3px 8px; }
+.print-doc .info-box strong { white-space: nowrap; }
+.print-doc table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 12px; }
+.print-doc table, .print-doc th, .print-doc td { border: 1px solid #000; }
+.print-doc th { background: #f2f2f2; text-align: center; padding: 6px; font-weight: bold; }
+.print-doc td { padding: 5px 8px; text-align: left; }
+.print-doc td.text-right, .print-doc th.text-right { text-align: right; white-space: nowrap; }
+.print-doc td.text-center, .print-doc th.text-center { text-align: center; }
+.print-doc .total-row td { font-weight: bold; background: #f9f9f9; }
+.print-doc .section-heading { font-weight: bold; font-size: 14px; margin-top: 20px; margin-bottom: 6px; text-transform: uppercase; color: #111; }
+.print-doc .sign-row { display: flex; justify-content: space-between; margin-top: 40px; text-align: center; page-break-inside: avoid; }
+.print-doc .sign-col { width: 45%; }
+
+@media print {
+  body > *:not(#print-overlay) { display: none !important; }
+  #print-overlay { position: static; overflow: visible; }
+  .print-toolbar { display: none !important; }
+  .print-doc { padding: 0; max-width: none; }
+}

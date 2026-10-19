@@ -1772,53 +1772,31 @@ function renderReports() {
   `;
 }
 
-// ---- Xuất mẫu biểu (in) ----
+// ---- Xem / In báo cáo TRONG ứng dụng (không mở cửa sổ mới — hợp với PWA/iPad) ----
 function openPrintWindow(title, bodyHTML, opts) {
-  const win = window.open('', '_blank');
-  if (!win) { showToast('Trình duyệt đã chặn cửa sổ in. Vui lòng cho phép popup.', 'error'); return; }
+  closePrintOverlay();
   const landscape = !!(opts && opts.landscape);
-  win.document.write(`
-    <!DOCTYPE html>
-    <html lang="vi">
-    <head>
-      <meta charset="UTF-8">
-      <title>${title}</title>
-      <style>
-        @page { size: A4 ${landscape ? 'landscape' : 'portrait'}; margin: 12mm; }
-        body { font-family: 'Times New Roman', serif; font-size: 13px; color: #000; padding: 30px; line-height: 1.5; }
-        .print-header { text-align: center; margin-bottom: 20px; }
-        .print-header h2 { margin: 2px 0; font-size: 15px; text-transform: uppercase; }
-        .print-header h3 { margin: 2px 0; font-size: 14px; font-weight: normal; }
-        .print-title { text-align: center; font-weight: bold; font-size: 16px; text-transform: uppercase; margin: 20px 0 10px 0; }
-        .print-subtitle { text-align: center; font-style: italic; font-size: 13px; margin-bottom: 20px; }
-        .info-box { border: 1px solid #000; padding: 10px 14px; margin-bottom: 20px; background: #fafafa; }
-        .info-box table { border: none !important; margin: 0 !important; }
-        .info-box td { border: none !important; padding: 3px 8px !important; }
-        .info-box strong { white-space: nowrap; }
-        table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 12px; }
-        table, th, td { border: 1px solid #000; }
-        th { background: #f2f2f2; text-align: center; padding: 6px; font-weight: bold; }
-        td { padding: 5px 8px; text-align: left; }
-        td.text-right, th.text-right { text-align: right; white-space: nowrap; }
-        td.text-center, th.text-center { text-align: center; }
-        .total-row td { font-weight: bold; background: #f9f9f9; }
-        .section-heading { font-weight: bold; font-size: 14px; margin-top: 20px; margin-bottom: 6px; text-transform: uppercase; color: #111; }
-        .sign-row { display: flex; justify-content: space-between; margin-top: 40px; text-align: center; page-break-inside: avoid; }
-        .sign-col { width: 45%; }
-        .no-print { text-align: center; margin-top: 30px; }
-        .no-print button { padding: 8px 20px; font-size: 14px; font-weight: bold; background: #00d4ff; color: #000; border: none; border-radius: 4px; cursor: pointer; }
-        @media print { .no-print { display: none; } }
-      </style>
-    </head>
-    <body>
-      ${bodyHTML}
-      <div class="no-print">
-        <button onclick="window.print()">🖨️ In / Xuất PDF Báo Cáo</button>
-      </div>
-    </body>
-    </html>
-  `);
-  win.document.close();
+  const overlay = document.createElement('div');
+  overlay.id = 'print-overlay';
+  overlay.className = 'print-overlay';
+  overlay.innerHTML = `
+    <div class="print-toolbar">
+      <button class="btn btn-secondary" onclick="closePrintOverlay()"><span class="material-symbols-rounded">arrow_back</span> Quay lại ứng dụng</button>
+      <span class="print-overlay-title">${esc(title)}</span>
+      <button class="btn btn-primary" onclick="window.print()"><span class="material-symbols-rounded">print</span> In / Xuất PDF</button>
+    </div>
+    <div class="print-doc">${bodyHTML}</div>`;
+  document.body.appendChild(overlay);
+  let st = document.getElementById('print-page-style');
+  if (!st) { st = document.createElement('style'); st.id = 'print-page-style'; document.head.appendChild(st); }
+  st.textContent = `@media print { @page { size: A4 ${landscape ? 'landscape' : 'portrait'}; margin: 12mm; } }`;
+}
+
+function closePrintOverlay() {
+  const el = document.getElementById('print-overlay');
+  if (el) el.remove();
+  const st = document.getElementById('print-page-style');
+  if (st) st.textContent = '';
 }
 
 function exportFullProjectReport() {
