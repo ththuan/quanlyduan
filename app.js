@@ -514,6 +514,8 @@ function formatFileSize(bytes) {
 
 // ---- Project classification & legal lookup tables (per readme.md quy trình) ----
 let PROJECT_TYPES = ['Đầu tư công', 'PPP', 'Vốn đầu tư chi thường xuyên', 'Đầu tư kinh doanh'];
+let PROJECT_GROUPS = ['Nhóm A', 'Nhóm B', 'Nhóm C'];
+let CONSTRUCTION_TYPES = ['Công trình dân dụng', 'Công trình công nghiệp', 'Công trình giao thông', 'Công trình hạ tầng kỹ thuật', 'Công trình nông nghiệp và phát triển nông thôn', 'Công trình quốc phòng, an ninh', 'Công trình khác'];
 let FUND_SOURCES = ['Kinh phí quỹ phát triển sự nghiệp', 'Ngân sách thành phố', 'Đầu tư công'];
 let PURCHASE_TYPES = ['Mua sắm tài sản', 'Sửa chữa, bảo trì thường xuyên', 'Mua sắm vật tư, hàng hóa tiêu hao', 'Dịch vụ khác'];
 let BUILDING_GRADES = ['Đặc biệt', 'I', 'II', 'III', 'IV'];
@@ -707,6 +709,15 @@ function decisionNumber(text) {
   const t = String(text || '').trim();
   const i = t.indexOf(' — ');
   return i >= 0 ? t.slice(0, i).trim() : t;
+}
+
+// Nhãn cấp công trình (vd 'I' -> 'Cấp I', 'Đặc biệt' -> 'Cấp đặc biệt')
+function gradeLabel(g) {
+  const t = String(g || '').trim();
+  if (!t) return '—';
+  if (/^cấp/i.test(t)) return t;
+  if (/đặc biệt/i.test(t)) return 'Cấp đặc biệt';
+  return 'Cấp ' + t;
 }
 
 // Hiển thị "số + ngày" (không lặp ngày nếu số đã chứa)
@@ -1831,8 +1842,9 @@ function exportFullProjectReport() {
     <div class="info-box">
       <table>
         <tr><td style="width:20%;font-weight:bold">Tên dự án:</td><td>${esc(project.fullName || project.name)}</td><td style="width:18%;font-weight:bold">Chủ đầu tư:</td><td>${esc(project.owner || '—')}</td></tr>
-        <tr><td style="font-weight:bold">Địa điểm:</td><td>${esc(project.location || '—')}</td><td style="font-weight:bold">Cấp công trình:</td><td>Cấp ${project.buildingGrade || '—'}</td></tr>
-        <tr><td style="font-weight:bold">Loại dự án:</td><td>${esc(project.projectType || '—')}</td><td style="font-weight:bold">Mã định danh:</td><td>${esc(project.identifierCode || '—')}</td></tr>
+        <tr><td style="font-weight:bold">Địa điểm:</td><td>${esc(project.location || '—')}</td><td style="font-weight:bold">Nhóm dự án:</td><td>${esc(project.projectGroup || '—')}</td></tr>
+        <tr><td style="font-weight:bold">Loại công trình:</td><td>${esc(project.constructionType || '—')}</td><td style="font-weight:bold">Cấp công trình:</td><td>${esc(gradeLabel(project.buildingGrade))}</td></tr>
+        <tr><td style="font-weight:bold">Mã định danh:</td><td>${esc(project.identifierCode || '—')}</td><td style="font-weight:bold">Nguồn vốn:</td><td>${esc(project.investmentSource || '—')}</td></tr>
         <tr><td style="font-weight:bold">Tổng mức đầu tư:</td><td><strong>${formatCurrency(totalInvest)}</strong></td><td style="font-weight:bold">Giải ngân lũy kế:</td><td><strong>${formatCurrency(totalDisbursed)} (${rate.toFixed(1)}%)</strong></td></tr>
       </table>
     </div>
@@ -4689,8 +4701,30 @@ function getProjectFormHTML(proj = null) {
     </div>
     <div class="form-group full-width"><label>Tên đầy đủ</label><input type="text" id="f-proj-fullName" value="${esc(proj?.fullName || '')}"></div>
     <div class="form-group"><label>Chủ đầu tư</label><input type="text" id="f-proj-owner" value="${esc(proj?.owner || '')}"></div>
-    <div class="form-group"><label>Mã số thuế CĐT</label><input type="text" id="f-proj-taxCode" value="${esc(proj?.investorTaxCode || '')}"></div>
     <div class="form-group"><label>Địa điểm</label><input type="text" id="f-proj-location" value="${esc(proj?.location || '')}"></div>
+    <div class="form-group">
+      <label>Nhóm dự án</label>
+      <select id="f-proj-group">
+        <option value="">— Chọn —</option>
+        ${PROJECT_GROUPS.map(s => `<option value="${s}" ${proj?.projectGroup === s ? 'selected' : ''}>${s}</option>`).join('')}
+        ${proj?.projectGroup && !PROJECT_GROUPS.includes(proj.projectGroup) ? `<option value="${esc(proj.projectGroup)}" selected>${esc(proj.projectGroup)}</option>` : ''}
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Loại công trình</label>
+      <select id="f-proj-constructionType">
+        <option value="">— Chọn —</option>
+        ${CONSTRUCTION_TYPES.map(s => `<option value="${s}" ${proj?.constructionType === s ? 'selected' : ''}>${s}</option>`).join('')}
+        ${proj?.constructionType && !CONSTRUCTION_TYPES.includes(proj.constructionType) ? `<option value="${esc(proj.constructionType)}" selected>${esc(proj.constructionType)}</option>` : ''}
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Cấp công trình</label>
+      <select id="f-proj-grade">
+        <option value="">— Chọn —</option>
+        ${BUILDING_GRADES.map(s => `<option value="${s}" ${proj?.buildingGrade === s ? 'selected' : ''}>${gradeLabel(s)}</option>`).join('')}
+      </select>
+    </div>
     <div class="form-group"><label>Năm bắt đầu thực hiện</label><input type="number" id="f-proj-startYear" min="1900" max="2200" value="${proj?.startYear ?? ''}" placeholder="Ví dụ: 2025"></div>
     <div class="form-group"><label>Năm kết thúc dự kiến</label><input type="number" id="f-proj-endYear" min="1900" max="2200" value="${proj?.endYear ?? ''}" placeholder="Ví dụ: 2027"></div>
     <div id="proj-investment-fields" ${isNonProject ? 'style="display:none"' : ''}>
@@ -4720,8 +4754,10 @@ function getProjectFormData() {
     projectScope: document.getElementById('f-proj-scope').value || 'project',
     fullName: document.getElementById('f-proj-fullName').value.trim(),
     owner: document.getElementById('f-proj-owner').value.trim(),
-    investorTaxCode: document.getElementById('f-proj-taxCode').value.trim(),
     location: document.getElementById('f-proj-location').value.trim(),
+    projectGroup: document.getElementById('f-proj-group').value,
+    constructionType: document.getElementById('f-proj-constructionType').value,
+    buildingGrade: document.getElementById('f-proj-grade').value,
     startYear: Number(document.getElementById('f-proj-startYear').value) || null,
     endYear: Number(document.getElementById('f-proj-endYear').value) || null,
     investmentSource: document.getElementById('f-proj-investmentSource').value,
