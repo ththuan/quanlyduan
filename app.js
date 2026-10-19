@@ -1419,7 +1419,7 @@ function renderPackages(searchTerm = document.getElementById('search-packages')?
         <div class="category-name">${esc(cat.name)}</div>
         <div class="category-stats">
           <span>Tổng dự toán: <span class="stat-value">${formatCurrency(investTotal, true)}</span></span>
-          <span>Dự toán: <span class="stat-value">${formatCurrency(estimateTotal, true)}</span></span>
+          <span>Dự toán gói thầu: <span class="stat-value">${formatCurrency(estimateTotal, true)}</span></span>
           <span>Nghiệm thu: <span class="stat-value">${formatCurrency(acceptTotal, true)}</span></span>
           <span>Gói: <span class="stat-value">${cat.packages.length}</span></span>
         </div>
@@ -1443,7 +1443,7 @@ function renderPackages(searchTerm = document.getElementById('search-packages')?
                 <tr>
                   <th style="width:48px">TT</th>
                   <th>Tên gói thầu</th>
-                  <th>Dự toán</th>
+                  <th>Dự toán gói thầu</th>
                   <th>Giá trị HĐ</th>
                   <th>Hình thức</th>
                   <th>Nhà thầu</th>
