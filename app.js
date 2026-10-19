@@ -1737,14 +1737,8 @@ function renderReports() {
     <div class="report-section">
       <h3><span class="material-symbols-rounded">print</span> In & Xuất mẫu biểu báo cáo</h3>
       <div class="header-actions" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px">
-        <button class="btn btn-primary" onclick="exportPackageAcceptanceReport()">
-          <span class="material-symbols-rounded">fact_check</span> In bảng tổng hợp gói thầu & nghiệm thu
-        </button>
         <button class="btn btn-primary" onclick="exportFullProjectReport()">
-          <span class="material-symbols-rounded">print</span> Báo cáo tổng hợp dự án & Giải ngân
-        </button>
-        <button class="btn btn-secondary" onclick="exportPackagesReport()">
-          <span class="material-symbols-rounded">inventory_2</span> Báo cáo chi tiết gói thầu
+          <span class="material-symbols-rounded">print</span> In báo cáo tổng hợp (tất cả nội dung)
         </button>
         <button class="btn btn-secondary" onclick="exportSettlementWarrantyReport()">
           <span class="material-symbols-rounded">verified</span> Báo cáo Bảo hành
@@ -1761,9 +1755,10 @@ function renderReports() {
 }
 
 // ---- Xuất mẫu biểu (in) ----
-function openPrintWindow(title, bodyHTML) {
+function openPrintWindow(title, bodyHTML, opts) {
   const win = window.open('', '_blank');
   if (!win) { showToast('Trình duyệt đã chặn cửa sổ in. Vui lòng cho phép popup.', 'error'); return; }
+  const landscape = !!(opts && opts.landscape);
   win.document.write(`
     <!DOCTYPE html>
     <html lang="vi">
@@ -1771,6 +1766,7 @@ function openPrintWindow(title, bodyHTML) {
       <meta charset="UTF-8">
       <title>${title}</title>
       <style>
+        @page { size: A4 ${landscape ? 'landscape' : 'portrait'}; margin: 12mm; }
         body { font-family: 'Times New Roman', serif; font-size: 13px; color: #000; padding: 30px; line-height: 1.5; }
         .print-header { text-align: center; margin-bottom: 20px; }
         .print-header h2 { margin: 2px 0; font-size: 15px; text-transform: uppercase; }
@@ -1816,6 +1812,8 @@ function exportFullProjectReport() {
   const totalEstimate = allPkgs.reduce((s, p) => s + (p.estimateValue || 0), 0);
   const totalBid = allPkgs.reduce((s, p) => s + (p.bidValue || 0), 0);
   const totalAcceptance = allPkgs.reduce((s, p) => s + (p.acceptanceValue || 0), 0);
+  const totalVariation = allPkgs.reduce((s, p) => s + getVariationTotal(p), 0);
+  const totalContract = allPkgs.reduce((s, p) => s + getCurrentContractValue(p), 0);
   const rate = totalInvest > 0 ? (totalDisbursed / totalInvest * 100) : 0;
 
   openPrintWindow(`Báo cáo tổng hợp dự án - ${esc(project.name)}`, `
@@ -1878,38 +1876,62 @@ function exportFullProjectReport() {
       </tbody>
     </table>
 
-    <div class="section-heading">II. DANH SÁCH CÁC GÓI THẦU & TIẾN ĐỘ THỰC HIỆN</div>
+    <div class="section-heading">II. DANH SÁCH CÁC GÓI THẦU, GIÁ TRỊ HỢP ĐỒNG & NGHIỆM THU</div>
     <table>
       <thead>
         <tr>
-          <th style="width:30px">TT</th>
+          <th style="width:28px">TT</th>
           <th>Tên gói thầu</th>
-          <th>Nhà thầu trúng thầu</th>
+          <th>Nhà thầu</th>
           <th>Số QĐ phê duyệt KQ</th>
           <th>Số hợp đồng</th>
-          <th class="text-right">Dự toán gói thầu</th>
-          <th class="text-right">Giá trị HĐ (+ phụ lục)</th>
+          <th class="text-right">Dự toán</th>
+          <th class="text-right">Trúng thầu</th>
+          <th class="text-right">Phát sinh</th>
+          <th class="text-right">Giá trị HĐ hiện hành</th>
+          <th class="text-right">Nghiệm thu</th>
+          <th class="text-center">% NT</th>
           <th class="text-right">Lũy kế giải ngân</th>
           <th class="text-center">Tiến độ</th>
+          <th>Trạng thái</th>
         </tr>
       </thead>
       <tbody>
         ${getSortedCategories(project).map(cat => {
     const pkgs = cat.packages || [];
     if (!pkgs.length) return '';
-    return `<tr><td class="text-center"><strong>${esc(cat.code)}</strong></td><td colspan="8"><strong>${esc(cat.name)}</strong></td></tr>`
-      + pkgs.map((p, i) => `<tr>
+    return `<tr><td class="text-center"><strong>${esc(cat.code)}</strong></td><td colspan="13"><strong>${esc(cat.name)}</strong></td></tr>`
+      + pkgs.map((p, i) => {
+        const st = getAcceptanceStats(p);
+        return `<tr>
           <td class="text-center">${i + 1}</td>
           <td>${esc(p.name)}</td>
           <td>${esc(p.contractor || '—')}</td>
           <td>${esc(numDateText(p.bidDecision, p.resultApprovalDate) || '—')}</td>
           <td>${esc(numDateText(p.contract, p.contractSignDate) || '—')}</td>
           <td class="text-right">${formatCurrency(p.estimateValue)}</td>
-          <td class="text-right">${formatCurrency(getCurrentContractValue(p))}${p.contractExtension ? ' (có PL)' : ''}</td>
+          <td class="text-right">${formatCurrency(p.bidValue)}</td>
+          <td class="text-right">${formatCurrency(getVariationTotal(p))}</td>
+          <td class="text-right">${formatCurrency(st.contract)}${p.contractExtension ? ' (PL)' : ''}</td>
+          <td class="text-right">${formatCurrency(st.accepted)}</td>
+          <td class="text-center">${st.percent != null ? st.percent.toFixed(1) + '%' : '—'}</td>
           <td class="text-right">${formatCurrency(p.cumulativeDisbursed)}</td>
-          ${p.pkgType !== 'consulting' && p.pkgType !== 'nonConsulting' ? `<td class="text-center">${p.progress || 0}%</td>` : '<td class="text-center">—</td>'}
-        </tr>`).join('');
+          <td class="text-center">${p.pkgType !== 'consulting' && p.pkgType !== 'nonConsulting' ? (p.progress || 0) + '%' : '—'}</td>
+          <td>${esc(PKG_STATUSES[getPackageStatus(p)].label)}</td>
+        </tr>`;
+      }).join('');
   }).join('')}
+        <tr class="total-row">
+          <td colspan="5" class="text-center">TỔNG CỘNG</td>
+          <td class="text-right">${formatCurrency(totalEstimate)}</td>
+          <td class="text-right">${formatCurrency(totalBid)}</td>
+          <td class="text-right">${formatCurrency(totalVariation)}</td>
+          <td class="text-right">${formatCurrency(totalContract)}</td>
+          <td class="text-right">${formatCurrency(totalAcceptance)}</td>
+          <td class="text-center">${totalContract > 0 ? (totalAcceptance / totalContract * 100).toFixed(1) + '%' : '—'}</td>
+          <td class="text-right">${formatCurrency(totalDisbursed)}</td>
+          <td colspan="2"></td>
+        </tr>
       </tbody>
     </table>
 
@@ -1924,7 +1946,7 @@ function exportFullProjectReport() {
         <p style="margin-top:60px">(Ký, ghi rõ họ tên, đóng dấu)</p>
       </div>
     </div>
-  `);
+  `, { landscape: true });
 }
 
 // ---- Mẫu số 02/QTDA (TT 73/2026/TT-BTC): Danh mục văn bản hồ sơ quyết toán ----
