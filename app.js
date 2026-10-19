@@ -1194,7 +1194,34 @@ function switchScope(scope) {
   renderAll();
 }
 
+// ---- Tiêu đề trang động (chạy chữ khi tên quá dài để hiện đủ) ----
+let titleMarqueeTimer = null;
+let lastDocTitleBase = null;
+function setDocTitle(text) {
+  const base = String(text || '').trim() || 'QLDA CTEC';
+  if (titleMarqueeTimer) { clearInterval(titleMarqueeTimer); titleMarqueeTimer = null; }
+  document.title = base;
+  if (base.length <= 30) return;
+  const gap = '     •     ';
+  const str = base + gap;
+  let i = 0;
+  titleMarqueeTimer = setInterval(() => {
+    i = (i + 1) % str.length;
+    document.title = str.slice(i) + str.slice(0, i);
+  }, 400);
+}
+function applyDocTitle() {
+  const project = getCurrentProject();
+  const base = project
+    ? `${project.fullName || project.name} — QLDA CTEC`
+    : 'Phần mềm Quản lý dự án | Trường Cao đẳng Kinh tế - Kỹ thuật Cần Thơ';
+  if (base === lastDocTitleBase) return;
+  lastDocTitleBase = base;
+  setDocTitle(base);
+}
+
 function renderProjectInfoBar() {
+  applyDocTitle();
   const project = getCurrentProject();
   const bar = document.getElementById('project-info-bar');
   if (!project) { bar.innerHTML = ''; return; }
