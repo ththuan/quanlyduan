@@ -1893,11 +1893,11 @@ function exportFullProjectReport() {
           <th>Nhà thầu</th>
           <th>Số QĐ phê duyệt KQ</th>
           <th>Số hợp đồng</th>
-          <th class="text-right">Dự toán</th>
+          <th class="text-right">Dự toán gói thầu</th>
           <th class="text-right">Trúng thầu</th>
-          <th class="text-right">Phát sinh</th>
+          <th class="text-right">Phát sinh tăng giảm</th>
           <th class="text-right">Giá trị HĐ hiện hành</th>
-          <th class="text-right">Nghiệm thu</th>
+          <th class="text-right">Giá trị nghiệm thu</th>
           <th class="text-center">% NT</th>
           <th class="text-right">Lũy kế giải ngân</th>
           <th class="text-center">Tiến độ</th>
