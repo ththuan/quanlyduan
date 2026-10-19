@@ -5036,6 +5036,34 @@ async function removeDocAttach(fileId, category, catId, pkgId) {
   }
 }
 
+// Tải file về thiết bị (không mở tab mới — hợp PWA/iPad)
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename || 'tai-lieu';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+function findPdfById(pdfId) {
+  const project = getCurrentProject();
+  if (!project) return null;
+  for (const cat of (project.categories || [])) {
+    for (const pkg of (cat.packages || [])) {
+      const f = (pkg.pdfs || []).find(x => x.id === pdfId);
+      if (f) return f;
+    }
+  }
+  for (const ini of (project.initiations || [])) {
+    const f = (ini.files || []).find(x => x.id === pdfId);
+    if (f) return f;
+  }
+  return null;
+}
+
 async function viewPDF(pdfId) {
   try {
     const res = handleAuthResponse(await fetch(`${API_BASE}/pdfs/${pdfId}`));
@@ -5064,10 +5092,10 @@ async function viewPDF(pdfId) {
         <button class="btn btn-secondary" onclick="closeModal()">Đóng</button>
       `, 'xl');
     } else {
-      // Tài liệu Word/Excel/khác: không xem trực tiếp được -> tải xuống
-      const url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
-      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      // Tài liệu Word/Excel/khác: tải xuống (không mở tab mới — hợp PWA/iPad)
+      const rec = findPdfById(pdfId);
+      downloadBlob(blob, rec?.name || 'tai-lieu');
+      showToast('Đã tải file về thiết bị');
     }
   } catch (err) {
     showToast('Lỗi mở file: ' + err.message, 'error');
@@ -5726,7 +5754,12 @@ async function restoreAutoBackup(filename) {
 }
 
 function downloadBackupFile() {
-  window.open('/api/backup', '_blank');
+  const a = document.createElement('a');
+  a.href = '/api/backup';
+  a.download = '';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
   showToast('Đang tải bản sao lưu dữ liệu...', 'info');
 }
 
