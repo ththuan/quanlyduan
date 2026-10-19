@@ -702,6 +702,14 @@ function toIso(dmy) {
   return `${m[3]}-${mo}-${d}`;
 }
 
+// Hiển thị "số + ngày" (không lặp ngày nếu số đã chứa)
+function numDateText(text, date) {
+  const t = String(text || '').trim();
+  if (!t) return date ? `Ngày ${formatDateVN(date)}` : '';
+  if (/ngày/i.test(t) || !date) return t;
+  return `${t} ngày ${formatDateVN(date)}`;
+}
+
 // Cảnh báo nội bộ: hạn khởi công, thẩm định quá hạn, bảo hành sắp/đã hết hạn, chưa quyết toán
 function computeAlerts(project) {
   const alerts = [];
@@ -1877,21 +1885,31 @@ function exportFullProjectReport() {
           <th style="width:30px">TT</th>
           <th>Tên gói thầu</th>
           <th>Nhà thầu trúng thầu</th>
-          <th class="text-right">Giá trị trúng thầu</th>
+          <th>Số QĐ phê duyệt KQ</th>
+          <th>Số hợp đồng</th>
+          <th class="text-right">Dự toán gói thầu</th>
+          <th class="text-right">Giá trị HĐ (+ phụ lục)</th>
           <th class="text-right">Lũy kế giải ngân</th>
           <th class="text-center">Tiến độ</th>
         </tr>
       </thead>
       <tbody>
-        ${allPkgs.map((p, i) => `
-        <tr>
+        ${getSortedCategories(project).map(cat => {
+    const pkgs = cat.packages || [];
+    if (!pkgs.length) return '';
+    return `<tr><td class="text-center"><strong>${esc(cat.code)}</strong></td><td colspan="8"><strong>${esc(cat.name)}</strong></td></tr>`
+      + pkgs.map((p, i) => `<tr>
           <td class="text-center">${i + 1}</td>
           <td>${esc(p.name)}</td>
           <td>${esc(p.contractor || '—')}</td>
-          <td class="text-right">${formatCurrency(p.bidValue)}</td>
+          <td>${esc(numDateText(p.bidDecision, p.resultApprovalDate) || '—')}</td>
+          <td>${esc(numDateText(p.contract, p.contractSignDate) || '—')}</td>
+          <td class="text-right">${formatCurrency(p.estimateValue)}</td>
+          <td class="text-right">${formatCurrency(getCurrentContractValue(p))}${p.contractExtension ? ' (có PL)' : ''}</td>
           <td class="text-right">${formatCurrency(p.cumulativeDisbursed)}</td>
           ${p.pkgType !== 'consulting' && p.pkgType !== 'nonConsulting' ? `<td class="text-center">${p.progress || 0}%</td>` : '<td class="text-center">—</td>'}
-        </tr>`).join('')}
+        </tr>`).join('');
+  }).join('')}
       </tbody>
     </table>
 
