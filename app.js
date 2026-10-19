@@ -1825,11 +1825,6 @@ function exportFullProjectReport() {
   const rate = totalInvest > 0 ? (totalDisbursed / totalInvest * 100) : 0;
 
   openPrintWindow(`Báo cáo tổng hợp dự án - ${esc(project.name)}`, `
-    <div class="print-header">
-      <h2>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</h2>
-      <h3>Độc lập - Tự do - Hạnh phúc</h3>
-      <hr style="width: 30%; margin: 8px auto; border: 0.5px solid #000;">
-    </div>
     <div class="print-title">BÁO CÁO TỔNG HỢP TIẾN ĐỘ VÀ GIẢI NGÂN VỐN ĐẦU TƯ DỰ ÁN</div>
     <div class="print-subtitle">Dự án: ${esc(project.fullName || project.name)}</div>
 
