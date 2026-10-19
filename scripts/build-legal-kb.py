@@ -84,6 +84,34 @@ DOCS = [
         'title': 'Nghị định quy định việc lập dự toán, quản lý, sử dụng và quyết toán chi thường xuyên để thực hiện các nhiệm vụ quy định tại Điều 40 Luật Ngân sách nhà nước',
         'issueDate': '2026-03-31', 'effectiveDate': '2026-03-31', 'group': 'Chi thường xuyên',
     },
+    {
+        'file': '3. NGHI DINH 186.2025.ND.CP Quy dinh chi tiet mot so dieu cua Luat Quan ly, su dung tai san cong.pdf',
+        'id': 'ND186', 'short': 'NĐ 186/2025/NĐ-CP',
+        'number': '186/2025/NĐ-CP', 'type': 'Nghị định',
+        'title': 'Nghị định quy định chi tiết một số điều của Luật Quản lý, sử dụng tài sản công',
+        'issueDate': '2025-07-01', 'effectiveDate': '2025-07-01', 'group': 'Tài sản công',
+    },
+    {
+        'file': '4. NGHI DINH 286.2025.ND.CP Sua doi bo sung mot so dieu cua cac Nghi dinh trong linh vuc quan ly, su dung tai san cong.pdf',
+        'id': 'ND286', 'short': 'NĐ 286/2025/NĐ-CP',
+        'number': '286/2025/NĐ-CP', 'type': 'Nghị định',
+        'title': 'Nghị định sửa đổi, bổ sung một số điều của các Nghị định trong lĩnh vực quản lý, sử dụng tài sản công',
+        'issueDate': '2025-11-03', 'effectiveDate': '2025-11-03', 'group': 'Tài sản công',
+    },
+    {
+        'file': 'QUYẾT ĐỊNH 1040.QĐ-BXD 26062026.pdf',
+        'id': 'QD1040-BXD', 'short': 'QĐ 1040/QĐ-BXD',
+        'number': '1040/QĐ-BXD', 'type': 'Quyết định',
+        'title': 'Quyết định công bố mẫu hợp đồng xây dựng',
+        'issueDate': '2026-06-26', 'effectiveDate': '2026-07-01', 'group': 'Hợp đồng xây dựng',
+    },
+    {
+        'file': 'QUYẾT ĐỊNH 1041.QĐ-BXD 26062026.pdf',
+        'id': 'QD1041-BXD', 'short': 'QĐ 1041/QĐ-BXD',
+        'number': '1041/QĐ-BXD', 'type': 'Quyết định',
+        'title': 'Quyết định công bố Hướng dẫn xác định khối lượng công trình',
+        'issueDate': '2026-06-26', 'effectiveDate': '2026-07-01', 'group': 'Chi phí xây dựng',
+    },
 ]
 
 # Một chữ cái đứng tách khỏi phần còn lại của từ do PDF (vd "c ủa" -> "của")
@@ -109,6 +137,10 @@ SUMMARIES = {
     'ND193': 'Quyết toán vốn đầu tư dự án: vốn được quyết toán (Điều 4), báo cáo và hồ sơ trình thẩm tra, phê duyệt (Điều 6-7, 19), thẩm quyền, kiểm toán độc lập, thẩm tra hồ sơ pháp lý (Điều 12), thời gian lập hồ sơ, thẩm tra, phê duyệt theo nhóm dự án (Điều 21), trách nhiệm của chủ đầu tư (Điều 28).',
     'TT73-2026': 'Hệ thống 12 mẫu biểu quyết toán vốn đầu tư dự án (Mẫu 01-12/QTDA) và cách sử dụng: dự án hoàn thành dùng Mẫu 01-07/QTDA; Mẫu 02 là danh mục văn bản, Mẫu 04 là chi tiết chi phí đầu tư đề nghị quyết toán.',
     'ND104': 'Lập dự toán, quản lý, sử dụng và quyết toán chi thường xuyên để mua sắm, sửa chữa, cải tạo, nâng cấp tài sản, trang thiết bị; chi thuê hàng hóa, dịch vụ và các nhiệm vụ cần thiết khác (thay thế NĐ 98/2025/NĐ-CP).',
+    'ND186': 'Quy định chi tiết thi hành Luật Quản lý, sử dụng tài sản công: giao, mua sắm, thuê, khai thác, quản lý vận hành, chuyển đổi công năng, xử lý tài sản công tại cơ quan, tổ chức, đơn vị; sử dụng tài sản công vào mục đích kinh doanh, cho thuê; mua sắm, thuê, phê duyệt phương án xử lý tài sản của dự án sử dụng vốn nhà nước.',
+    'ND286': 'Sửa đổi, bổ sung một số điều của các Nghị định trong lĩnh vực quản lý, sử dụng tài sản công (nhà, đất và tài sản gắn với nhà, đất là tài sản công; quản lý, sử dụng tài sản công tại cơ quan, đơn vị...).',
+    'QD1040-BXD': 'Công bố các mẫu hợp đồng xây dựng: tư vấn lập báo cáo nghiên cứu khả thi, thiết kế, quản lý dự án, giám sát thi công, khảo sát; hợp đồng thi công xây dựng công trình; hợp đồng EPC (hiệu lực 01/7/2026).',
+    'QD1041-BXD': 'Hướng dẫn xác định khối lượng công trình xây dựng phục vụ xác định chi phí đầu tư xây dựng (hiệu lực 01/7/2026).',
 }
 
 # Điều còn trong văn bản nhưng đã hết hiệu lực: (doc, số điều từ, đến) -> ghi chú

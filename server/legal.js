@@ -20,7 +20,11 @@ const DOC_HINTS = [
   { docs: ['ND254'], re: /\bnd\s*254|nghi dinh\s*254|254\/2025/ },
   { docs: ['ND193'], re: /\bnd\s*193|nghi dinh\s*193|193\/2026/ },
   { docs: ['ND104'], re: /\bnd\s*104|nghi dinh\s*104|104\/2026/ },
-  { docs: ['TT73-2026'], re: /\btt\s*73|thong tu\s*73|73\/2026|qtda/ }
+  { docs: ['TT73-2026'], re: /\btt\s*73|thong tu\s*73|73\/2026|qtda/ },
+  { docs: ['ND186'], re: /\bnd\s*186|nghi dinh\s*186|186\/2025/ },
+  { docs: ['ND286'], re: /\bnd\s*286|nghi dinh\s*286|286\/2025/ },
+  { docs: ['QD1040-BXD'], re: /\bqd\s*1040|quyet dinh\s*1040|1040\/qd|mau hop dong xay dung/ },
+  { docs: ['QD1041-BXD'], re: /\bqd\s*1041|quyet dinh\s*1041|1041\/qd|xac dinh khoi luong/ }
 ];
 
 let kb = null;
@@ -57,7 +61,10 @@ const TOPICS = [
   { re: /du toan mua sam/, boost: ['LDT:41', 'ND214:18'] },
   { re: /mau.*chi dinh thau|ho so yeu cau/, boost: ['TT134-2026:2'] },
   { re: /du toan chi thuong xuyen|mua sam thuong xuyen|co so du toan|lap du toan|chi thuong xuyen/, boost: ['ND104:4', 'ND104:7', 'ND104:8', 'ND104:9'] },
-  { re: /mua sam.*sua chua|sua chua.*mua sam|mua sam tai san|trang thiet bi/, boost: ['ND104:17', 'ND104:18', 'ND104:19'] }
+  { re: /mua sam.*sua chua|sua chua.*mua sam|mua sam tai san|trang thiet bi/, boost: ['ND104:17', 'ND104:18', 'ND104:19'] },
+  { re: /tai san cong|quan ly.*tai san|su dung tai san/, boost: ['ND186:1', 'ND186:2', 'ND186:3', 'ND286:1'] },
+  { re: /mau hop dong|hop dong xay dung|epc/, boost: ['QD1040-BXD:1', 'LXD:80', 'LXD:81'] },
+  { re: /khoi luong/, boost: ['QD1041-BXD:1', 'TT36-BXD:6'] }
 ];
 
 function topicBoosts(q) {
