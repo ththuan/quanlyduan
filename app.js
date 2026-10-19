@@ -3380,7 +3380,7 @@ function getPackageFormHTML(pkg = null, catId = '') {
         <input type="number" id="f-investValue" value="${pkg?.investValue || ''}">
       </div>
       <div class="form-group">
-        <label>Giá trị dự toán (VNĐ)</label>
+        <label>Giá trị dự toán gói thầu (VNĐ)</label>
         <input type="number" id="f-estimateValue" value="${pkg?.estimateValue || ''}">
       </div>
       <div class="form-group">
@@ -3923,7 +3923,7 @@ function viewPackageDetail(catId, pkgId) {
 
       ${section('payments', 'Tài chính')}
       ${item('Giá trị theo Tổng mức đầu tư', formatCurrency(pkg.investValue), true)}
-      ${item('Giá trị dự toán', formatCurrency(pkg.estimateValue), true)}
+      ${item('Giá trị dự toán gói thầu', formatCurrency(pkg.estimateValue), true)}
       ${item('Giá trị trúng thầu', formatCurrency(pkg.bidValue), true)}
       ${item('Lũy kế giá trị thực hiện', formatCurrency(pkg.cumulativeValue), true)}
       ${item('Đã giải ngân', formatCurrency(pkg.cumulativeDisbursed), true)}
@@ -3950,8 +3950,8 @@ function viewPackageDetail(catId, pkgId) {
       ${item('Giá trị nghiệm thu lũy kế', formatCurrency(st.accepted), true)}
       ${item('% nghiệm thu / hợp đồng', st.percent != null ? `<span class="${st.percent > 100 ? 'badge badge-danger' : ''}">${formatPercent(st.percent)}</span>` : '—')}
       ${item('Còn lại chưa nghiệm thu', st.remaining != null ? formatCurrency(st.remaining) : '—', true)}
-      ${item('Chênh lệch dự toán - trúng thầu', st.saving != null ? formatCurrency(st.saving) : '—', true)}
-      ${st.saving != null && pkg.estimateValue > 0 ? item('% giảm giá so với dự toán', formatPercent(st.saving / pkg.estimateValue * 100)) : ''}
+      ${item('Chênh lệch dự toán gói thầu - trúng thầu', st.saving != null ? formatCurrency(st.saving) : '—', true)}
+      ${st.saving != null && pkg.estimateValue > 0 ? item('% giảm giá so với dự toán gói thầu', formatPercent(st.saving / pkg.estimateValue * 100)) : ''}
       ${item('Trạng thái nghiệm thu', `<span class="badge ${pkg.acceptanceStatus === 'Đã nghiệm thu' ? 'badge-success' : 'badge-warning'}">${esc(pkg.acceptanceStatus || 'Chưa nghiệm thu')}</span>`)}
       ${item('Ngày nghiệm thu gần nhất', formatDateVN(pkg.acceptanceDate))}
 
