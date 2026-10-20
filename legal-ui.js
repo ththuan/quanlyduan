@@ -47,6 +47,7 @@ async function doRenderLegalLibrary() {
       <div class="legal-right glass-card" id="legal-viewer"><p class="legal-empty">Chọn một văn bản hoặc kết quả tìm kiếm để đọc nội dung.</p></div>
     </div>`;
   renderLegalLeft();
+  loadLegalHistory();
 }
 
 function renderLegalLeft() {
@@ -227,53 +228,61 @@ async function legalAsk() {
     if (!res.ok) throw new Error(data.error || 'Lỗi AI (' + res.status + ')');
     botDiv.textContent = data.reply || '(Không có trả lời)';
     if (typeof aiRenderSources === 'function') aiRenderSources(botDiv, data.sources);
-    const saveBtn = document.createElement('button');
-    saveBtn.className = 'legal-qa-save';
-    saveBtn.innerHTML = '<span class="material-symbols-rounded">bookmark_add</span> Lưu tri thức';
-    saveBtn.onclick = () => saveLegalKnowledge(q, data.reply || '', saveBtn);
-    botDiv.appendChild(saveBtn);
     legalQaHistory.push({ role: 'user', text: q });
     legalQaHistory.push({ role: 'model', text: data.reply || '' });
-    legalQaHistory = legalQaHistory.slice(-6);
+    legalQaHistory = legalQaHistory.slice(-40);
+    saveLegalHistory([{ role: 'user', text: q }, { role: 'model', text: data.reply || '' }]);
   } catch (err) {
     botDiv.textContent = 'Lỗi: ' + err.message;
   }
   log.scrollTop = log.scrollHeight;
 }
 
-// Lưu cặp hỏi-đáp vào kho tri thức (AI chắt lọc thành mục, duyệt luôn để dùng lại)
-async function saveLegalKnowledge(question, answer, btn) {
-  const orig = btn ? btn.innerHTML : '';
-  if (btn) { btn.disabled = true; btn.innerHTML = 'Đang lưu…'; }
+// ---- Lịch sử hội thoại pháp luật theo từng người dùng (tự động lưu/khôi phục) ----
+async function saveLegalHistory(messages) {
   try {
-    const raw = await fetch('/api/wiki/learn', {
+    await fetch('/api/ai/history', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question, answer })
+      body: JSON.stringify({ messages })
     });
+  } catch (_) { /* bỏ qua lỗi mạng, không chặn hội thoại */ }
+}
+
+async function loadLegalHistory() {
+  const log = document.getElementById('legal-qa-log');
+  if (!log) return;
+  try {
+    const raw = await fetch('/api/ai/history');
     const res = typeof handleAuthResponse === 'function' ? handleAuthResponse(raw) : raw;
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || 'Lỗi lưu tri thức');
-    if (data.skipped) {
-      if (btn) btn.innerHTML = 'Không có tri thức mới';
-      showToast('Câu trả lời không có tri thức pháp luật mới để lưu');
-      return;
-    }
-    if (data.entry && data.entry.id) {
-      const ap = await fetch('/api/wiki/entries/' + encodeURIComponent(data.entry.id) + '/approve', { method: 'POST' });
-      if (typeof handleAuthResponse === 'function') handleAuthResponse(ap);
-    }
-    if (btn) btn.innerHTML = 'Đã lưu tri thức';
-    showToast('Đã lưu vào kho tri thức — lần sau không cần tra lại');
+    if (!res.ok || !Array.isArray(data.messages)) return;
+    legalQaHistory = data.messages.map(m => ({ role: m.role === 'model' ? 'model' : 'user', text: m.text }));
+    if (!legalQaHistory.length) return;
+    log.innerHTML = '';
+    legalQaHistory.forEach(m => {
+      const d = document.createElement('div');
+      d.className = 'legal-qa-msg ' + (m.role === 'model' ? 'bot' : 'user');
+      d.textContent = m.text;
+      log.appendChild(d);
+    });
+    log.scrollTop = log.scrollHeight;
+  } catch (_) { /* bỏ qua */ }
+}
+
+async function clearLegalHistory() {
+  if (!confirm('Xóa toàn bộ hội thoại pháp luật của bạn?')) return;
+  try {
+    const raw = await fetch('/api/ai/history', { method: 'DELETE' });
+    if (typeof handleAuthResponse === 'function') handleAuthResponse(raw);
+    legalQaHistory = [];
+    const log = document.getElementById('legal-qa-log');
+    if (log) log.innerHTML = '<div class="legal-qa-empty"><span class="material-symbols-rounded">menu_book</span><p>Đặt câu hỏi để được tư vấn kèm dẫn chứng Điều/Khoản bấm mở được.</p></div>';
+    showToast('Đã xóa hội thoại');
   } catch (err) {
-    if (btn) { btn.disabled = false; btn.innerHTML = orig; }
     showToast('Lỗi: ' + err.message, 'error');
   }
 }
 
-function openWikiModal() {
-  openModal('Kho tri thức pháp luật', '<div id="wiki-container"></div>', '<button class="btn btn-secondary" onclick="closeModal()">Đóng</button>', 'xl');
-  if (typeof renderWikiView === 'function') renderWikiView();
-}
 function aiRenderSources(botDiv, sources) {
   if (!sources || !sources.length) return;
   const wrap = document.createElement('div');

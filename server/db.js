@@ -47,6 +47,13 @@ db.exec(`
     id INTEGER PRIMARY KEY CHECK (id = 1),
     data TEXT NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS chat_messages (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    role TEXT NOT NULL,
+    text TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+  );
 `);
 
 // Migrations: thêm cột bảo mật cho bảng users (bỏ qua nếu đã tồn tại)
@@ -154,6 +161,20 @@ function getPdfRecord(id) {
 
 function deletePdfRecord(id) {
   db.prepare('DELETE FROM pdf_files WHERE id = ?').run(id);
+}
+
+// ---- Lịch sử hội thoại AI theo từng người dùng ----
+function addChatMessage(userId, role, text) {
+  db.prepare('INSERT INTO chat_messages (id, user_id, role, text, created_at) VALUES (?, ?, ?, ?, ?)')
+    .run(crypto.randomUUID(), userId, role, String(text || ''), Date.now());
+}
+function listChatMessages(userId, limit = 40) {
+  const rows = db.prepare('SELECT role, text, created_at FROM chat_messages WHERE user_id = ? ORDER BY created_at DESC LIMIT ?')
+    .all(userId, limit);
+  return rows.reverse();
+}
+function clearChatMessages(userId) {
+  db.prepare('DELETE FROM chat_messages WHERE user_id = ?').run(userId);
 }
 
 // ---- Password hashing (scrypt, no external dependency) ----
@@ -507,6 +528,9 @@ module.exports = {
   getPdfRecord,
   deletePdfRecord,
   listAllPdfs,
+  addChatMessage,
+  listChatMessages,
+  clearChatMessages,
   UPLOADS_DIR,
   createUser,
   getUserByUsername,

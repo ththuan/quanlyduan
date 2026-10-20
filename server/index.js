@@ -828,6 +828,25 @@ app.post('/api/wiki/ingest', requireAuth, async (req, res) => {
   }
 });
 
+// ---- Lịch sử hội thoại AI theo từng người dùng ----
+app.get('/api/ai/history', requireAuth, (req, res) => {
+  res.json({ messages: db.listChatMessages(req.user.id, 60) });
+});
+app.post('/api/ai/history', requireAuth, (req, res) => {
+  const { messages } = req.body || {};
+  const list = Array.isArray(messages) ? messages : (messages ? [messages] : []);
+  for (const m of list) {
+    if (!m || typeof m.text !== 'string' || !m.text.trim()) continue;
+    const role = (m.role === 'model' || m.role === 'assistant') ? 'model' : 'user';
+    db.addChatMessage(req.user.id, role, m.text.slice(0, 6000));
+  }
+  res.json({ ok: true });
+});
+app.delete('/api/ai/history', requireAuth, (req, res) => {
+  db.clearChatMessages(req.user.id);
+  res.json({ ok: true });
+});
+
 app.post('/api/ai/chat', requireAuth, async (req, res) => {
   if (!ai.isConfigured()) return res.status(503).json({ error: 'Chưa cấu hình API AI' });
   try {
