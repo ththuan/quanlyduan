@@ -38,7 +38,9 @@ const DOC_HINTS = [
   { docs: ['TT38-2026'], re: /\btt\s*38|thong tu\s*38|38\/2026/ },
   { docs: ['TT39-2026'], re: /\btt\s*39|thong tu\s*39|39\/2026/ },
   { docs: ['TT40-2026'], re: /\btt\s*40|thong tu\s*40|40\/2026/ },
-  { docs: ['TT41-2026'], re: /\btt\s*41|thong tu\s*41|41\/2026/ }
+  { docs: ['TT41-2026'], re: /\btt\s*41|thong tu\s*41|41\/2026/ },
+  { docs: ['LDTC'], re: /luat dau tu cong|58\/2024|vbhn\s*03/ },
+  { docs: ['QD10-2026'], re: /\bqd\s*10\/2026|quyet dinh\s*10|10\/2026\/qd|dinh muc may moc|tieu chuan.*may moc/ }
 ];
 
 let kb = null;
@@ -85,7 +87,9 @@ const TOPICS = [
   { re: /dinh muc/, boost: ['TT37-2026:1', 'TT38-2026:1'] },
   { re: /quan ly hoat dong xay dung|giay phep xay dung/, boost: ['ND217:1', 'LXD:43', 'LXD:48'] },
   { re: /vat lieu xay dung/, boost: ['ND209:1', 'TT41-2026:1'] },
-  { re: /bao hiem/, boost: ['ND220:1'] }
+  { re: /bao hiem/, boost: ['ND220:1'] },
+  { re: /dau tu cong|chu truong dau tu|nhom du an/, boost: ['LDTC:1', 'LDTC:2', 'LXD:17'] },
+  { re: /dinh muc may moc|tieu chuan.*may moc|trang thiet bi/, boost: ['QD10-2026:1', 'ND186:1'] }
 ];
 
 function topicBoosts(q) {

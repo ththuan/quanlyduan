@@ -14,3 +14,4 @@ cloudflared/config.yml
 *.docx
 scratch/
 *.xlsx
+phaply/*.txt

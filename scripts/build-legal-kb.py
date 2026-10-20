@@ -247,6 +247,18 @@ DOCS = [
         'title': 'Hướng dẫn sử dụng, vận dụng mẫu hợp đồng xây dựng',
         'issueDate': '2026-06-26', 'effectiveDate': '2026-07-01', 'group': 'Mẫu hợp đồng',
     },
+    {
+        'file': '03_VBHN-VPQH_694351.docx', 'id': 'LDTC', 'short': 'Luật Đầu tư công',
+        'number': '58/2024/QH15 (VBHN 03/VBHN-VPQH)', 'type': 'Luật (văn bản hợp nhất)',
+        'title': 'Luật Đầu tư công số 58/2024/QH15 (đã được sửa đổi, bổ sung)',
+        'issueDate': '2024-11-29', 'effectiveDate': '2025-01-01', 'group': 'Đầu tư công',
+    },
+    {
+        'file': 'qd10.txt', 'id': 'QD10-2026', 'short': 'QĐ 10/2026/QĐ-TTg',
+        'number': '10/2026/QĐ-TTg', 'type': 'Quyết định',
+        'title': 'Quyết định sửa đổi, bổ sung Quyết định 15/2025/QĐ-TTg quy định tiêu chuẩn, định mức sử dụng máy móc, thiết bị',
+        'issueDate': '2026-03-09', 'effectiveDate': '2026-03-09', 'group': 'Tài sản công',
+    },
 ]
 
 # Một chữ cái đứng tách khỏi phần còn lại của từ do PDF (vd "c ủa" -> "của")
@@ -370,6 +382,10 @@ def build_doc(meta):
         d = docx.Document(path)
         pages = ['\n'.join(p.text for p in d.paragraphs)]
         npages = len(d.paragraphs)
+    elif path.lower().endswith('.txt'):
+        with open(path, encoding='utf-8') as fh:
+            pages = [fh.read()]
+        npages = 1
     else:
         reader = PdfReader(path)
         pages = [(pg.extract_text() or '') for pg in reader.pages]
