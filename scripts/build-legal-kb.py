@@ -112,6 +112,141 @@ DOCS = [
         'title': 'Quyết định công bố Hướng dẫn xác định khối lượng công trình',
         'issueDate': '2026-06-26', 'effectiveDate': '2026-07-01', 'group': 'Chi phí xây dựng',
     },
+    # ---- Nghị định lĩnh vực xây dựng 2026 (bản Word) ----
+    {
+        'file': '206_2026_ND-CP_457659.docx', 'id': 'ND206', 'short': 'NĐ 206/2026/NĐ-CP',
+        'number': '206/2026/NĐ-CP', 'type': 'Nghị định',
+        'title': 'Nghị định quy định chi tiết về quản lý chi phí đầu tư xây dựng',
+        'issueDate': '2026-06-15', 'effectiveDate': '2026-07-01', 'group': 'Chi phí xây dựng',
+    },
+    {
+        'file': '207_2026_ND-CP_701883.docx', 'id': 'ND207', 'short': 'NĐ 207/2026/NĐ-CP',
+        'number': '207/2026/NĐ-CP', 'type': 'Nghị định',
+        'title': 'Nghị định quy định chi tiết một số điều của Luật Xây dựng về quản lý chất lượng, thi công xây dựng và bảo trì công trình xây dựng',
+        'issueDate': '2026-06-15', 'effectiveDate': '2026-07-01', 'group': 'Chất lượng, thi công',
+    },
+    {
+        'file': '209_2026_ND-CP_288496.docx', 'id': 'ND209', 'short': 'NĐ 209/2026/NĐ-CP',
+        'number': '209/2026/NĐ-CP', 'type': 'Nghị định',
+        'title': 'Nghị định quy định chi tiết một số điều và biện pháp thi hành Luật Xây dựng về quản lý vật liệu xây dựng',
+        'issueDate': '2026-06-15', 'effectiveDate': '2026-07-01', 'group': 'Vật liệu xây dựng',
+    },
+    {
+        'file': '210_2026_ND-CP_696691.docx', 'id': 'ND210', 'short': 'NĐ 210/2026/NĐ-CP',
+        'number': '210/2026/NĐ-CP', 'type': 'Nghị định',
+        'title': 'Nghị định quy định chi tiết và hướng dẫn thi hành một số điều của Luật Xây dựng về hợp đồng xây dựng',
+        'issueDate': '2026-06-15', 'effectiveDate': '2026-07-01', 'group': 'Hợp đồng xây dựng',
+    },
+    {
+        'file': '217_2026_ND-CP_696494.docx', 'id': 'ND217', 'short': 'NĐ 217/2026/NĐ-CP',
+        'number': '217/2026/NĐ-CP', 'type': 'Nghị định',
+        'title': 'Nghị định quy định chi tiết một số điều của Luật Xây dựng về quản lý hoạt động xây dựng',
+        'issueDate': '2026-06-17', 'effectiveDate': '2026-07-01', 'group': 'Quản lý hoạt động xây dựng',
+    },
+    {
+        'file': '220_2026_ND-CP_701156.docx', 'id': 'ND220', 'short': 'NĐ 220/2026/NĐ-CP',
+        'number': '220/2026/NĐ-CP', 'type': 'Nghị định',
+        'title': 'Nghị định sửa đổi, bổ sung một số điều của Nghị định 67/2023/NĐ-CP quy định về bảo hiểm bắt buộc trách nhiệm',
+        'issueDate': '2026-06-22', 'effectiveDate': '2026-07-01', 'group': 'Bảo hiểm',
+    },
+    # ---- Thông tư lĩnh vực xây dựng 2026 ----
+    {
+        'file': 'THÔNG TƯ 32-2026-TT-BXD 22062026.pdf', 'id': 'TT32-2026', 'short': 'TT 32/2026/TT-BXD',
+        'number': '32/2026/TT-BXD', 'type': 'Thông tư',
+        'title': 'Thông tư quy định chi tiết một số điều của Nghị định 207/2026/NĐ-CP về quản lý chất lượng, thi công xây dựng và bảo trì công trình xây dựng',
+        'issueDate': '2026-06-22', 'effectiveDate': '2026-07-01', 'group': 'Chất lượng, thi công',
+    },
+    {
+        'file': 'THÔNG TƯ 33-2026-TT-BXD 22062026.pdf', 'id': 'TT33-2026', 'short': 'TT 33/2026/TT-BXD',
+        'number': '33/2026/TT-BXD', 'type': 'Thông tư',
+        'title': 'Thông tư quy định chi tiết một số nội dung về đánh giá an toàn công trình trong quá trình khai thác, sử dụng',
+        'issueDate': '2026-06-25', 'effectiveDate': '2026-07-01', 'group': 'Chất lượng, thi công',
+    },
+    {
+        'file': 'THÔNG TƯ 34-2026-TT-BXD 25062026.pdf', 'id': 'TT34-2026', 'short': 'TT 34/2026/TT-BXD',
+        'number': '34/2026/TT-BXD', 'type': 'Thông tư',
+        'title': 'Thông tư quy định chi tiết về cấp công trình xây dựng phục vụ quản lý hoạt động xây dựng',
+        'issueDate': '2026-06-25', 'effectiveDate': '2026-07-01', 'group': 'Quản lý hoạt động xây dựng',
+    },
+    {
+        'file': 'THÔNG TƯ 37.2026.TT-BXD 26062026.pdf', 'id': 'TT37-2026', 'short': 'TT 37/2026/TT-BXD',
+        'number': '37/2026/TT-BXD', 'type': 'Thông tư',
+        'title': 'Thông tư hướng dẫn phương pháp xác định định mức dự toán và các chỉ tiêu kinh tế kỹ thuật',
+        'issueDate': '2026-06-26', 'effectiveDate': '2026-07-01', 'group': 'Chi phí xây dựng',
+    },
+    {
+        'file': 'THÔNG TƯ 38.2026.TT-BXD.pdf', 'id': 'TT38-2026', 'short': 'TT 38/2026/TT-BXD',
+        'number': '38/2026/TT-BXD', 'type': 'Thông tư',
+        'title': 'Thông tư ban hành định mức xây dựng',
+        'issueDate': '2026-06-26', 'effectiveDate': '2026-07-01', 'group': 'Chi phí xây dựng',
+    },
+    {
+        'file': 'THÔNG TƯ 39.2026.TT-BXD 26062026.pdf', 'id': 'TT39-2026', 'short': 'TT 39/2026/TT-BXD',
+        'number': '39/2026/TT-BXD', 'type': 'Thông tư',
+        'title': 'Thông tư hướng dẫn một số nội dung chi tiết trong Hệ thống thông tin, Cơ sở dữ liệu quốc gia về hoạt động xây dựng',
+        'issueDate': '2026-06-26', 'effectiveDate': '2026-07-01', 'group': 'Quản lý hoạt động xây dựng',
+    },
+    {
+        'file': 'THÔNG TƯ 40.2026.TT-BXD 26062026.pdf', 'id': 'TT40-2026', 'short': 'TT 40/2026/TT-BXD',
+        'number': '40/2026/TT-BXD', 'type': 'Thông tư',
+        'title': 'Thông tư hướng dẫn xác định chi phí bảo trì công trình xây dựng',
+        'issueDate': '2026-06-26', 'effectiveDate': '2026-07-01', 'group': 'Chi phí xây dựng',
+    },
+    {
+        'file': 'THÔNG TƯ_41-2026-TT-BXD_26062026.pdf', 'id': 'TT41-2026', 'short': 'TT 41/2026/TT-BXD',
+        'number': '41/2026/TT-BXD', 'type': 'Thông tư',
+        'title': 'Thông tư quản lý chất lượng sản phẩm, hàng hóa vật liệu xây dựng',
+        'issueDate': '2026-06-26', 'effectiveDate': '2026-07-01', 'group': 'Vật liệu xây dựng',
+    },
+    # ---- Mẫu hợp đồng xây dựng (Phụ lục QĐ 1040/QĐ-BXD) ----
+    {
+        'file': '1. Mau hop dong FS.pdf', 'id': 'QD1040-FS', 'short': 'Mẫu HĐ tư vấn lập BCNCKT',
+        'number': 'Phụ lục I QĐ 1040/QĐ-BXD', 'type': 'Mẫu hợp đồng',
+        'title': 'Mẫu hợp đồng tư vấn lập báo cáo nghiên cứu khả thi xây dựng',
+        'issueDate': '2026-06-26', 'effectiveDate': '2026-07-01', 'group': 'Mẫu hợp đồng',
+    },
+    {
+        'file': '2. Mau hop dong thiết kế.pdf', 'id': 'QD1040-TK', 'short': 'Mẫu HĐ tư vấn thiết kế',
+        'number': 'Phụ lục II QĐ 1040/QĐ-BXD', 'type': 'Mẫu hợp đồng',
+        'title': 'Mẫu hợp đồng tư vấn thiết kế xây dựng',
+        'issueDate': '2026-06-26', 'effectiveDate': '2026-07-01', 'group': 'Mẫu hợp đồng',
+    },
+    {
+        'file': '3. Mau hop dong QLDA.pdf', 'id': 'QD1040-QLDA', 'short': 'Mẫu HĐ tư vấn quản lý dự án',
+        'number': 'Phụ lục III QĐ 1040/QĐ-BXD', 'type': 'Mẫu hợp đồng',
+        'title': 'Mẫu hợp đồng tư vấn quản lý dự án',
+        'issueDate': '2026-06-26', 'effectiveDate': '2026-07-01', 'group': 'Mẫu hợp đồng',
+    },
+    {
+        'file': '4. Mau hop dong giám sát.pdf', 'id': 'QD1040-GS', 'short': 'Mẫu HĐ tư vấn giám sát',
+        'number': 'Phụ lục IV QĐ 1040/QĐ-BXD', 'type': 'Mẫu hợp đồng',
+        'title': 'Mẫu hợp đồng tư vấn giám sát thi công xây dựng',
+        'issueDate': '2026-06-26', 'effectiveDate': '2026-07-01', 'group': 'Mẫu hợp đồng',
+    },
+    {
+        'file': '5. Mau hop dong khảo sát.pdf', 'id': 'QD1040-KS', 'short': 'Mẫu HĐ tư vấn khảo sát',
+        'number': 'Phụ lục V QĐ 1040/QĐ-BXD', 'type': 'Mẫu hợp đồng',
+        'title': 'Mẫu hợp đồng tư vấn khảo sát xây dựng',
+        'issueDate': '2026-06-26', 'effectiveDate': '2026-07-01', 'group': 'Mẫu hợp đồng',
+    },
+    {
+        'file': '6. Mau hop dong thi công.pdf', 'id': 'QD1040-TC', 'short': 'Mẫu HĐ thi công',
+        'number': 'Phụ lục VI QĐ 1040/QĐ-BXD', 'type': 'Mẫu hợp đồng',
+        'title': 'Mẫu hợp đồng thi công xây dựng công trình',
+        'issueDate': '2026-06-26', 'effectiveDate': '2026-07-01', 'group': 'Mẫu hợp đồng',
+    },
+    {
+        'file': '7. Mẫu EPC.pdf', 'id': 'QD1040-EPC', 'short': 'Mẫu HĐ EPC',
+        'number': 'Phụ lục VII QĐ 1040/QĐ-BXD', 'type': 'Mẫu hợp đồng',
+        'title': 'Mẫu hợp đồng EPC',
+        'issueDate': '2026-06-26', 'effectiveDate': '2026-07-01', 'group': 'Mẫu hợp đồng',
+    },
+    {
+        'file': '8. Hướng dẫn sử dụng Mẫu HĐXD.pdf', 'id': 'QD1040-HD', 'short': 'Hướng dẫn dùng mẫu HĐXD',
+        'number': 'Kèm QĐ 1040/QĐ-BXD', 'type': 'Hướng dẫn',
+        'title': 'Hướng dẫn sử dụng, vận dụng mẫu hợp đồng xây dựng',
+        'issueDate': '2026-06-26', 'effectiveDate': '2026-07-01', 'group': 'Mẫu hợp đồng',
+    },
 ]
 
 # Một chữ cái đứng tách khỏi phần còn lại của từ do PDF (vd "c ủa" -> "của")
@@ -229,8 +364,16 @@ def split_long(heading, paras):
 
 
 def build_doc(meta):
-    reader = PdfReader(os.path.join(SRC, meta['file']))
-    pages = [(pg.extract_text() or '') for pg in reader.pages]
+    path = os.path.join(SRC, meta['file'])
+    if path.lower().endswith('.docx'):
+        import docx
+        d = docx.Document(path)
+        pages = ['\n'.join(p.text for p in d.paragraphs)]
+        npages = len(d.paragraphs)
+    else:
+        reader = PdfReader(path)
+        pages = [(pg.extract_text() or '') for pg in reader.pages]
+        npages = len(reader.pages)
     paras = to_paragraphs(clean_pages(pages))
 
     chapter, sections = '', []
@@ -297,7 +440,7 @@ def build_doc(meta):
             if 'được bãi bỏ' in heading:
                 item['repealed'] = 'Điều này đã được bãi bỏ'
             chunks.append(item)
-    return chunks, len(reader.pages)
+    return chunks, npages
 
 
 def main():

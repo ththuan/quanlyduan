@@ -24,7 +24,21 @@ const DOC_HINTS = [
   { docs: ['ND186'], re: /\bnd\s*186|nghi dinh\s*186|186\/2025/ },
   { docs: ['ND286'], re: /\bnd\s*286|nghi dinh\s*286|286\/2025/ },
   { docs: ['QD1040-BXD'], re: /\bqd\s*1040|quyet dinh\s*1040|1040\/qd|mau hop dong xay dung/ },
-  { docs: ['QD1041-BXD'], re: /\bqd\s*1041|quyet dinh\s*1041|1041\/qd|xac dinh khoi luong/ }
+  { docs: ['QD1041-BXD'], re: /\bqd\s*1041|quyet dinh\s*1041|1041\/qd|xac dinh khoi luong/ },
+  { docs: ['ND206'], re: /\bnd\s*206|nghi dinh\s*206|206\/2026/ },
+  { docs: ['ND207'], re: /\bnd\s*207|nghi dinh\s*207|207\/2026/ },
+  { docs: ['ND209'], re: /\bnd\s*209|nghi dinh\s*209|209\/2026/ },
+  { docs: ['ND210'], re: /\bnd\s*210|nghi dinh\s*210|210\/2026/ },
+  { docs: ['ND217'], re: /\bnd\s*217|nghi dinh\s*217|217\/2026/ },
+  { docs: ['ND220'], re: /\bnd\s*220|nghi dinh\s*220|220\/2026|bao hiem bat buoc/ },
+  { docs: ['TT32-2026'], re: /\btt\s*32|thong tu\s*32|32\/2026/ },
+  { docs: ['TT33-2026'], re: /\btt\s*33|thong tu\s*33|33\/2026/ },
+  { docs: ['TT34-2026'], re: /\btt\s*34|thong tu\s*34|34\/2026/ },
+  { docs: ['TT37-2026'], re: /\btt\s*37|thong tu\s*37|37\/2026/ },
+  { docs: ['TT38-2026'], re: /\btt\s*38|thong tu\s*38|38\/2026/ },
+  { docs: ['TT39-2026'], re: /\btt\s*39|thong tu\s*39|39\/2026/ },
+  { docs: ['TT40-2026'], re: /\btt\s*40|thong tu\s*40|40\/2026/ },
+  { docs: ['TT41-2026'], re: /\btt\s*41|thong tu\s*41|41\/2026/ }
 ];
 
 let kb = null;
@@ -63,8 +77,15 @@ const TOPICS = [
   { re: /du toan chi thuong xuyen|mua sam thuong xuyen|co so du toan|lap du toan|chi thuong xuyen/, boost: ['ND104:4', 'ND104:7', 'ND104:8', 'ND104:9'] },
   { re: /mua sam.*sua chua|sua chua.*mua sam|mua sam tai san|trang thiet bi/, boost: ['ND104:17', 'ND104:18', 'ND104:19'] },
   { re: /tai san cong|quan ly.*tai san|su dung tai san/, boost: ['ND186:1', 'ND186:2', 'ND186:3', 'ND286:1'] },
-  { re: /mau hop dong|hop dong xay dung|epc/, boost: ['QD1040-BXD:1', 'LXD:80', 'LXD:81'] },
-  { re: /khoi luong/, boost: ['QD1041-BXD:1', 'TT36-BXD:6'] }
+  { re: /mau hop dong|hop dong xay dung|epc|dieu chinh hop dong|thanh ly hop dong/, boost: ['ND210:1', 'QD1040-BXD:1', 'QD1040-TC:1', 'QD1040-EPC:1', 'LXD:80', 'LXD:81', 'LXD:87'] },
+  { re: /khoi luong/, boost: ['QD1041-BXD:1', 'TT36-BXD:6'] },
+  { re: /chi phi dau tu xay dung|tong muc dau tu|du toan xay dung/, boost: ['ND206:1', 'ND206:2', 'TT36-BXD:3', 'TT36-BXD:6'] },
+  { re: /chat luong cong trinh|thi cong xay dung|bao tri cong trinh/, boost: ['ND207:1', 'ND207:2', 'TT32-2026:1', 'TT40-2026:1'] },
+  { re: /cap cong trinh/, boost: ['TT34-2026:1', 'LXD:17'] },
+  { re: /dinh muc/, boost: ['TT37-2026:1', 'TT38-2026:1'] },
+  { re: /quan ly hoat dong xay dung|giay phep xay dung/, boost: ['ND217:1', 'LXD:43', 'LXD:48'] },
+  { re: /vat lieu xay dung/, boost: ['ND209:1', 'TT41-2026:1'] },
+  { re: /bao hiem/, boost: ['ND220:1'] }
 ];
 
 function topicBoosts(q) {
