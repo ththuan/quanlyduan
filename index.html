@@ -215,13 +215,26 @@
         <h2><span class="material-symbols-rounded">menu_book</span> Thư viện pháp luật</h2>
       </div>
       <div class="legal-qa glass-card">
-        <div class="legal-qa-head"><span class="material-symbols-rounded">gavel</span> Hỏi chuyên gia pháp luật — đầu tư · đấu thầu · xây dựng</div>
-        <div id="legal-qa-log" class="legal-qa-log"></div>
-        <div class="legal-qa-input">
-          <input id="legal-qa-input" type="text" placeholder="VD: Gói xây lắp 4,5 tỷ thuộc dự án có được chỉ định thầu không?" onkeydown="if(event.key==='Enter')legalAsk()">
-          <button class="btn btn-primary" onclick="legalAsk()"><span class="material-symbols-rounded">send</span> Hỏi</button>
+        <div class="legal-qa-head">
+          <div class="legal-qa-hero"><span class="material-symbols-rounded">gavel</span></div>
+          <div>
+            <div class="legal-qa-title">Chuyên gia tư vấn pháp luật</div>
+            <div class="legal-qa-sub">Đầu tư công · Đấu thầu · Xây dựng — dựa trên kho văn bản của phần mềm</div>
+          </div>
         </div>
-        <div class="legal-qa-hint">Trả lời dựa trên kho văn bản của phần mềm, kèm dẫn chứng Điều/Khoản bấm được để mở đọc.</div>
+        <div id="legal-qa-log" class="legal-qa-log">
+          <div class="legal-qa-empty"><span class="material-symbols-rounded">menu_book</span><p>Đặt câu hỏi để được tư vấn kèm dẫn chứng Điều/Khoản bấm mở được.</p></div>
+        </div>
+        <div class="legal-qa-quick">
+          <button onclick="legalAskQuick('Gói xây lắp 4,5 tỷ thuộc dự án có được chỉ định thầu không?')">Chỉ định thầu</button>
+          <button onclick="legalAskQuick('Thời hạn lập, thẩm tra, phê duyệt hồ sơ quyết toán dự án?')">Quyết toán</button>
+          <button onclick="legalAskQuick('Thời hạn bảo hành công trình và mức bảo lãnh bảo hành?')">Bảo hành</button>
+          <button onclick="legalAskQuick('Điều kiện và hồ sơ điều chỉnh hợp đồng xây dựng?')">Điều chỉnh HĐ</button>
+        </div>
+        <div class="legal-qa-input">
+          <input id="legal-qa-input" type="text" placeholder="Nhập câu hỏi pháp luật…" onkeydown="if(event.key==='Enter')legalAsk()">
+          <button class="legal-qa-send" onclick="legalAsk()" title="Gửi"><span class="material-symbols-rounded">send</span></button>
+        </div>
       </div>
       <div id="legal-container"></div>
     </section>

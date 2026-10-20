@@ -195,6 +195,11 @@ function legalAskAI() {
 
 // ---- Hỏi đáp pháp luật ngay trong tab Pháp luật ----
 let legalQaHistory = [];
+function legalAskQuick(q) {
+  const input = document.getElementById('legal-qa-input');
+  if (input) input.value = q;
+  legalAsk();
+}
 async function legalAsk() {
   const input = document.getElementById('legal-qa-input');
   const log = document.getElementById('legal-qa-log');
@@ -202,6 +207,7 @@ async function legalAsk() {
   const q = input.value.trim();
   if (!q) return;
   input.value = '';
+  log.querySelector('.legal-qa-empty')?.remove();
   const userDiv = document.createElement('div');
   userDiv.className = 'legal-qa-msg user';
   userDiv.textContent = q;
