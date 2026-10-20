@@ -3284,6 +3284,11 @@ canvas {
 .legal-qa-msg.bot { align-self: flex-start; background: var(--bg-secondary, #f1f5f9); color: var(--text-primary); border: 1px solid var(--border-glass); border-bottom-left-radius: 4px; }
 .legal-qa-msg.bot .ai-sources { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; padding-top: 8px; border-top: 1px dashed #cbd5e1; font-size: 0.78rem; }
 .legal-qa-msg.bot .ai-sources a { color: #2563eb; text-decoration: none; background: #e0edff; padding: 2px 8px; border-radius: 999px; }
+.legal-qa-save { display: inline-flex; align-items: center; gap: 4px; margin-top: 10px; padding: 4px 10px; border-radius: 999px; border: 1px solid #bbf7d0; background: #f0fdf4; color: #15803d; font-size: 0.75rem; cursor: pointer; }
+.legal-qa-save .material-symbols-rounded { font-size: 15px; }
+.legal-qa-save:disabled { opacity: 0.85; cursor: default; }
+.legal-qa-kb { font-size: 0.76rem; padding: 5px 10px; border-radius: 999px; border: 1px solid #ddd6fe; background: #f5f3ff; color: #6d28d9; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
+.legal-qa-kb .material-symbols-rounded { font-size: 15px; }
 .legal-qa-quick { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 18px 10px; }
 .legal-qa-quick button { font-size: 0.76rem; padding: 5px 10px; border-radius: 999px; border: 1px solid #bfdbfe; background: #eff6ff; color: #1d4ed8; cursor: pointer; transition: var(--transition); }
 .legal-qa-quick button:hover { background: #dbeafe; }
