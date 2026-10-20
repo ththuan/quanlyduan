@@ -193,6 +193,43 @@ function legalAskAI() {
   aiSend(`Giải thích ${a.heading} (${a.docShort}) và nêu cách áp dụng cho dự án đang quản lý trong phần mềm.`);
 }
 
+// ---- Hỏi đáp pháp luật ngay trong tab Pháp luật ----
+let legalQaHistory = [];
+async function legalAsk() {
+  const input = document.getElementById('legal-qa-input');
+  const log = document.getElementById('legal-qa-log');
+  if (!input || !log) return;
+  const q = input.value.trim();
+  if (!q) return;
+  input.value = '';
+  const userDiv = document.createElement('div');
+  userDiv.className = 'legal-qa-msg user';
+  userDiv.textContent = q;
+  log.appendChild(userDiv);
+  const botDiv = document.createElement('div');
+  botDiv.className = 'legal-qa-msg bot';
+  botDiv.textContent = 'Đang tra cứu kho văn bản…';
+  log.appendChild(botDiv);
+  log.scrollTop = log.scrollHeight;
+  try {
+    const raw = await fetch('/api/ai/chat', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: q, history: legalQaHistory })
+    });
+    const res = typeof handleAuthResponse === 'function' ? handleAuthResponse(raw) : raw;
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Lỗi AI (' + res.status + ')');
+    botDiv.textContent = data.reply || '(Không có trả lời)';
+    if (typeof aiRenderSources === 'function') aiRenderSources(botDiv, data.sources);
+    legalQaHistory.push({ role: 'user', text: q });
+    legalQaHistory.push({ role: 'model', text: data.reply || '' });
+    legalQaHistory = legalQaHistory.slice(-6);
+  } catch (err) {
+    botDiv.textContent = 'Lỗi: ' + err.message;
+  }
+  log.scrollTop = log.scrollHeight;
+}
+
 // Nguồn trích dẫn dưới câu trả lời của chatbot
 function aiRenderSources(botDiv, sources) {
   if (!sources || !sources.length) return;

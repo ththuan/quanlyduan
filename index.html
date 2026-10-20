@@ -214,6 +214,15 @@
       <div class="section-header">
         <h2><span class="material-symbols-rounded">menu_book</span> Thư viện pháp luật</h2>
       </div>
+      <div class="legal-qa glass-card">
+        <div class="legal-qa-head"><span class="material-symbols-rounded">gavel</span> Hỏi chuyên gia pháp luật — đầu tư · đấu thầu · xây dựng</div>
+        <div id="legal-qa-log" class="legal-qa-log"></div>
+        <div class="legal-qa-input">
+          <input id="legal-qa-input" type="text" placeholder="VD: Gói xây lắp 4,5 tỷ thuộc dự án có được chỉ định thầu không?" onkeydown="if(event.key==='Enter')legalAsk()">
+          <button class="btn btn-primary" onclick="legalAsk()"><span class="material-symbols-rounded">send</span> Hỏi</button>
+        </div>
+        <div class="legal-qa-hint">Trả lời dựa trên kho văn bản của phần mềm, kèm dẫn chứng Điều/Khoản bấm được để mở đọc.</div>
+      </div>
       <div id="legal-container"></div>
     </section>
 
