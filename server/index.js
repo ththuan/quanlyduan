@@ -828,22 +828,25 @@ app.post('/api/wiki/ingest', requireAuth, async (req, res) => {
   }
 });
 
-// ---- Lịch sử hội thoại AI theo từng người dùng ----
+// ---- Lịch sử hội thoại AI theo từng người dùng (tách kênh assistant/legal) ----
 app.get('/api/ai/history', requireAuth, (req, res) => {
-  res.json({ messages: db.listChatMessages(req.user.id, 60) });
+  const channel = String(req.query.channel || 'assistant');
+  res.json({ messages: db.listChatMessages(req.user.id, 60, channel) });
 });
 app.post('/api/ai/history', requireAuth, (req, res) => {
   const { messages } = req.body || {};
+  const channel = String((req.body && req.body.channel) || 'assistant');
   const list = Array.isArray(messages) ? messages : (messages ? [messages] : []);
   for (const m of list) {
     if (!m || typeof m.text !== 'string' || !m.text.trim()) continue;
     const role = (m.role === 'model' || m.role === 'assistant') ? 'model' : 'user';
-    db.addChatMessage(req.user.id, role, m.text.slice(0, 6000));
+    db.addChatMessage(req.user.id, role, m.text.slice(0, 6000), channel);
   }
   res.json({ ok: true });
 });
 app.delete('/api/ai/history', requireAuth, (req, res) => {
-  db.clearChatMessages(req.user.id);
+  const channel = String(req.query.channel || 'assistant');
+  db.clearChatMessages(req.user.id, channel);
   res.json({ ok: true });
 });
 

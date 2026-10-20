@@ -243,7 +243,7 @@ async function saveLegalHistory(messages) {
   try {
     await fetch('/api/ai/history', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages })
+      body: JSON.stringify({ channel: 'legal', messages })
     });
   } catch (_) { /* bỏ qua lỗi mạng, không chặn hội thoại */ }
 }
@@ -252,7 +252,7 @@ async function loadLegalHistory() {
   const log = document.getElementById('legal-qa-log');
   if (!log) return;
   try {
-    const raw = await fetch('/api/ai/history');
+    const raw = await fetch('/api/ai/history?channel=legal');
     const res = typeof handleAuthResponse === 'function' ? handleAuthResponse(raw) : raw;
     const data = await res.json().catch(() => ({}));
     if (!res.ok || !Array.isArray(data.messages)) return;
@@ -272,7 +272,7 @@ async function loadLegalHistory() {
 async function clearLegalHistory() {
   if (!confirm('Xóa toàn bộ hội thoại pháp luật của bạn?')) return;
   try {
-    const raw = await fetch('/api/ai/history', { method: 'DELETE' });
+    const raw = await fetch('/api/ai/history?channel=legal', { method: 'DELETE' });
     if (typeof handleAuthResponse === 'function') handleAuthResponse(raw);
     legalQaHistory = [];
     const log = document.getElementById('legal-qa-log');

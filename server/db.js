@@ -52,6 +52,7 @@ db.exec(`
     user_id TEXT NOT NULL,
     role TEXT NOT NULL,
     text TEXT NOT NULL,
+    channel TEXT NOT NULL DEFAULT 'assistant',
     created_at INTEGER NOT NULL
   );
 `);
@@ -72,6 +73,9 @@ db.exec(`
   try { db.exec(`ALTER TABLE sessions ADD COLUMN ${col} ${type}`); }
   catch (_) { /* cột đã tồn tại */ }
 });
+
+// Migration cho bảng chat_messages: thêm kênh hội thoại (assistant / legal)
+try { db.exec("ALTER TABLE chat_messages ADD COLUMN channel TEXT NOT NULL DEFAULT 'assistant'"); } catch (_) { /* cột đã tồn tại */ }
 
 function saveStateToDb(state) {
   const json = JSON.stringify(state);
@@ -164,17 +168,17 @@ function deletePdfRecord(id) {
 }
 
 // ---- Lịch sử hội thoại AI theo từng người dùng ----
-function addChatMessage(userId, role, text) {
-  db.prepare('INSERT INTO chat_messages (id, user_id, role, text, created_at) VALUES (?, ?, ?, ?, ?)')
-    .run(crypto.randomUUID(), userId, role, String(text || ''), Date.now());
+function addChatMessage(userId, role, text, channel = 'assistant') {
+  db.prepare('INSERT INTO chat_messages (id, user_id, role, text, channel, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+    .run(crypto.randomUUID(), userId, role, String(text || ''), channel, Date.now());
 }
-function listChatMessages(userId, limit = 40) {
-  const rows = db.prepare('SELECT role, text, created_at FROM chat_messages WHERE user_id = ? ORDER BY created_at DESC LIMIT ?')
-    .all(userId, limit);
+function listChatMessages(userId, limit = 40, channel = 'assistant') {
+  const rows = db.prepare('SELECT role, text, created_at FROM chat_messages WHERE user_id = ? AND channel = ? ORDER BY created_at DESC LIMIT ?')
+    .all(userId, channel, limit);
   return rows.reverse();
 }
-function clearChatMessages(userId) {
-  db.prepare('DELETE FROM chat_messages WHERE user_id = ?').run(userId);
+function clearChatMessages(userId, channel = 'assistant') {
+  db.prepare('DELETE FROM chat_messages WHERE user_id = ? AND channel = ?').run(userId, channel);
 }
 
 // ---- Password hashing (scrypt, no external dependency) ----

@@ -5576,6 +5576,7 @@ function renderAccountUI() {
   document.getElementById('btn-import-excel')?.classList.toggle('hidden', currentUser.role !== 'admin');
   isReadOnly = currentUser.role !== 'admin';
   document.body.classList.toggle('read-only', isReadOnly);
+  if (typeof loadAiHistory === 'function') loadAiHistory();
 }
 
 document.getElementById('btn-logout').addEventListener('click', async () => {
@@ -6188,6 +6189,38 @@ document.getElementById('btn-ai-close')?.addEventListener('click', function() {
 aiFloatHintEl?.addEventListener('click', openAiChatPanel);
 
 var aiHistory = [];
+var aiHistoryLoaded = false;
+const AI_CHANNEL = 'assistant';
+async function loadAiHistory() {
+  if (aiHistoryLoaded) return;
+  const box = document.getElementById('ai-chat-messages');
+  if (!box) return;
+  aiHistoryLoaded = true;
+  try {
+    const raw = await fetch('/api/ai/history?channel=' + AI_CHANNEL);
+    const res = typeof handleAuthResponse === 'function' ? handleAuthResponse(raw) : raw;
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !Array.isArray(data.messages)) return;
+    aiHistory = data.messages.map(m => ({ role: m.role === 'model' ? 'model' : 'user', text: m.text }));
+    if (!aiHistory.length) return;
+    box.innerHTML = '';
+    aiHistory.forEach(m => {
+      const d = document.createElement('div');
+      d.className = 'ai-msg ' + (m.role === 'model' ? 'ai-msg-bot' : 'ai-msg-user');
+      d.textContent = m.text;
+      box.appendChild(d);
+    });
+    box.scrollTop = box.scrollHeight;
+  } catch (_) { /* bỏ qua */ }
+}
+async function saveAiHistory(messages) {
+  try {
+    await fetch('/api/ai/history', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ channel: AI_CHANNEL, messages })
+    });
+  } catch (_) { /* bỏ qua */ }
+}
 
 async function aiSend(msg) {
   var input = document.getElementById('ai-chat-input');
@@ -6240,6 +6273,8 @@ async function aiSend(msg) {
         botDiv.appendChild(saveBtn);
       }
       aiHistory.push({ role: 'user', text: text }, { role: 'model', text: data.reply });
+      aiHistory = aiHistory.slice(-40);
+      saveAiHistory([{ role: 'user', text }, { role: 'model', text: data.reply }]);
     } else {
       botDiv.textContent = data.error || 'Lỗi kết nối';
     }
