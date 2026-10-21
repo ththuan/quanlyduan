@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Quyết định chấp thuận chủ trương đầu tư</title>
+<style>
+  @page { size: A4; margin: 20mm 18mm; }
+  body { font-family: "Times New Roman", serif; font-size: 12pt; line-height: 1.35; color: #000; }
+  .header { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+  .header td { border: none; padding: 0; vertical-align: top; }
+  .org { text-align: center; width: 45%; }
+  .org .name { font-weight: bold; text-transform: uppercase; }
+  .org .line { border-top: 1px solid #000; width: 60%; margin: 4px auto 0; }
+  .national { text-align: center; width: 55%; }
+  .national .motto { font-weight: bold; }
+  .date { text-align: right; font-style: italic; margin: 10px 0 6px; }
+  .title { text-align: center; font-weight: bold; font-size: 14pt; text-transform: uppercase; margin: 10px 0 2px; }
+  .subtitle { text-align: center; font-style: italic; margin-bottom: 12px; }
+  p { margin: 6px 0; text-align: justify; }
+  .item { margin: 6px 0 6px 18px; }
+  .signatures { width: 100%; margin-top: 26px; border-collapse: collapse; }
+  .signatures td { border: none; width: 50%; text-align: center; vertical-align: top; }
+  .signatures .role { font-weight: bold; text-transform: uppercase; }
+  .signatures .space { height: 70px; }
+  .note { font-size: 10pt; font-style: italic; color: #444; margin-top: 18px; }
+  @media print { .no-print { display: none; } }
+</style>
+</head>
+<body>
+<table class="header">
+  <tr>
+    <td class="org"><div class="name">{{co_quan_phe_duyet.ten}}</div><div class="line"></div></td>
+    <td class="national"><div class="motto">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div><div><b>Độc lập - Tự do - Hạnh phúc</b></div></td>
+  </tr>
+</table>
+
+<div class="date">{{du_an.dia_diem}}, ngày {{chu_truong.ngay}}</div>
+<div class="title">Quyết định</div>
+<div class="subtitle">Số: {{chu_truong.so}}/QĐ-...<br>Về việc chấp thuận chủ trương đầu tư dự án {{du_an.ten}}</div>
+
+<p><b>{{co_quan_phe_duyet.ten}}</b></p>
+<p>Căn cứ Luật Đầu tư công số 58/2024/QH15 và các văn bản hướng dẫn thi hành;</p>
+<p>Căn cứ Luật Xây dựng số 135/2025/QH15;</p>
+<p>Căn cứ Tờ trình số {{chu_truong.so}} ngày {{chu_truong.ngay}} của {{don_vi_trinh.ten}} về việc đề nghị chấp thuận chủ trương đầu tư dự án {{du_an.ten}};</p>
+<p>Xét nhu cầu thực tế và khả năng bố trí nguồn vốn,</p>
+
+<p><b>QUYẾT ĐỊNH:</b></p>
+<p><b>Điều 1.</b> Chấp thuận chủ trương đầu tư dự án {{du_an.ten}} với các nội dung chính sau:</p>
+<p class="item">- Tên dự án: {{du_an.ten}}.</p>
+<p class="item">- Địa điểm: {{du_an.dia_diem}}.</p>
+<p class="item">- Quy mô: {{chu_truong.quy_mo}}.</p>
+<p class="item">- Tổng mức đầu tư dự kiến: {{chu_truong.tong_muc}} đồng.</p>
+<p class="item">- Nguồn vốn: {{chu_truong.nguon_von}}.</p>
+<p class="item">- Thời gian thực hiện: {{chu_truong.thoi_gian}}.</p>
+<p class="item">- Chủ đầu tư: {{don_vi_trinh.ten}}.</p>
+
+<p><b>Điều 2.</b> Giao {{don_vi_trinh.ten}} tổ chức lập, trình thẩm định và phê duyệt dự án theo quy định; bảo đảm bố trí nguồn vốn và triển khai các bước tiếp theo đúng tiến độ.</p>
+<p><b>Điều 3.</b> Quyết định này có hiệu lực kể từ ngày ký. Các cơ quan, đơn vị có liên quan chịu trách nhiệm thi hành Quyết định này./.</p>
+
+<table class="signatures">
+  <tr>
+    <td>
+      <div><b>Nơi nhận:</b></div>
+      <div>- Như Điều 2;</div>
+      <div>- Lưu: VT.</div>
+    </td>
+    <td>
+      <div class="role">Thẩm quyền ký</div>
+      <div class="space"></div>
+      <div>{{co_quan_phe_duyet.ten}}</div>
+    </td>
+  </tr>
+</table>
+
+<p class="note no-print">Mẫu tham khảo. Cần đối chiếu thẩm quyền chấp thuận chủ trương và mẫu do cấp có thẩm quyền ban hành.</p>
+</body>
+</html>

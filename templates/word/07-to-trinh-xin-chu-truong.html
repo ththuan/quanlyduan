@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Tờ trình xin chủ trương đầu tư</title>
+<style>
+  @page { size: A4; margin: 20mm 18mm; }
+  body { font-family: "Times New Roman", serif; font-size: 12pt; line-height: 1.35; color: #000; }
+  .header { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+  .header td { border: none; padding: 0; vertical-align: top; }
+  .org { text-align: center; width: 45%; }
+  .org .name { font-weight: bold; text-transform: uppercase; }
+  .org .line { border-top: 1px solid #000; width: 60%; margin: 4px auto 0; }
+  .national { text-align: center; width: 55%; }
+  .national .motto { font-weight: bold; }
+  .date { text-align: right; font-style: italic; margin: 10px 0 6px; }
+  .title { text-align: center; font-weight: bold; font-size: 14pt; text-transform: uppercase; margin: 10px 0 2px; }
+  .subtitle { text-align: center; font-style: italic; margin-bottom: 12px; }
+  p { margin: 6px 0; text-align: justify; }
+  .item { margin: 6px 0 6px 18px; }
+  .signatures { width: 100%; margin-top: 26px; border-collapse: collapse; }
+  .signatures td { border: none; width: 50%; text-align: center; vertical-align: top; }
+  .signatures .role { font-weight: bold; text-transform: uppercase; }
+  .signatures .space { height: 70px; }
+  .note { font-size: 10pt; font-style: italic; color: #444; margin-top: 18px; }
+  @media print { .no-print { display: none; } }
+</style>
+</head>
+<body>
+<table class="header">
+  <tr>
+    <td class="org"><div class="name">{{don_vi_trinh.ten}}</div><div class="line"></div></td>
+    <td class="national"><div class="motto">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div><div><b>Độc lập - Tự do - Hạnh phúc</b></div></td>
+  </tr>
+</table>
+
+<div class="date">{{du_an.dia_diem}}, ngày {{chu_truong.ngay}}</div>
+<div class="title">Tờ trình</div>
+<div class="subtitle">Số: {{chu_truong.so}}<br>V/v đề nghị chấp thuận chủ trương đầu tư dự án {{du_an.ten}}</div>
+
+<p><b>Kính gửi:</b> {{co_quan_phe_duyet.ten}}</p>
+
+<p>Căn cứ Luật Đầu tư công số 58/2024/QH15 và các văn bản hướng dẫn thi hành;</p>
+<p>Căn cứ Luật Xây dựng số 135/2025/QH15;</p>
+<p>Căn cứ nhu cầu thực tế và quy hoạch phát triển của đơn vị;</p>
+
+<p><b>1. Tên dự án:</b> {{du_an.ten}}</p>
+<p><b>2. Địa điểm:</b> {{du_an.dia_diem}}</p>
+<p><b>3. Mục tiêu:</b> Đầu tư xây dựng/cải tạo, nâng cấp nhằm đáp ứng yêu cầu sử dụng và phát triển của đơn vị.</p>
+<p><b>4. Quy mô:</b> {{chu_truong.quy_mo}}</p>
+<p><b>5. Tổng mức đầu tư dự kiến:</b> {{chu_truong.tong_muc}} đồng.</p>
+<p><b>6. Nguồn vốn:</b> {{chu_truong.nguon_von}}</p>
+<p><b>7. Thời gian thực hiện:</b> {{chu_truong.thoi_gian}}</p>
+<p><b>8. Sự cần thiết:</b> Dự án góp phần nâng cao chất lượng cơ sở vật chất, đáp ứng nhiệm vụ chính trị và nhu cầu thực tế của đơn vị.</p>
+
+<p><b>9. Kiến nghị:</b> Đề nghị {{co_quan_phe_duyet.ten}} xem xét, chấp thuận chủ trương đầu tư dự án {{du_an.ten}} với các nội dung nêu trên làm cơ sở triển khai các bước tiếp theo./.</p>
+
+<table class="signatures">
+  <tr>
+    <td>
+      <div><b>Nơi nhận:</b></div>
+      <div>- Như trên;</div>
+      <div>- Lưu: VT.</div>
+    </td>
+    <td>
+      <div class="role">Đại diện đơn vị trình</div>
+      <div class="space"></div>
+      <div>{{don_vi_trinh.dai_dien}}</div>
+    </td>
+  </tr>
+</table>
+
+<p class="note no-print">Mẫu tham khảo. Thẩm quyền, nội dung và mẫu tờ trình có thể khác theo loại dự án, cấp quyết định đầu tư và quy định chuyên ngành.</p>
+</body>
+</html>

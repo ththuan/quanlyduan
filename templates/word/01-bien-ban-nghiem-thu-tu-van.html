@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Biên bản nghiệm thu sản phẩm tư vấn</title>
+<style>
+  @page { size: A4; margin: 20mm 18mm; }
+  body { font-family: "Times New Roman", serif; font-size: 12pt; line-height: 1.35; color: #000; }
+  .header { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+  .header td { border: none; padding: 0; vertical-align: top; }
+  .org { text-align: center; width: 45%; }
+  .org .name { font-weight: bold; text-transform: uppercase; }
+  .org .line { border-top: 1px solid #000; width: 60%; margin: 4px auto 0; }
+  .national { text-align: center; width: 55%; }
+  .national .motto { font-weight: bold; }
+  .date { text-align: right; font-style: italic; margin: 10px 0 6px; }
+  .title { text-align: center; font-weight: bold; font-size: 14pt; text-transform: uppercase; margin: 10px 0 2px; }
+  .subtitle { text-align: center; font-style: italic; margin-bottom: 12px; }
+  p { margin: 6px 0; text-align: justify; }
+  .item { margin: 6px 0 6px 18px; }
+  .signatures { width: 100%; margin-top: 26px; border-collapse: collapse; }
+  .signatures td { border: none; width: 50%; text-align: center; vertical-align: top; }
+  .signatures .role { font-weight: bold; text-transform: uppercase; }
+  .signatures .space { height: 70px; }
+  .note { font-size: 10pt; font-style: italic; color: #444; margin-top: 18px; }
+  @media print { .no-print { display: none; } }
+</style>
+</head>
+<body>
+<table class="header">
+  <tr>
+    <td class="org">
+      <div class="name">{{chu_dau_tu.ten}}</div>
+      <div class="line"></div>
+    </td>
+    <td class="national">
+      <div class="motto">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
+      <div><b>Độc lập - Tự do - Hạnh phúc</b></div>
+    </td>
+  </tr>
+</table>
+
+<div class="date">{{nghiem_thu.dia_diem}}, ngày {{nghiem_thu.ngay}}</div>
+
+<div class="title">Biên bản nghiệm thu</div>
+<div class="subtitle">Số: {{nghiem_thu.so}}<br>(V/v nghiệm thu và bàn giao {{nghiem_thu.doi_tuong}})</div>
+
+<p><b>Công trình/dự án:</b> {{du_an.ten}}</p>
+<p><b>Gói thầu:</b> {{goi_thau.ten}}</p>
+
+<p>Căn cứ Hợp đồng số {{hop_dong.so}} ký ngày {{hop_dong.ngay}} giữa {{chu_dau_tu.ten}} và {{nha_thau.ten}} về việc thực hiện gói thầu {{goi_thau.ten}} thuộc dự án {{du_an.ten}};</p>
+
+<p><b>1. Đối tượng nghiệm thu:</b> {{nghiem_thu.doi_tuong}}.</p>
+
+<p><b>2. Thành phần trực tiếp nghiệm thu:</b></p>
+<p class="item"><b>a) Chủ đầu tư (Bên A):</b> {{chu_dau_tu.ten}}</p>
+<p class="item">Địa chỉ: {{chu_dau_tu.dia_chi}}</p>
+<p class="item">Đại diện ông/bà: {{chu_dau_tu.dai_dien}} &nbsp;&nbsp; Chức vụ: {{chu_dau_tu.chuc_vu}}</p>
+<p class="item">Điện thoại: {{chu_dau_tu.dien_thoai}} &nbsp;&nbsp; Fax: {{chu_dau_tu.fax}} &nbsp;&nbsp; Email: {{chu_dau_tu.email}}</p>
+<p class="item">Mã số thuế: {{chu_dau_tu.ma_so_thue}}</p>
+<p class="item"><b>b) Nhà thầu (Bên B):</b> {{nha_thau.ten}}</p>
+<p class="item">Địa chỉ: {{nha_thau.dia_chi}}</p>
+<p class="item">Đại diện ông/bà: {{nha_thau.dai_dien}} &nbsp;&nbsp; Chức vụ: {{nha_thau.chuc_vu}}</p>
+<p class="item">Điện thoại: {{nha_thau.dien_thoai}}</p>
+<p class="item">Tài khoản: {{nha_thau.tai_khoan}} tại {{nha_thau.ngan_hang}}</p>
+<p class="item">Mã số thuế: {{nha_thau.ma_so_thue}}</p>
+
+<p><b>3. Thời gian và địa điểm nghiệm thu:</b></p>
+<p class="item">Bắt đầu: {{nghiem_thu.thoi_gian_bat_dau}}</p>
+<p class="item">Kết thúc: {{nghiem_thu.thoi_gian_ket_thuc}}</p>
+<p class="item">Tại: {{nghiem_thu.dia_diem}}</p>
+
+<p><b>4. Nội dung nghiệm thu:</b></p>
+<p class="item">a) Về chất lượng sản phẩm: {{nghiem_thu.chat_luong}}</p>
+<p class="item">b) Về khối lượng công việc: {{nghiem_thu.khoi_luong}}</p>
+<p class="item">c) Về hình thức, số lượng hồ sơ: {{nghiem_thu.so_luong_ho_so}}</p>
+
+<p><b>5. Kết luận:</b> {{nghiem_thu.ket_luan}}</p>
+
+<table class="signatures">
+  <tr>
+    <td>
+      <div class="role">Đại diện nhà thầu</div>
+      <div class="space"></div>
+      <div>{{nha_thau.dai_dien}}</div>
+    </td>
+    <td>
+      <div class="role">Đại diện chủ đầu tư</div>
+      <div class="space"></div>
+      <div>{{chu_dau_tu.dai_dien}}</div>
+    </td>
+  </tr>
+</table>
+
+<p class="note no-print">Mẫu tham khảo nghiệp vụ. Đối chiếu thêm NĐ 214/2025/NĐ-CP, Luật Xây dựng 135/2025/QH15 và quy chế nội bộ của đơn vị trước khi ban hành.</p>
+</body>
+</html>

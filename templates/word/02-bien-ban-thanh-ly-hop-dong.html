@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Biên bản thanh lý hợp đồng</title>
+<style>
+  @page { size: A4; margin: 20mm 18mm; }
+  body { font-family: "Times New Roman", serif; font-size: 12pt; line-height: 1.35; color: #000; }
+  .header { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+  .header td { border: none; padding: 0; vertical-align: top; }
+  .org { text-align: center; width: 45%; }
+  .org .name { font-weight: bold; text-transform: uppercase; }
+  .org .line { border-top: 1px solid #000; width: 60%; margin: 4px auto 0; }
+  .national { text-align: center; width: 55%; }
+  .national .motto { font-weight: bold; }
+  .date { text-align: right; font-style: italic; margin: 10px 0 6px; }
+  .title { text-align: center; font-weight: bold; font-size: 14pt; text-transform: uppercase; margin: 10px 0 2px; }
+  .subtitle { text-align: center; margin-bottom: 12px; }
+  p { margin: 6px 0; text-align: justify; }
+  .item { margin: 6px 0 6px 18px; }
+  .money { font-weight: bold; }
+  .signatures { width: 100%; margin-top: 26px; border-collapse: collapse; }
+  .signatures td { border: none; width: 50%; text-align: center; vertical-align: top; }
+  .signatures .role { font-weight: bold; text-transform: uppercase; }
+  .signatures .space { height: 70px; }
+  .note { font-size: 10pt; font-style: italic; color: #444; margin-top: 18px; }
+  @media print { .no-print { display: none; } }
+</style>
+</head>
+<body>
+<table class="header">
+  <tr>
+    <td class="org">
+      <div class="name">{{chu_dau_tu.ten}}</div>
+      <div class="line"></div>
+    </td>
+    <td class="national">
+      <div class="motto">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
+      <div><b>Độc lập - Tự do - Hạnh phúc</b></div>
+    </td>
+  </tr>
+</table>
+
+<div class="date">{{nghiem_thu.dia_diem}}, ngày {{nghiem_thu.ngay}}</div>
+
+<div class="title">Biên bản thanh lý hợp đồng</div>
+<div class="subtitle">Số: {{hop_dong.so}}/TLHĐ<br>Gói thầu: {{goi_thau.ten}}<br>Công trình/dự án: {{du_an.ten}}</div>
+
+<p>Căn cứ Hợp đồng số {{hop_dong.so}} ký ngày {{hop_dong.ngay}} giữa {{chu_dau_tu.ten}} và {{nha_thau.ten}} về việc thực hiện gói thầu {{goi_thau.ten}};</p>
+<p>Căn cứ Biên bản nghiệm thu số {{nghiem_thu.so}} ngày {{nghiem_thu.ngay}};</p>
+<p>Hôm nay, ngày {{phu_luc.ngay}} tại {{nghiem_thu.dia_diem}}, chúng tôi gồm:</p>
+
+<p><b>1. Bên giao thầu (Bên A):</b> {{chu_dau_tu.ten}}</p>
+<p class="item">Địa chỉ: {{chu_dau_tu.dia_chi}}</p>
+<p class="item">Đại diện ông/bà: {{chu_dau_tu.dai_dien}} &nbsp;&nbsp; Chức vụ: {{chu_dau_tu.chuc_vu}}</p>
+<p class="item">Điện thoại: {{chu_dau_tu.dien_thoai}} &nbsp;&nbsp; Email: {{chu_dau_tu.email}}</p>
+<p class="item">Mã số thuế: {{chu_dau_tu.ma_so_thue}}</p>
+
+<p><b>2. Bên nhận thầu (Bên B):</b> {{nha_thau.ten}}</p>
+<p class="item">Địa chỉ: {{nha_thau.dia_chi}}</p>
+<p class="item">Đại diện ông/bà: {{nha_thau.dai_dien}} &nbsp;&nbsp; Chức vụ: {{nha_thau.chuc_vu}}</p>
+<p class="item">Điện thoại: {{nha_thau.dien_thoai}}</p>
+<p class="item">Tài khoản: {{nha_thau.tai_khoan}} tại {{nha_thau.ngan_hang}}</p>
+<p class="item">Mã số thuế: {{nha_thau.ma_so_thue}}</p>
+
+<p>Hai bên thống nhất thanh lý Hợp đồng số {{hop_dong.so}} ký ngày {{hop_dong.ngay}} như sau:</p>
+
+<p><b>1. Phần nghiệm thu:</b></p>
+<p class="item">- Bên B đã thực hiện hoàn thành gói thầu {{goi_thau.ten}} phù hợp với Hợp đồng số {{hop_dong.so}}.</p>
+<p class="item">- Tổng giá trị hợp đồng (bao gồm thuế GTGT): <span class="money">{{hop_dong.gia_tri}}</span> đồng ({{hop_dong.gia_tri_bang_chu}}).</p>
+
+<p><b>2. Phần thanh lý hợp đồng:</b></p>
+<p class="item">- Giá trị thanh lý hợp đồng: <span class="money">{{hop_dong.gia_tri}}</span> đồng.</p>
+<p class="item">- Kinh phí Bên A đã tạm ứng cho Bên B: {{hop_dong.tam_ung}} đồng.</p>
+<p class="item">- Kinh phí Bên A còn phải thanh toán cho Bên B: <span class="money">{{hop_dong.con_phai_thanh_toan}}</span> đồng.</p>
+
+<p>Hai bên thống nhất nội dung trên và đồng ý thanh lý Hợp đồng số {{hop_dong.so}} ký ngày {{hop_dong.ngay}}.</p>
+<p>Biên bản thanh lý hợp đồng được lập thành {{hop_dong.so_ban}} bản có giá trị như nhau; Bên A giữ {{hop_dong.so_ban_a}} bản, Bên B giữ {{hop_dong.so_ban_b}} bản.</p>
+
+<table class="signatures">
+  <tr>
+    <td>
+      <div class="role">Đại diện Bên A</div>
+      <div class="space"></div>
+      <div>{{chu_dau_tu.dai_dien}}</div>
+    </td>
+    <td>
+      <div class="role">Đại diện Bên B</div>
+      <div class="space"></div>
+      <div>{{nha_thau.dai_dien}}</div>
+    </td>
+  </tr>
+</table>
+
+<p class="note no-print">Mẫu tham khảo nghiệp vụ. Đối chiếu NĐ 214/2025/NĐ-CP Điều 121 và NĐ 210/2026/NĐ-CP (đối với hợp đồng xây dựng) trước khi ban hành.</p>
+</body>
+</html>

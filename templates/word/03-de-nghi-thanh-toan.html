@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Đề nghị thanh toán</title>
+<style>
+  @page { size: A4; margin: 20mm 18mm; }
+  body { font-family: "Times New Roman", serif; font-size: 12pt; line-height: 1.35; color: #000; }
+  .header { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+  .header td { border: none; padding: 0; vertical-align: top; }
+  .org { text-align: center; width: 45%; }
+  .org .name { font-weight: bold; text-transform: uppercase; }
+  .org .line { border-top: 1px solid #000; width: 60%; margin: 4px auto 0; }
+  .national { text-align: center; width: 55%; }
+  .national .motto { font-weight: bold; }
+  .date { text-align: right; font-style: italic; margin: 10px 0 6px; }
+  .title { text-align: center; font-weight: bold; font-size: 14pt; text-transform: uppercase; margin: 10px 0 2px; }
+  .subtitle { text-align: center; font-style: italic; margin-bottom: 12px; }
+  p { margin: 6px 0; text-align: justify; }
+  .item { margin: 6px 0 6px 18px; }
+  .money { font-weight: bold; }
+  .signatures { width: 100%; margin-top: 26px; border-collapse: collapse; }
+  .signatures td { border: none; width: 60%; vertical-align: top; }
+  .signatures td.right { width: 40%; text-align: center; }
+  .signatures .role { font-weight: bold; text-transform: uppercase; }
+  .signatures .space { height: 70px; }
+  .note { font-size: 10pt; font-style: italic; color: #444; margin-top: 18px; }
+  @media print { .no-print { display: none; } }
+</style>
+</head>
+<body>
+<table class="header">
+  <tr>
+    <td class="org">
+      <div class="name">{{nha_thau.ten}}</div>
+      <div class="line"></div>
+    </td>
+    <td class="national">
+      <div class="motto">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
+      <div><b>Độc lập - Tự do - Hạnh phúc</b></div>
+    </td>
+  </tr>
+</table>
+
+<div class="date">{{nghiem_thu.dia_diem}}, ngày {{thanh_toan.ngay}}</div>
+
+<div class="title">Đề nghị thanh toán</div>
+<div class="subtitle">Số: {{thanh_toan.so_de_nghi}}<br>V/v đề nghị thanh toán chi phí gói thầu {{goi_thau.ten}}</div>
+
+<p><b>Kính gửi:</b> {{chu_dau_tu.ten}}</p>
+
+<p>Căn cứ Hợp đồng số {{hop_dong.so}} ký ngày {{hop_dong.ngay}} giữa {{chu_dau_tu.ten}} và {{nha_thau.ten}} về việc thực hiện gói thầu {{goi_thau.ten}};</p>
+<p>Căn cứ Biên bản nghiệm thu số {{nghiem_thu.so}} ngày {{nghiem_thu.ngay}};</p>
+
+<p>Nay {{nha_thau.ten}} đề nghị {{chu_dau_tu.ten}} thanh toán chi phí thực hiện gói thầu như sau:</p>
+<p class="item"><b>Số tiền:</b> <span class="money">{{thanh_toan.so_tien}}</span> đồng.</p>
+<p class="item"><b>Bằng chữ:</b> {{thanh_toan.so_tien_bang_chu}}.</p>
+<p class="item"><b>Hình thức thanh toán:</b> {{thanh_toan.hinh_thuc}}.</p>
+<p class="item"><b>Tên tài khoản:</b> {{nha_thau.ten}}.</p>
+<p class="item"><b>Số tài khoản:</b> {{nha_thau.tai_khoan}}.</p>
+<p class="item"><b>Tại ngân hàng:</b> {{nha_thau.ngan_hang}}.</p>
+<p class="item"><b>Kỳ thanh toán:</b> {{thanh_toan.ky}}.</p>
+
+<p>Đề nghị {{chu_dau_tu.ten}} xem xét, bố trí kinh phí và thanh toán theo quy định./.</p>
+
+<table class="signatures">
+  <tr>
+    <td>
+      <div><b>Nơi nhận:</b></div>
+      <div>- Như trên;</div>
+      <div>- Lưu: VT, Kế toán.</div>
+    </td>
+    <td class="right">
+      <div class="role">Đại diện nhà thầu</div>
+      <div class="space"></div>
+      <div>{{nha_thau.dai_dien}}</div>
+    </td>
+  </tr>
+</table>
+
+<p class="note no-print">Mẫu tham khảo nghiệp vụ. Kèm theo: biên bản nghiệm thu, bảng 03.a/TT, hóa đơn và chứng từ liên quan.</p>
+</body>
+</html>

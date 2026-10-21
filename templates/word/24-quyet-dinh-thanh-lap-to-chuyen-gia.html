@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Quyết định thành lập tổ chuyên gia</title>
+<style>
+  @page { size: A4; margin: 20mm 18mm; }
+  body { font-family: "Times New Roman", serif; font-size: 12pt; line-height: 1.35; color: #000; }
+  .header { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+  .header td { border: none; padding: 0; vertical-align: top; }
+  .org { text-align: center; width: 45%; }
+  .org .name { font-weight: bold; text-transform: uppercase; }
+  .org .line { border-top: 1px solid #000; width: 60%; margin: 4px auto 0; }
+  .national { text-align: center; width: 55%; }
+  .national .motto { font-weight: bold; }
+  .date { text-align: right; font-style: italic; margin: 10px 0 6px; }
+  .title { text-align: center; font-weight: bold; font-size: 14pt; text-transform: uppercase; margin: 10px 0 2px; }
+  .subtitle { text-align: center; font-style: italic; margin-bottom: 12px; }
+  p { margin: 6px 0; text-align: justify; }
+  .item { margin: 6px 0 6px 18px; }
+  .signatures { width: 100%; margin-top: 26px; border-collapse: collapse; }
+  .signatures td { border: none; width: 50%; text-align: center; vertical-align: top; }
+  .signatures .role { font-weight: bold; text-transform: uppercase; }
+  .signatures .space { height: 70px; }
+  .note { font-size: 10pt; font-style: italic; color: #444; margin-top: 18px; }
+  @media print { .no-print { display: none; } }
+</style>
+</head>
+<body>
+<table class="header">
+  <tr>
+    <td class="org"><div class="name">{{chu_dau_tu.ten}}</div><div class="line"></div></td>
+    <td class="national"><div class="motto">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div><div><b>Độc lập - Tự do - Hạnh phúc</b></div></td>
+  </tr>
+</table>
+
+<div class="date">{{du_an.dia_diem}}, ngày {{to_chuc.ngay}}</div>
+<div class="title">Quyết định</div>
+<div class="subtitle">Số: {{to_chuc.so}}/QĐ-...<br>Về việc thành lập tổ chuyên gia đấu thầu gói thầu {{goi_thau.ten}}</div>
+
+<p><b>{{chu_dau_tu.ten}}</b></p>
+<p>Căn cứ Luật Đấu thầu số 22/2023/QH15 và các văn bản sửa đổi, bổ sung;</p>
+<p>Căn cứ Nghị định số 214/2025/NĐ-CP của Chính phủ quy định chi tiết một số điều và biện pháp thi hành Luật Đấu thầu về lựa chọn nhà thầu;</p>
+<p>Căn cứ kế hoạch lựa chọn nhà thầu được phê duyệt;</p>
+<p>Xét yêu cầu tổ chức lựa chọn nhà thầu gói thầu {{goi_thau.ten}},</p>
+
+<p><b>QUYẾT ĐỊNH:</b></p>
+<p><b>Điều 1.</b> Thành lập tổ chuyên gia đấu thầu gói thầu {{goi_thau.ten}} thuộc dự án {{du_an.ten}}, gồm:</p>
+<p class="item">- Tổ trưởng: {{to_chuc.to_truong}}.</p>
+<p class="item">- Thành viên: {{to_chuc.thanh_vien}}.</p>
+
+<p><b>Điều 2.</b> Tổ chuyên gia có nhiệm vụ lập hồ sơ mời thầu/hồ sơ yêu cầu, đánh giá hồ sơ dự thầu/hồ sơ đề xuất, báo cáo kết quả và thực hiện các nhiệm vụ khác theo quy định.</p>
+<p><b>Điều 3.</b> Quyết định này có hiệu lực kể từ ngày ký. Tổ chuyên gia và các đơn vị có liên quan chịu trách nhiệm thi hành Quyết định này./.</p>
+
+<table class="signatures">
+  <tr>
+    <td>
+      <div><b>Nơi nhận:</b></div>
+      <div>- Như Điều 2;</div>
+      <div>- Lưu: VT.</div>
+    </td>
+    <td>
+      <div class="role">Đại diện chủ đầu tư</div>
+      <div class="space"></div>
+      <div>{{chu_dau_tu.dai_dien}}</div>
+    </td>
+  </tr>
+</table>
+
+<p class="note no-print">Mẫu tham khảo. Đối chiếu Luật Đấu thầu Điều 19 và NĐ 214/2025/NĐ-CP Điều 21.</p>
+</body>
+</html>

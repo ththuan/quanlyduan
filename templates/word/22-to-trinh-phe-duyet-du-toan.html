@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Tờ trình phê duyệt dự toán/giá gói thầu</title>
+<style>
+  @page { size: A4; margin: 20mm 18mm; }
+  body { font-family: "Times New Roman", serif; font-size: 12pt; line-height: 1.35; color: #000; }
+  .header { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+  .header td { border: none; padding: 0; vertical-align: top; }
+  .org { text-align: center; width: 45%; }
+  .org .name { font-weight: bold; text-transform: uppercase; }
+  .org .line { border-top: 1px solid #000; width: 60%; margin: 4px auto 0; }
+  .national { text-align: center; width: 55%; }
+  .national .motto { font-weight: bold; }
+  .date { text-align: right; font-style: italic; margin: 10px 0 6px; }
+  .title { text-align: center; font-weight: bold; font-size: 14pt; text-transform: uppercase; margin: 10px 0 2px; }
+  .subtitle { text-align: center; font-style: italic; margin-bottom: 12px; }
+  p { margin: 6px 0; text-align: justify; }
+  .item { margin: 6px 0 6px 18px; }
+  .signatures { width: 100%; margin-top: 26px; border-collapse: collapse; }
+  .signatures td { border: none; width: 50%; text-align: center; vertical-align: top; }
+  .signatures .role { font-weight: bold; text-transform: uppercase; }
+  .signatures .space { height: 70px; }
+  .note { font-size: 10pt; font-style: italic; color: #444; margin-top: 18px; }
+  @media print { .no-print { display: none; } }
+</style>
+</head>
+<body>
+<table class="header">
+  <tr>
+    <td class="org"><div class="name">{{don_vi_trinh.ten}}</div><div class="line"></div></td>
+    <td class="national"><div class="motto">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div><div><b>Độc lập - Tự do - Hạnh phúc</b></div></td>
+  </tr>
+</table>
+
+<div class="date">{{du_an.dia_diem}}, ngày {{du_toan.ngay_trinh}}</div>
+<div class="title">Tờ trình</div>
+<div class="subtitle">Số: {{du_toan.so_trinh}}<br>V/v phê duyệt dự toán/giá gói thầu {{goi_thau.ten}}</div>
+
+<p><b>Kính gửi:</b> {{chu_dau_tu.ten}}</p>
+
+<p>Căn cứ Luật Xây dựng số 135/2025/QH15 và các văn bản hướng dẫn thi hành;</p>
+<p>Căn cứ Nghị định số 214/2025/NĐ-CP của Chính phủ quy định chi tiết một số điều và biện pháp thi hành Luật Đấu thầu về lựa chọn nhà thầu;</p>
+<p>Căn cứ Quyết định phê duyệt dự án số {{du_an.so_qd}} ngày {{du_an.ngay_qd}};</p>
+<p>Căn cứ hồ sơ thiết kế, định mức, đơn giá và các tài liệu liên quan;</p>
+
+<p><b>1. Tên gói thầu:</b> {{goi_thau.ten}}</p>
+<p><b>2. Tên dự án:</b> {{du_an.ten}}</p>
+<p><b>3. Nội dung công việc:</b> {{du_toan.noi_dung}}</p>
+<p><b>4. Giá trị dự toán/giá gói thầu:</b> {{du_toan.gia_tri}} đồng.</p>
+<p><b>5. Nguồn vốn:</b> {{du_toan.nguon_von}}</p>
+<p><b>6. Căn cứ xác định giá:</b> Theo dự toán được duyệt/định mức, đơn giá, báo giá và các tài liệu kèm theo.</p>
+
+<p><b>7. Kiến nghị:</b> Đề nghị {{chu_dau_tu.ten}} xem xét, phê duyệt dự toán/giá gói thầu nêu trên làm cơ sở lập kế hoạch lựa chọn nhà thầu./.</p>
+
+<table class="signatures">
+  <tr>
+    <td>
+      <div><b>Nơi nhận:</b></div>
+      <div>- Như trên;</div>
+      <div>- Lưu: VT.</div>
+    </td>
+    <td>
+      <div class="role">Đại diện đơn vị trình</div>
+      <div class="space"></div>
+      <div>{{don_vi_trinh.dai_dien}}</div>
+    </td>
+  </tr>
+</table>
+
+<p class="note no-print">Mẫu tham khảo. Đối chiếu Luật Xây dựng Điều 76, TT 36/2026/TT-BXD Điều 6-7 và NĐ 214/2025/NĐ-CP Điều 18.</p>
+</body>
+</html>

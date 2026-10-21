@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Thông báo mời thầu</title>
+<style>
+  @page { size: A4; margin: 20mm 18mm; }
+  body { font-family: "Times New Roman", serif; font-size: 12pt; line-height: 1.35; color: #000; }
+  .header { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+  .header td { border: none; padding: 0; vertical-align: top; }
+  .org { text-align: center; width: 45%; }
+  .org .name { font-weight: bold; text-transform: uppercase; }
+  .org .line { border-top: 1px solid #000; width: 60%; margin: 4px auto 0; }
+  .national { text-align: center; width: 55%; }
+  .national .motto { font-weight: bold; }
+  .date { text-align: right; font-style: italic; margin: 10px 0 6px; }
+  .title { text-align: center; font-weight: bold; font-size: 14pt; text-transform: uppercase; margin: 10px 0 2px; }
+  .subtitle { text-align: center; font-style: italic; margin-bottom: 12px; }
+  p { margin: 6px 0; text-align: justify; }
+  .item { margin: 6px 0 6px 18px; }
+  .signatures { width: 100%; margin-top: 26px; border-collapse: collapse; }
+  .signatures td { border: none; width: 50%; text-align: center; vertical-align: top; }
+  .signatures .role { font-weight: bold; text-transform: uppercase; }
+  .signatures .space { height: 70px; }
+  .note { font-size: 10pt; font-style: italic; color: #444; margin-top: 18px; }
+  @media print { .no-print { display: none; } }
+</style>
+</head>
+<body>
+<table class="header">
+  <tr>
+    <td class="org"><div class="name">{{chu_dau_tu.ten}}</div><div class="line"></div></td>
+    <td class="national"><div class="motto">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div><div><b>Độc lập - Tự do - Hạnh phúc</b></div></td>
+  </tr>
+</table>
+
+<div class="date">{{du_an.dia_diem}}, ngày {{thong_bao.ngay}}</div>
+<div class="title">Thông báo mời thầu</div>
+<div class="subtitle">Số: {{thong_bao.so}}<br>Gói thầu: {{goi_thau.ten}}</div>
+
+<p><b>1. Chủ đầu tư:</b> {{chu_dau_tu.ten}} - Địa chỉ: {{chu_dau_tu.dia_chi}}.</p>
+<p><b>2. Tên dự án:</b> {{du_an.ten}}</p>
+<p><b>3. Tên gói thầu:</b> {{goi_thau.ten}}</p>
+<p><b>4. Giá gói thầu:</b> {{hop_dong.gia_tri}} đồng.</p>
+<p><b>5. Nguồn vốn:</b> {{du_an.nguon_von}}</p>
+<p><b>6. Hình thức lựa chọn:</b> {{khlcnt.hinh_thuc}}</p>
+<p><b>7. Phương thức lựa chọn:</b> {{khlcnt.phuong_thuc}}</p>
+<p><b>8. Thời gian phát hành hồ sơ mời thầu:</b> {{thong_bao.thoi_gian}}</p>
+<p><b>9. Địa điểm phát hành/nhận hồ sơ:</b> {{thong_bao.dia_diem}}</p>
+<p><b>10. Thời điểm đóng thầu:</b> {{thong_bao.thoi_gian}}</p>
+<p><b>11. Hình thức nhận hồ sơ:</b> {{thong_bao.hinh_thuc}}</p>
+
+<p>Chủ đầu tư mời các nhà thầu có đủ năng lực, kinh nghiệm tham dự thầu theo quy định tại hồ sơ mời thầu./.</p>
+
+<table class="signatures">
+  <tr>
+    <td>
+      <div><b>Nơi nhận:</b></div>
+      <div>- Như trên;</div>
+      <div>- Lưu: VT.</div>
+    </td>
+    <td>
+      <div class="role">Đại diện chủ đầu tư</div>
+      <div class="space"></div>
+      <div>{{chu_dau_tu.dai_dien}}</div>
+    </td>
+  </tr>
+</table>
+
+<p class="note no-print">Mẫu tham khảo cho đấu thầu không qua mạng. Đấu thầu qua mạng dùng E-TBMT trên Hệ thống mạng đấu thầu quốc gia theo TT 79/2025/TT-BTC.</p>
+</body>
+</html>

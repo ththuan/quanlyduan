@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Quyết định phê duyệt kết quả lựa chọn nhà thầu</title>
+<style>
+  @page { size: A4; margin: 20mm 18mm; }
+  body { font-family: "Times New Roman", serif; font-size: 12pt; line-height: 1.35; color: #000; }
+  .header { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+  .header td { border: none; padding: 0; vertical-align: top; }
+  .org { text-align: center; width: 45%; }
+  .org .name { font-weight: bold; text-transform: uppercase; }
+  .org .line { border-top: 1px solid #000; width: 60%; margin: 4px auto 0; }
+  .national { text-align: center; width: 55%; }
+  .national .motto { font-weight: bold; }
+  .date { text-align: right; font-style: italic; margin: 10px 0 6px; }
+  .title { text-align: center; font-weight: bold; font-size: 14pt; text-transform: uppercase; margin: 10px 0 2px; }
+  .subtitle { text-align: center; font-style: italic; margin-bottom: 12px; }
+  p { margin: 6px 0; text-align: justify; }
+  .item { margin: 6px 0 6px 18px; }
+  .signatures { width: 100%; margin-top: 26px; border-collapse: collapse; }
+  .signatures td { border: none; width: 50%; text-align: center; vertical-align: top; }
+  .signatures .role { font-weight: bold; text-transform: uppercase; }
+  .signatures .space { height: 70px; }
+  .note { font-size: 10pt; font-style: italic; color: #444; margin-top: 18px; }
+  @media print { .no-print { display: none; } }
+</style>
+</head>
+<body>
+<table class="header">
+  <tr>
+    <td class="org"><div class="name">{{chu_dau_tu.ten}}</div><div class="line"></div></td>
+    <td class="national"><div class="motto">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div><div><b>Độc lập - Tự do - Hạnh phúc</b></div></td>
+  </tr>
+</table>
+
+<div class="date">{{du_an.dia_diem}}, ngày {{ket_qua_lua_chon.ngay}}</div>
+<div class="title">Quyết định</div>
+<div class="subtitle">Số: {{ket_qua_lua_chon.so}}/QĐ-...<br>Về việc phê duyệt kết quả lựa chọn nhà thầu gói thầu {{goi_thau.ten}}</div>
+
+<p><b>{{chu_dau_tu.ten}}</b></p>
+<p>Căn cứ Luật Đấu thầu số 22/2023/QH15 và các văn bản sửa đổi, bổ sung;</p>
+<p>Căn cứ Nghị định số 214/2025/NĐ-CP của Chính phủ quy định chi tiết một số điều và biện pháp thi hành Luật Đấu thầu về lựa chọn nhà thầu;</p>
+<p>Căn cứ Quyết định phê duyệt kế hoạch lựa chọn nhà thầu số {{khlcnt.so}} ngày {{khlcnt.ngay}};</p>
+<p>Căn cứ hồ sơ mời thầu/hồ sơ yêu cầu, hồ sơ dự thầu/hồ sơ đề xuất và báo cáo đánh giá;</p>
+<p>Căn cứ Tờ trình số {{ket_qua_lua_chon.so}} ngày {{ket_qua_lua_chon.ngay}} của {{don_vi_trinh.ten}},</p>
+
+<p><b>QUYẾT ĐỊNH:</b></p>
+<p><b>Điều 1.</b> Phê duyệt kết quả lựa chọn nhà thầu gói thầu {{goi_thau.ten}} thuộc dự án {{du_an.ten}} như sau:</p>
+<p class="item">- Nhà thầu trúng thầu: {{ket_qua_lua_chon.nha_thau_trung}}.</p>
+<p class="item">- Giá trúng thầu: {{ket_qua_lua_chon.gia_trung_thau}} đồng.</p>
+<p class="item">- Loại hợp đồng: {{hop_dong.loai}}.</p>
+<p class="item">- Thời gian thực hiện: {{ket_qua_lua_chon.thoi_gian}}.</p>
+<p class="item">- Hình thức lựa chọn: {{khlcnt.hinh_thuc}}.</p>
+
+<p><b>Điều 2.</b> Giao {{don_vi_trinh.ten}} hoàn thiện và ký kết hợp đồng với nhà thầu trúng thầu; công khai kết quả lựa chọn nhà thầu theo quy định; quản lý thực hiện hợp đồng bảo đảm tiến độ, chất lượng và hiệu quả.</p>
+<p><b>Điều 3.</b> Quyết định này có hiệu lực kể từ ngày ký. Các đơn vị có liên quan chịu trách nhiệm thi hành Quyết định này./.</p>
+
+<table class="signatures">
+  <tr>
+    <td>
+      <div><b>Nơi nhận:</b></div>
+      <div>- Như Điều 2;</div>
+      <div>- Lưu: VT.</div>
+    </td>
+    <td>
+      <div class="role">Đại diện chủ đầu tư</div>
+      <div class="space"></div>
+      <div>{{chu_dau_tu.dai_dien}}</div>
+    </td>
+  </tr>
+</table>
+
+<p class="note no-print">Mẫu tham khảo cho đấu thầu không qua mạng. Với đấu thầu qua mạng, dùng mẫu Phụ lục 5 TT 79/2025/TT-BTC.</p>
+</body>
+</html>

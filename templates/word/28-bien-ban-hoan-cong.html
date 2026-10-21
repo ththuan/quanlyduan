@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Biên bản hoàn công</title>
+<style>
+  @page { size: A4; margin: 20mm 18mm; }
+  body { font-family: "Times New Roman", serif; font-size: 12pt; line-height: 1.35; color: #000; }
+  .header { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+  .header td { border: none; padding: 0; vertical-align: top; }
+  .org { text-align: center; width: 45%; }
+  .org .name { font-weight: bold; text-transform: uppercase; }
+  .org .line { border-top: 1px solid #000; width: 60%; margin: 4px auto 0; }
+  .national { text-align: center; width: 55%; }
+  .national .motto { font-weight: bold; }
+  .date { text-align: right; font-style: italic; margin: 10px 0 6px; }
+  .title { text-align: center; font-weight: bold; font-size: 14pt; text-transform: uppercase; margin: 10px 0 2px; }
+  .subtitle { text-align: center; font-style: italic; margin-bottom: 12px; }
+  p { margin: 6px 0; text-align: justify; }
+  .item { margin: 6px 0 6px 18px; }
+  .signatures { width: 100%; margin-top: 26px; border-collapse: collapse; }
+  .signatures td { border: none; width: 33.33%; text-align: center; vertical-align: top; }
+  .signatures .role { font-weight: bold; text-transform: uppercase; }
+  .signatures .space { height: 70px; }
+  .note { font-size: 10pt; font-style: italic; color: #444; margin-top: 18px; }
+  @media print { .no-print { display: none; } }
+</style>
+</head>
+<body>
+<table class="header">
+  <tr>
+    <td class="org"><div class="name">{{chu_dau_tu.ten}}</div><div class="line"></div></td>
+    <td class="national"><div class="motto">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div><div><b>Độc lập - Tự do - Hạnh phúc</b></div></td>
+  </tr>
+</table>
+
+<div class="date">{{nghiem_thu.dia_diem}}, ngày {{hoan_cong.ngay}}</div>
+<div class="title">Biên bản hoàn công</div>
+<div class="subtitle">Số: {{hoan_cong.so}}<br>Công trình: {{du_an.ten}}<br>Hạng mục: {{nghiem_thu.hang_muc}}</div>
+
+<p>Căn cứ Hợp đồng số {{hop_dong.so}} ngày {{hop_dong.ngay}} giữa {{chu_dau_tu.ten}} và {{nha_thau.ten}};</p>
+<p>Căn cứ Biên bản nghiệm thu hoàn thành công trình số {{nghiem_thu.so}} ngày {{nghiem_thu.ngay}};</p>
+<p>Hôm nay, ngày {{hoan_cong.ngay}} tại {{nghiem_thu.dia_diem}}, chúng tôi gồm:</p>
+
+<p><b>1. Chủ đầu tư:</b> {{chu_dau_tu.ten}} - Đại diện: {{chu_dau_tu.dai_dien}}.</p>
+<p><b>2. Nhà thầu thi công:</b> {{nha_thau.ten}} - Đại diện: {{nha_thau.dai_dien}}.</p>
+<p><b>3. Tư vấn giám sát:</b> {{nghiem_thu.thanh_phan}}.</p>
+
+<p><b>4. Nội dung hoàn công:</b></p>
+<p class="item">- Công trình/hạng mục: {{nghiem_thu.cong_viec}}.</p>
+<p class="item">- Khối lượng hoàn thành: {{nghiem_thu.khoi_luong}}.</p>
+<p class="item">- Hồ sơ hoàn công gồm: {{hoan_cong.tai_lieu}}.</p>
+
+<p><b>5. Kết luận:</b> {{nghiem_thu.ket_luan}}</p>
+
+<table class="signatures">
+  <tr>
+    <td><div class="role">Tư vấn giám sát</div><div class="space"></div><div>{{nghiem_thu.thanh_phan}}</div></td>
+    <td><div class="role">Nhà thầu thi công</div><div class="space"></div><div>{{nha_thau.dai_dien}}</div></td>
+    <td><div class="role">Chủ đầu tư</div><div class="space"></div><div>{{chu_dau_tu.dai_dien}}</div></td>
+  </tr>
+</table>
+
+<p class="note no-print">Mẫu tham khảo. Đối chiếu Luật Xây dựng 135/2025/QH15 và NĐ 207/2026/NĐ-CP về hồ sơ hoàn công.</p>
+</body>
+</html>

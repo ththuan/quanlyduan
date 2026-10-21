@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Báo cáo thẩm định dự án</title>
+<style>
+  @page { size: A4; margin: 20mm 18mm; }
+  body { font-family: "Times New Roman", serif; font-size: 12pt; line-height: 1.35; color: #000; }
+  .header { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+  .header td { border: none; padding: 0; vertical-align: top; }
+  .org { text-align: center; width: 45%; }
+  .org .name { font-weight: bold; text-transform: uppercase; }
+  .org .line { border-top: 1px solid #000; width: 60%; margin: 4px auto 0; }
+  .national { text-align: center; width: 55%; }
+  .national .motto { font-weight: bold; }
+  .date { text-align: right; font-style: italic; margin: 10px 0 6px; }
+  .title { text-align: center; font-weight: bold; font-size: 14pt; text-transform: uppercase; margin: 10px 0 2px; }
+  .subtitle { text-align: center; font-style: italic; margin-bottom: 12px; }
+  p { margin: 6px 0; text-align: justify; }
+  .item { margin: 6px 0 6px 18px; }
+  .signatures { width: 100%; margin-top: 26px; border-collapse: collapse; }
+  .signatures td { border: none; width: 50%; text-align: center; vertical-align: top; }
+  .signatures .role { font-weight: bold; text-transform: uppercase; }
+  .signatures .space { height: 70px; }
+  .note { font-size: 10pt; font-style: italic; color: #444; margin-top: 18px; }
+  @media print { .no-print { display: none; } }
+</style>
+</head>
+<body>
+<table class="header">
+  <tr>
+    <td class="org"><div class="name">{{to_chuc.ten}}</div><div class="line"></div></td>
+    <td class="national"><div class="motto">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div><div><b>Độc lập - Tự do - Hạnh phúc</b></div></td>
+  </tr>
+</table>
+
+<div class="date">{{du_an.dia_diem}}, ngày {{to_chuc.ngay}}</div>
+<div class="title">Báo cáo thẩm định dự án</div>
+<div class="subtitle">Số: {{to_chuc.so}}<br>Dự án: {{du_an.ten}}</div>
+
+<p>Căn cứ Luật Xây dựng số 135/2025/QH15 và các văn bản hướng dẫn thi hành;</p>
+<p>Căn cứ Quyết định chấp thuận chủ trương đầu tư số {{chu_truong.so}} ngày {{chu_truong.ngay}};</p>
+<p>Căn cứ hồ sơ Báo cáo kinh tế - kỹ thuật/Báo cáo nghiên cứu khả thi do {{don_vi_trinh.ten}} trình;</p>
+<p>Căn cứ Quyết định thành lập tổ thẩm định số {{to_chuc.so}} ngày {{to_chuc.ngay}},</p>
+
+<p><b>1. Thông tin dự án:</b></p>
+<p class="item">- Tên dự án: {{du_an.ten}}.</p>
+<p class="item">- Địa điểm: {{du_an.dia_diem}}.</p>
+<p class="item">- Mục tiêu: {{du_an.muc_tieu}}.</p>
+<p class="item">- Quy mô: {{du_an.quy_mo}}.</p>
+<p class="item">- Tổng mức đầu tư: {{du_an.tong_muc}} đồng.</p>
+<p class="item">- Nguồn vốn: {{du_an.nguon_von}}.</p>
+<p class="item">- Thời gian thực hiện: {{du_an.thoi_gian}}.</p>
+
+<p><b>2. Nội dung thẩm định:</b></p>
+<p class="item">a) Sự cần thiết và mục tiêu đầu tư: phù hợp với chủ trương, quy hoạch và nhu cầu thực tế.</p>
+<p class="item">b) Quy mô, công suất, giải pháp kỹ thuật: đáp ứng yêu cầu sử dụng và quy chuẩn kỹ thuật.</p>
+<p class="item">c) Tổng mức đầu tư, cơ cấu chi phí: cơ bản phù hợp với định mức, đơn giá và thị trường.</p>
+<p class="item">d) Nguồn vốn và khả năng cân đối: bảo đảm theo kế hoạch bố trí vốn.</p>
+<p class="item">đ) Tiến độ, tổ chức thực hiện: phù hợp với điều kiện thực tế của đơn vị.</p>
+
+<p><b>3. Kết luận và kiến nghị:</b></p>
+<p class="item">{{to_chuc.thanh_vien}}</p>
+<p class="item">Đề nghị {{chu_dau_tu.ten}} xem xét, phê duyệt dự án theo quy định./.</p>
+
+<table class="signatures">
+  <tr>
+    <td>
+      <div><b>Nơi nhận:</b></div>
+      <div>- Như trên;</div>
+      <div>- Lưu: VT.</div>
+    </td>
+    <td>
+      <div class="role">Tổ trưởng tổ thẩm định</div>
+      <div class="space"></div>
+      <div>{{to_chuc.to_truong}}</div>
+    </td>
+  </tr>
+</table>
+
+<p class="note no-print">Mẫu tham khảo. Đối chiếu Luật Xây dựng 135/2025/QH15 Điều 26 và quy định chuyên ngành.</p>
+</body>
+</html>

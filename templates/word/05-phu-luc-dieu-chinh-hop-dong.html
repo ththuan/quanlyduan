@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Phụ lục điều chỉnh hợp đồng</title>
+<style>
+  @page { size: A4; margin: 20mm 18mm; }
+  body { font-family: "Times New Roman", serif; font-size: 12pt; line-height: 1.35; color: #000; }
+  .header { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+  .header td { border: none; padding: 0; vertical-align: top; }
+  .org { text-align: center; width: 45%; }
+  .org .name { font-weight: bold; text-transform: uppercase; }
+  .org .line { border-top: 1px solid #000; width: 60%; margin: 4px auto 0; }
+  .national { text-align: center; width: 55%; }
+  .national .motto { font-weight: bold; }
+  .date { text-align: right; font-style: italic; margin: 10px 0 6px; }
+  .title { text-align: center; font-weight: bold; font-size: 14pt; text-transform: uppercase; margin: 10px 0 2px; }
+  .subtitle { text-align: center; margin-bottom: 12px; }
+  p { margin: 6px 0; text-align: justify; }
+  .item { margin: 6px 0 6px 18px; }
+  .signatures { width: 100%; margin-top: 26px; border-collapse: collapse; }
+  .signatures td { border: none; width: 50%; text-align: center; vertical-align: top; }
+  .signatures .role { font-weight: bold; text-transform: uppercase; }
+  .signatures .space { height: 70px; }
+  .note { font-size: 10pt; font-style: italic; color: #444; margin-top: 18px; }
+  @media print { .no-print { display: none; } }
+</style>
+</head>
+<body>
+<table class="header">
+  <tr>
+    <td class="org">
+      <div class="name">{{chu_dau_tu.ten}}</div>
+      <div class="line"></div>
+    </td>
+    <td class="national">
+      <div class="motto">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
+      <div><b>Độc lập - Tự do - Hạnh phúc</b></div>
+    </td>
+  </tr>
+</table>
+
+<div class="date">{{nghiem_thu.dia_diem}}, ngày {{phu_luc.ngay}}</div>
+
+<div class="title">Phụ lục hợp đồng</div>
+<div class="subtitle">Số: {{phu_luc.so}}<br>(Về việc điều chỉnh Hợp đồng số {{hop_dong.so}} ngày {{hop_dong.ngay}})</div>
+
+<p><b>Gói thầu:</b> {{goi_thau.ten}}</p>
+<p><b>Dự án:</b> {{du_an.ten}}</p>
+
+<p><b>I. CÁC CĂN CỨ:</b></p>
+<p class="item">Căn cứ Hợp đồng số {{hop_dong.so}} ngày {{hop_dong.ngay}} giữa {{chu_dau_tu.ten}} và {{nha_thau.ten}};</p>
+<p class="item">Căn cứ các văn bản pháp lý và quyết định có liên quan đến việc điều chỉnh hợp đồng;</p>
+<p class="item">Căn cứ nhu cầu thực tế và thỏa thuận của hai bên.</p>
+
+<p><b>II. CÁC ĐIỀU KHOẢN VÀ ĐIỀU KIỆN CỦA PHỤ LỤC</b></p>
+<p>Hôm nay, ngày {{phu_luc.ngay}}, tại {{nghiem_thu.dia_diem}}, chúng tôi gồm:</p>
+<p><b>1. Đại diện chủ đầu tư:</b> {{chu_dau_tu.ten}}</p>
+<p class="item">Đại diện ông/bà: {{chu_dau_tu.dai_dien}} &nbsp;&nbsp; Chức vụ: {{chu_dau_tu.chuc_vu}}</p>
+<p class="item">Địa chỉ: {{chu_dau_tu.dia_chi}}</p>
+<p class="item">Mã số thuế: {{chu_dau_tu.ma_so_thue}}</p>
+<p><b>2. Đại diện nhà thầu:</b> {{nha_thau.ten}}</p>
+<p class="item">Đại diện ông/bà: {{nha_thau.dai_dien}} &nbsp;&nbsp; Chức vụ: {{nha_thau.chuc_vu}}</p>
+<p class="item">Địa chỉ: {{nha_thau.dia_chi}}</p>
+<p class="item">Mã số thuế: {{nha_thau.ma_so_thue}}</p>
+
+<p><b>Điều 1. Nội dung điều chỉnh</b></p>
+<p class="item"><b>Nội dung trước khi điều chỉnh:</b> {{phu_luc.noi_dung_truoc}}</p>
+<p class="item"><b>Nội dung sau khi điều chỉnh:</b> {{phu_luc.noi_dung_sau}}</p>
+<p class="item"><b>Lý do điều chỉnh:</b> {{phu_luc.ly_do}}</p>
+
+<p><b>Điều 2. Điều khoản chung</b></p>
+<p class="item">- Phụ lục này là một phần không tách rời của Hợp đồng số {{hop_dong.so}} ngày {{hop_dong.ngay}}.</p>
+<p class="item">- Các điều khoản khác của Hợp đồng không được đề cập trong Phụ lục này vẫn giữ nguyên hiệu lực.</p>
+<p class="item">- Phụ lục được lập thành {{hop_dong.so_ban}} bản có giá trị pháp lý như nhau; Bên A giữ {{hop_dong.so_ban_a}} bản, Bên B giữ {{hop_dong.so_ban_b}} bản.</p>
+<p class="item">- Phụ lục có hiệu lực kể từ ngày ký.</p>
+
+<table class="signatures">
+  <tr>
+    <td>
+      <div class="role">Đại diện nhà thầu</div>
+      <div class="space"></div>
+      <div>{{nha_thau.dai_dien}}</div>
+    </td>
+    <td>
+      <div class="role">Đại diện chủ đầu tư</div>
+      <div class="space"></div>
+      <div>{{chu_dau_tu.dai_dien}}</div>
+    </td>
+  </tr>
+</table>
+
+<p class="note no-print">Mẫu tham khảo nghiệp vụ. Đối chiếu Luật Đấu thầu Điều 70 và NĐ 214/2025/NĐ-CP Điều 114, 115; với hợp đồng xây dựng đối chiếu NĐ 210/2026/NĐ-CP.</p>
+</body>
+</html>

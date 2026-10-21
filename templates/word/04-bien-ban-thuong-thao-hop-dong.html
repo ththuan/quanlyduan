@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Biên bản thương thảo hợp đồng</title>
+<style>
+  @page { size: A4; margin: 20mm 18mm; }
+  body { font-family: "Times New Roman", serif; font-size: 12pt; line-height: 1.35; color: #000; }
+  .header { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+  .header td { border: none; padding: 0; vertical-align: top; }
+  .org { text-align: center; width: 45%; }
+  .org .name { font-weight: bold; text-transform: uppercase; }
+  .org .line { border-top: 1px solid #000; width: 60%; margin: 4px auto 0; }
+  .national { text-align: center; width: 55%; }
+  .national .motto { font-weight: bold; }
+  .date { text-align: right; font-style: italic; margin: 10px 0 6px; }
+  .title { text-align: center; font-weight: bold; font-size: 14pt; text-transform: uppercase; margin: 10px 0 2px; }
+  .subtitle { text-align: center; font-style: italic; margin-bottom: 12px; }
+  p { margin: 6px 0; text-align: justify; }
+  .item { margin: 6px 0 6px 18px; }
+  .signatures { width: 100%; margin-top: 26px; border-collapse: collapse; }
+  .signatures td { border: none; width: 50%; text-align: center; vertical-align: top; }
+  .signatures .role { font-weight: bold; text-transform: uppercase; }
+  .signatures .space { height: 70px; }
+  .note { font-size: 10pt; font-style: italic; color: #444; margin-top: 18px; }
+  @media print { .no-print { display: none; } }
+</style>
+</head>
+<body>
+<table class="header">
+  <tr>
+    <td class="org">
+      <div class="name">{{chu_dau_tu.ten}}</div>
+      <div class="line"></div>
+    </td>
+    <td class="national">
+      <div class="motto">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
+      <div><b>Độc lập - Tự do - Hạnh phúc</b></div>
+    </td>
+  </tr>
+</table>
+
+<div class="date">{{nghiem_thu.dia_diem}}, ngày {{nghiem_thu.ngay}}</div>
+
+<div class="title">Biên bản thương thảo hợp đồng</div>
+<div class="subtitle">Số: {{hop_dong.so}}/BBTT<br>Gói thầu: {{goi_thau.ten}}<br>Dự án: {{du_an.ten}}</div>
+
+<p>Căn cứ Hồ sơ yêu cầu/hồ sơ mời thầu và kết quả lựa chọn nhà thầu gói thầu {{goi_thau.ten}};</p>
+<p>Căn cứ Quyết định phê duyệt kết quả lựa chọn nhà thầu số {{hop_dong.so}} ngày {{hop_dong.ngay}};</p>
+<p>Hôm nay, ngày {{hop_dong.ngay}} tại {{nghiem_thu.dia_diem}}, chúng tôi gồm:</p>
+
+<p><b>1. Bên giao thầu (Bên A):</b> {{chu_dau_tu.ten}}</p>
+<p class="item">Địa chỉ: {{chu_dau_tu.dia_chi}}</p>
+<p class="item">Đại diện ông/bà: {{chu_dau_tu.dai_dien}} &nbsp;&nbsp; Chức vụ: {{chu_dau_tu.chuc_vu}}</p>
+<p class="item">Điện thoại: {{chu_dau_tu.dien_thoai}} &nbsp;&nbsp; Email: {{chu_dau_tu.email}}</p>
+
+<p><b>2. Bên nhận thầu (Bên B):</b> {{nha_thau.ten}}</p>
+<p class="item">Địa chỉ: {{nha_thau.dia_chi}}</p>
+<p class="item">Đại diện ông/bà: {{nha_thau.dai_dien}} &nbsp;&nbsp; Chức vụ: {{nha_thau.chuc_vu}}</p>
+<p class="item">Điện thoại: {{nha_thau.dien_thoai}}</p>
+<p class="item">Mã số thuế: {{nha_thau.ma_so_thue}}</p>
+
+<p>Hai bên tiến hành thương thảo, hoàn thiện các nội dung sau:</p>
+
+<p><b>1. Về giá:</b> Giá đề nghị trúng thầu là {{hop_dong.gia_tri}} đồng ({{hop_dong.gia_tri_bang_chu}}), không vượt giá gói thầu được duyệt. Hai bên thống nhất giá hợp đồng là {{hop_dong.gia_tri}} đồng.</p>
+<p><b>2. Về khối lượng, phạm vi công việc:</b> Theo hồ sơ yêu cầu/hồ sơ mời thầu và hồ sơ đề xuất/hồ sơ dự thầu của nhà thầu; hai bên thống nhất phạm vi công việc như Phụ lục kèm theo.</p>
+<p><b>3. Về tiến độ, thời gian thực hiện:</b> {{hop_dong.thoi_han}} kể từ ngày hợp đồng có hiệu lực.</p>
+<p><b>4. Về chất lượng, nghiệm thu:</b> Theo tiêu chuẩn, quy chuẩn kỹ thuật và yêu cầu của hồ sơ yêu cầu/hồ sơ mời thầu.</p>
+<p><b>5. Về tạm ứng, thanh toán:</b> Mức tạm ứng {{hop_dong.tam_ung}} đồng; thanh toán theo khối lượng nghiệm thu thực tế và điều khoản hợp đồng.</p>
+<p><b>6. Các nội dung khác:</b> Hai bên thống nhất bổ sung/điều chỉnh (nếu có) các điều khoản về bảo đảm thực hiện hợp đồng, bảo hành, bảo hiểm, phạt vi phạm và giải quyết tranh chấp theo quy định.</p>
+
+<p><b>Kết luận:</b> Hai bên thống nhất các nội dung nêu trên làm cơ sở ký kết hợp đồng. Biên bản này là một phần của hồ sơ hợp đồng.</p>
+
+<table class="signatures">
+  <tr>
+    <td>
+      <div class="role">Đại diện Bên A</div>
+      <div class="space"></div>
+      <div>{{chu_dau_tu.dai_dien}}</div>
+    </td>
+    <td>
+      <div class="role">Đại diện Bên B</div>
+      <div class="space"></div>
+      <div>{{nha_thau.dai_dien}}</div>
+    </td>
+  </tr>
+</table>
+
+<p class="note no-print">Mẫu tham khảo nghiệp vụ. Có thể dùng Phụ lục 4B/4C của TT 79/2025/TT-BTC cho gói thầu qua mạng.</p>
+</body>
+</html>

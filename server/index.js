@@ -109,6 +109,7 @@ app.get('/', (req, res) => res.sendFile(path.join(ROOT_DIR, 'index.html'), { hea
 app.get('/index.html', (req, res) => res.sendFile(path.join(ROOT_DIR, 'index.html'), { headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' } }));
 app.get('/login.html', (req, res) => res.sendFile(path.join(ROOT_DIR, 'login.html'), { headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' } }));
 app.get('/app.js', (req, res) => res.sendFile(path.join(ROOT_DIR, 'app.js'), { headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' } }));
+app.get('/templates-ui.js', (req, res) => res.sendFile(path.join(ROOT_DIR, 'templates-ui.js'), { headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Content-Type': 'application/javascript; charset=utf-8' } }));
 app.get('/legal-ui.js', (req, res) => res.sendFile(path.join(ROOT_DIR, 'legal-ui.js'), { headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' } }));
 app.get('/wiki-ui.js', (req, res) => res.sendFile(path.join(ROOT_DIR, 'wiki-ui.js'), { headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' } }));
 app.get('/login.js', (req, res) => res.sendFile(path.join(ROOT_DIR, 'login.js'), { headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' } }));
@@ -123,6 +124,25 @@ app.get('/assets/inter-latin.woff2', (req, res) => res.sendFile(path.join(ROOT_D
 app.get('/assets/pdf.min.js', (req, res) => res.sendFile(path.join(ROOT_DIR, 'assets', 'pdf.min.js'), { headers: { 'Cache-Control': 'public, max-age=31536000, immutable' } }));
 app.get('/assets/pdf.worker.min.js', (req, res) => res.sendFile(path.join(ROOT_DIR, 'assets', 'pdf.worker.min.js'), { headers: { 'Cache-Control': 'public, max-age=31536000, immutable' } }));
 app.get('/assets/Mau-Tinh-Hinh-Thuc-Hien-Du-An.xlsx', (req, res) => res.sendFile(path.join(ROOT_DIR, 'assets', 'Mau-Tinh-Hinh-Thuc-Hien-Du-An.xlsx'), { headers: { 'Cache-Control': 'public, max-age=3600' } }));
+
+// ---- Thư viện mẫu biểu (Word/Excel) ----
+app.use('/templates', express.static(path.join(ROOT_DIR, 'templates'), {
+  dotfiles: 'deny',
+  setHeaders(res, filePath) {
+    if (filePath.endsWith('.xlsx')) res.setHeader('Cache-Control', 'public, max-age=3600');
+    else res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  }
+}));
+
+// SheetJS bản trình duyệt, chỉ tải khi người dùng xuất Excel từ thư viện mẫu.
+app.get('/assets/xlsx.full.min.js', (req, res) => {
+  res.sendFile(path.join(ROOT_DIR, 'server', 'node_modules', 'xlsx', 'dist', 'xlsx.full.min.js'), {
+    headers: {
+      'Cache-Control': 'public, max-age=31536000, immutable',
+      'Content-Type': 'application/javascript; charset=utf-8'
+    }
+  });
+});
 
 // ---- Auth API ----
 // Rate limiter đơn giản theo IP (in-memory)

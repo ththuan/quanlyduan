@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Hợp đồng tư vấn</title>
+<style>
+  @page { size: A4; margin: 20mm 18mm; }
+  body { font-family: "Times New Roman", serif; font-size: 12pt; line-height: 1.35; color: #000; }
+  .header { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+  .header td { border: none; padding: 0; vertical-align: top; }
+  .org { text-align: center; width: 45%; }
+  .org .name { font-weight: bold; text-transform: uppercase; }
+  .org .line { border-top: 1px solid #000; width: 60%; margin: 4px auto 0; }
+  .national { text-align: center; width: 55%; }
+  .national .motto { font-weight: bold; }
+  .date { text-align: right; font-style: italic; margin: 10px 0 6px; }
+  .title { text-align: center; font-weight: bold; font-size: 15pt; text-transform: uppercase; margin: 10px 0 2px; }
+  .subtitle { text-align: center; margin-bottom: 12px; }
+  p { margin: 6px 0; text-align: justify; }
+  .item { margin: 6px 0 6px 18px; }
+  .signatures { width: 100%; margin-top: 26px; border-collapse: collapse; }
+  .signatures td { border: none; width: 50%; text-align: center; vertical-align: top; }
+  .signatures .role { font-weight: bold; text-transform: uppercase; }
+  .signatures .space { height: 70px; }
+  .note { font-size: 10pt; font-style: italic; color: #444; margin-top: 18px; }
+  @media print { .no-print { display: none; } }
+</style>
+</head>
+<body>
+<table class="header">
+  <tr>
+    <td class="org">
+      <div class="name">{{chu_dau_tu.ten}}</div>
+      <div class="line"></div>
+    </td>
+    <td class="national">
+      <div class="motto">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
+      <div><b>Độc lập - Tự do - Hạnh phúc</b></div>
+    </td>
+  </tr>
+</table>
+
+<div class="date">{{nghiem_thu.dia_diem}}, ngày {{hop_dong.ngay}}</div>
+
+<div class="title">Hợp đồng tư vấn</div>
+<div class="subtitle">Số: {{hop_dong.so}}<br>Gói thầu: {{goi_thau.ten}}<br>Dự án: {{du_an.ten}}</div>
+
+<p>Căn cứ Luật Đấu thầu số 22/2023/QH15 và các văn bản sửa đổi, bổ sung;</p>
+<p>Căn cứ Nghị định số 214/2025/NĐ-CP của Chính phủ quy định chi tiết một số điều và biện pháp thi hành Luật Đấu thầu về lựa chọn nhà thầu;</p>
+<p>Căn cứ Quyết định phê duyệt kết quả lựa chọn nhà thầu số {{quyet_dinh.so}} ngày {{quyet_dinh.ngay}} đối với gói thầu {{goi_thau.ten}};</p>
+<p>Hôm nay, ngày {{hop_dong.ngay}}, tại {{nghiem_thu.dia_diem}}, chúng tôi gồm:</p>
+
+<p><b>Bên A - Bên giao thầu:</b> {{chu_dau_tu.ten}}</p>
+<p class="item">Địa chỉ: {{chu_dau_tu.dia_chi}}</p>
+<p class="item">Đại diện ông/bà: {{chu_dau_tu.dai_dien}} &nbsp;&nbsp; Chức vụ: {{chu_dau_tu.chuc_vu}}</p>
+<p class="item">Điện thoại: {{chu_dau_tu.dien_thoai}} &nbsp;&nbsp; Email: {{chu_dau_tu.email}}</p>
+<p class="item">Tài khoản: {{chu_dau_tu.tai_khoan_kbnn}} &nbsp;&nbsp; Mã số thuế: {{chu_dau_tu.ma_so_thue}}</p>
+
+<p><b>Bên B - Bên nhận thầu:</b> {{nha_thau.ten}}</p>
+<p class="item">Địa chỉ: {{nha_thau.dia_chi}}</p>
+<p class="item">Đại diện ông/bà: {{nha_thau.dai_dien}} &nbsp;&nbsp; Chức vụ: {{nha_thau.chuc_vu}}</p>
+<p class="item">Điện thoại: {{nha_thau.dien_thoai}}</p>
+<p class="item">Tài khoản: {{nha_thau.tai_khoan}} tại {{nha_thau.ngan_hang}}</p>
+<p class="item">Mã số thuế: {{nha_thau.ma_so_thue}}</p>
+
+<p>Hai bên thống nhất ký kết hợp đồng với các điều khoản sau:</p>
+
+<p><b>Điều 1. Đối tượng và phạm vi hợp đồng</b></p>
+<p class="item">Bên B thực hiện dịch vụ tư vấn: {{goi_thau.ten}} thuộc dự án {{du_an.ten}}, với phạm vi công việc theo hồ sơ yêu cầu/hồ sơ mời thầu và hồ sơ đề xuất/hồ sơ dự thầu của Bên B.</p>
+
+<p><b>Điều 2. Thời gian và tiến độ thực hiện</b></p>
+<p class="item">Thời gian thực hiện: {{hop_dong.thoi_han}} kể từ ngày hợp đồng có hiệu lực. Tiến độ chi tiết theo Phụ lục tiến độ kèm theo.</p>
+
+<p><b>Điều 3. Giá trị hợp đồng, tạm ứng và thanh toán</b></p>
+<p class="item">Giá trị hợp đồng: {{hop_dong.gia_tri}} đồng ({{hop_dong.gia_tri_bang_chu}}), đã bao gồm thuế GTGT và các chi phí theo quy định.</p>
+<p class="item">Tạm ứng: {{hop_dong.tam_ung}} đồng. Thanh toán theo khối lượng/sản phẩm nghiệm thu thực tế và điều khoản của hợp đồng.</p>
+<p class="item">Đồng tiền thanh toán: Việt Nam đồng. Hình thức: chuyển khoản.</p>
+
+<p><b>Điều 4. Quyền và nghĩa vụ của các bên</b></p>
+<p class="item">Bên A có trách nhiệm cung cấp thông tin, tài liệu, tạo điều kiện và thanh toán đầy đủ, đúng hạn theo hợp đồng.</p>
+<p class="item">Bên B có trách nhiệm thực hiện đúng phạm vi, chất lượng, tiến độ; chịu trách nhiệm về sản phẩm tư vấn và bảo mật thông tin theo quy định.</p>
+
+<p><b>Điều 5. Nghiệm thu, bàn giao và thanh lý</b></p>
+<p class="item">Sản phẩm tư vấn được nghiệm thu theo biên bản nghiệm thu. Hai bên thanh lý hợp đồng sau khi hoàn thành nghĩa vụ theo quy định.</p>
+
+<p><b>Điều 6. Bảo hành, tranh chấp và điều khoản chung</b></p>
+<p class="item">Thời gian bảo hành (nếu có): theo quy định của pháp luật và thỏa thuận của hai bên. Tranh chấp được giải quyết trên cơ sở thương lượng; nếu không thống nhất thì giải quyết theo quy định của pháp luật.</p>
+<p class="item">Hợp đồng có hiệu lực kể từ ngày ký. Hai bên cam kết thực hiện đầy đủ các điều khoản đã thỏa thuận.</p>
+
+<table class="signatures">
+  <tr>
+    <td>
+      <div class="role">Đại diện Bên A</div>
+      <div class="space"></div>
+      <div>{{chu_dau_tu.dai_dien}}</div>
+    </td>
+    <td>
+      <div class="role">Đại diện Bên B</div>
+      <div class="space"></div>
+      <div>{{nha_thau.dai_dien}}</div>
+    </td>
+  </tr>
+</table>
+
+<p class="note no-print">Mẫu khung tham khảo cho tư vấn không thuộc lĩnh vực xây dựng. Với tư vấn xây dựng, dùng mẫu chính thức tại QĐ 1040/QĐ-BXD và đối chiếu NĐ 210/2026/NĐ-CP.</p>
+</body>
+</html>

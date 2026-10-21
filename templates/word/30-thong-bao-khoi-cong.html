@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Thông báo khởi công xây dựng</title>
+<style>
+  @page { size: A4; margin: 20mm 18mm; }
+  body { font-family: "Times New Roman", serif; font-size: 12pt; line-height: 1.35; color: #000; }
+  .header { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+  .header td { border: none; padding: 0; vertical-align: top; }
+  .org { text-align: center; width: 45%; }
+  .org .name { font-weight: bold; text-transform: uppercase; }
+  .org .line { border-top: 1px solid #000; width: 60%; margin: 4px auto 0; }
+  .national { text-align: center; width: 55%; }
+  .national .motto { font-weight: bold; }
+  .date { text-align: right; font-style: italic; margin: 10px 0 6px; }
+  .title { text-align: center; font-weight: bold; font-size: 14pt; text-transform: uppercase; margin: 10px 0 2px; }
+  .subtitle { text-align: center; font-style: italic; margin-bottom: 12px; }
+  p { margin: 6px 0; text-align: justify; }
+  .item { margin: 6px 0 6px 18px; }
+  .signatures { width: 100%; margin-top: 26px; border-collapse: collapse; }
+  .signatures td { border: none; width: 50%; text-align: center; vertical-align: top; }
+  .signatures .role { font-weight: bold; text-transform: uppercase; }
+  .signatures .space { height: 70px; }
+  .note { font-size: 10pt; font-style: italic; color: #444; margin-top: 18px; }
+  @media print { .no-print { display: none; } }
+</style>
+</head>
+<body>
+<table class="header">
+  <tr>
+    <td class="org"><div class="name">{{chu_dau_tu.ten}}</div><div class="line"></div></td>
+    <td class="national"><div class="motto">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div><div><b>Độc lập - Tự do - Hạnh phúc</b></div></td>
+  </tr>
+</table>
+
+<div class="date">{{du_an.dia_diem}}, ngày {{thong_bao.ngay}}</div>
+<div class="title">Thông báo khởi công xây dựng</div>
+<div class="subtitle">Số: {{thong_bao.so}}<br>Công trình: {{du_an.ten}}</div>
+
+<p><b>Kính gửi:</b> {{thong_bao.dia_diem}} và các đơn vị có liên quan.</p>
+
+<p>Căn cứ Luật Xây dựng số 135/2025/QH15;</p>
+<p>Căn cứ Quyết định phê duyệt dự án số {{du_an.so}} ngày {{du_an.ngay}};</p>
+<p>Căn cứ Hợp đồng số {{hop_dong.so}} ngày {{hop_dong.ngay}} giữa {{chu_dau_tu.ten}} và {{nha_thau.ten}};</p>
+<p>Căn cứ giấy phép xây dựng (nếu có) và các điều kiện khởi công theo quy định;</p>
+
+<p><b>1. Tên công trình:</b> {{du_an.ten}}</p>
+<p><b>2. Địa điểm xây dựng:</b> {{du_an.dia_diem}}</p>
+<p><b>3. Quy mô công trình:</b> {{du_an.quy_mo}}</p>
+<p><b>4. Chủ đầu tư:</b> {{chu_dau_tu.ten}}</p>
+<p><b>5. Nhà thầu thi công:</b> {{nha_thau.ten}}</p>
+<p><b>6. Tư vấn giám sát:</b> {{nghiem_thu.thanh_phan}}</p>
+<p><b>7. Thời gian khởi công:</b> {{thong_bao.thoi_gian}}</p>
+<p><b>8. Thời gian hoàn thành dự kiến:</b> {{hop_dong.thoi_han}}</p>
+
+<p>{{chu_dau_tu.ten}} thông báo khởi công xây dựng công trình để các cơ quan, đơn vị có liên quan biết và phối hợp quản lý theo quy định./.</p>
+
+<table class="signatures">
+  <tr>
+    <td>
+      <div><b>Nơi nhận:</b></div>
+      <div>- Như trên;</div>
+      <div>- Lưu: VT.</div>
+    </td>
+    <td>
+      <div class="role">Đại diện chủ đầu tư</div>
+      <div class="space"></div>
+      <div>{{chu_dau_tu.dai_dien}}</div>
+    </td>
+  </tr>
+</table>
+
+<p class="note no-print">Mẫu tham khảo. Đối chiếu Luật Xây dựng 135/2025/QH15 Điều 48 và quy định của địa phương.</p>
+</body>
+</html>
