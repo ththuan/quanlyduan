@@ -10,6 +10,19 @@ const WorkflowCatalog = (typeof window !== 'undefined' && window.WorkflowCatalog
 let workflowPackageId = '';
 let wfCurrentNodes = new Map();
 let wfCurrentWorkflow = null;
+const WF_REMIND_DAYS = 7;
+
+function wfDueIso(value) {
+  if (!value) return '';
+  const s = String(value).trim();
+  if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s) && typeof toIso === 'function') return toIso(s);
+  return s.slice(0, 10);
+}
+
+function wfDueDmy(value) {
+  const iso = wfDueIso(value);
+  return iso && typeof toDmy === 'function' ? toDmy(iso) : iso;
+}
 
 function wfEsc(value) {
   return typeof esc === 'function' ? esc(String(value ?? '')) : String(value ?? '');
@@ -75,6 +88,8 @@ function wfPackageTypeLabel(type) {
 function wfRenderWorkflowView() {
   const container = document.getElementById('workflow-container');
   const toolbar = document.getElementById('workflow-toolbar');
+  const remindersBox = document.getElementById('workflow-reminders');
+  if (remindersBox) remindersBox.innerHTML = '';
   if (!container) return;
   if (!WorkflowCatalog || typeof WorkflowCatalog.build !== 'function') {
     container.innerHTML = '<div class="wf-empty">Không tải được dữ liệu cây quy trình.</div>';
@@ -104,6 +119,16 @@ function wfRenderWorkflowView() {
   const groups = workflowPackageId === 'all'
     ? workflow.packages
     : workflow.packages.filter(g => g.pkg.id === workflowPackageId);
+  wfRenderReminders(workflow, groups, project);
+  const remindersEl = document.getElementById('workflow-reminders');
+  if (remindersEl) {
+    remindersEl.onclick = (e) => {
+      const btn = e.target.closest('[data-wf-reminder]');
+      if (!btn) return;
+      e.preventDefault();
+      wfOpenNodeModal(btn.dataset.wfReminder);
+    };
+  }
 
   const masterGroups = wfGroupByStage(workflow.master);
   const preGroups = masterGroups.filter(([stage]) => wfStageIndex(stage) < wfStageIndex('quyetToan'));
@@ -125,6 +150,12 @@ function wfRenderWorkflowView() {
       : '<div class="wf-empty">Dự án chưa có gói thầu. Thêm gói thầu để sinh cây quy trình chi tiết.</div>');
   container.innerHTML = preHtml + packageHtml + postHtml;
   container.onclick = (e) => {
+    const pkgBtn = e.target.closest('[data-wf-package]');
+    if (pkgBtn) {
+      workflowPackageId = pkgBtn.dataset.wfPackage;
+      wfRenderWorkflowView();
+      return;
+    }
     const btn = e.target.closest('[data-wf-node]');
     if (!btn) return;
     e.preventDefault();
@@ -194,12 +225,22 @@ function wfRenderStage(stage, nodes, project) {
 function wfRenderPackageGroup(group, project) {
   const pkg = group.pkg;
   const progress = wfProgress(group.nodes, project);
-  const open = workflowPackageId !== 'all';
+  if (workflowPackageId === 'all') {
+    return `
+      <div class="wf-package wf-package-overview">
+        <div class="wf-package-summary">
+          <span class="wf-package-name">${wfEsc(pkg.name)}</span>
+          <span class="wf-badge type">${wfEsc(wfPackageTypeLabel(pkg.pkgType))}</span>
+          <span class="wf-stage-progress">${progress.done}/${progress.total}</span>
+          <button class="btn btn-secondary btn-sm" data-wf-package="${wfEsc(pkg.id)}">Mở cây</button>
+        </div>
+      </div>`;
+  }
   const stages = wfGroupByStage(group.nodes)
     .map(([stage, nodes]) => wfRenderStage(stage, nodes, project))
     .join('');
   return `
-    <details class="wf-package" ${open ? 'open' : ''}>
+    <details class="wf-package" open>
       <summary class="wf-package-summary">
         <span class="wf-package-name">${wfEsc(pkg.name)}</span>
         <span class="wf-badge type">${wfEsc(wfPackageTypeLabel(pkg.pkgType))}</span>
@@ -207,6 +248,62 @@ function wfRenderPackageGroup(group, project) {
       </summary>
       <div class="wf-package-body">${stages}</div>
     </details>`;
+}
+
+function wfReminderRows(workflow, groups, project) {
+  const nodes = [];
+  for (const node of workflow.master) nodes.push(node);
+  for (const group of groups) for (const node of group.nodes) nodes.push(node);
+  const rows = [];
+  for (const node of nodes) {
+    const status = wfNodeStatus(project, node.id);
+    if (status === 'done' || status === 'skipped') continue;
+    const rec = wfNodeRecord(project, node.id) || {};
+    const dueIso = wfDueIso(rec.dueDate);
+    const days = dueIso && typeof daysUntil === 'function' ? daysUntil(dueIso) : null;
+    if (days == null && status !== 'blocked') continue;
+    if (days != null && days > WF_REMIND_DAYS && status !== 'blocked') continue;
+    rows.push({ node, rec, dueIso, days, status });
+  }
+  rows.sort((a, b) => (a.days == null ? 9999 : a.days) - (b.days == null ? 9999 : b.days));
+  return rows;
+}
+
+function wfRenderReminders(workflow, groups, project) {
+  const box = document.getElementById('workflow-reminders');
+  if (!box) return;
+  const rows = wfReminderRows(workflow, groups, project);
+  if (!rows.length) {
+    box.innerHTML = '';
+    return;
+  }
+  const items = rows.slice(0, 12).map(row => {
+    const overdue = row.days != null && row.days < 0;
+    const level = overdue || row.status === 'blocked' ? 'danger' : 'warning';
+    const dueLabel = row.days == null
+      ? 'Đang vướng mắc'
+      : (row.days < 0 ? `Quá hạn ${-row.days} ngày` : (row.days === 0 ? 'Đến hạn hôm nay' : `Còn ${row.days} ngày`));
+    const pkg = row.node.packageName ? ` · ${row.node.packageName}` : '';
+    return `
+      <div class="wf-reminder-item ${level}">
+        <div class="wf-reminder-content">
+          <b>${wfEsc(row.node.title)}</b>
+          <span>${wfEsc(wfStageLabel(row.node.stage) + pkg)}</span>
+          <span class="wf-reminder-due">${wfEsc(dueLabel)}${row.dueIso ? ' · hạn ' + wfEsc(wfDueDmy(row.dueIso)) : ''}</span>
+        </div>
+        <button class="btn btn-secondary btn-sm" data-wf-reminder="${wfEsc(row.node.id)}">Cập nhật</button>
+      </div>`;
+  }).join('');
+  box.innerHTML = `
+    <div class="wf-reminders glass-card">
+      <div class="wf-reminders-head">
+        <span class="material-symbols-rounded">notifications_active</span>
+        <b>Nhắc việc quy trình</b>
+        <span class="wf-reminders-count">${rows.length}</span>
+        <span class="wf-reminders-hint">Quá hạn hoặc đến hạn trong ${WF_REMIND_DAYS} ngày tới</span>
+      </div>
+      <div class="wf-reminders-list">${items}</div>
+    </div>`;
 }
 
 function wfRenderNode(node, project) {
@@ -218,6 +315,15 @@ function wfRenderNode(node, project) {
   const metaBits = [];
   if (rec.date) metaBits.push(`<span>Ngày: ${wfEsc(rec.date)}</span>`);
   if (rec.assignee) metaBits.push(`<span>Phụ trách: ${wfEsc(rec.assignee)}</span>`);
+  const dueIso = wfDueIso(rec.dueDate);
+  const dueDays = dueIso && typeof daysUntil === 'function' ? daysUntil(dueIso) : null;
+  if (dueIso) metaBits.push(`<span>Hạn: ${wfEsc(wfDueDmy(dueIso))}</span>`);
+  let dueBadge = '';
+  if (status !== 'done' && status !== 'skipped' && dueDays != null) {
+    if (dueDays < 0) dueBadge = `<span class="wf-badge overdue">Quá hạn ${-dueDays} ngày</span>`;
+    else if (dueDays === 0) dueBadge = '<span class="wf-badge due-soon">Đến hạn hôm nay</span>';
+    else if (dueDays <= WF_REMIND_DAYS) dueBadge = `<span class="wf-badge due-soon">Sắp đến hạn ${dueDays} ngày</span>`;
+  }
   const note = rec.note ? `<div class="wf-node-note">${wfEsc(rec.note)}</div>` : '';
   return `
     <div class="wf-node ${meta.className}">
@@ -227,6 +333,7 @@ function wfRenderNode(node, project) {
           <span class="wf-node-title">${wfEsc(node.title)}</span>
           <span class="wf-badge ${meta.className}">${wfEsc(meta.label)}</span>
           ${optional}
+          ${dueBadge}
         </div>
         ${node.hint ? `<div class="wf-node-hint">${wfEsc(node.hint)}</div>` : ''}
         ${basis ? `<div class="wf-node-basis">Căn cứ: ${wfEsc(basis)}</div>` : ''}
@@ -279,6 +386,10 @@ function wfOpenNodeModal(nodeId) {
         <input id="wf-node-date" type="text" placeholder="dd/mm/yyyy" value="${wfEsc(rec.date || wfToday())}">
       </div>
       <div class="form-group">
+        <label for="wf-node-due">Hạn hoàn thành</label>
+        <input id="wf-node-due" type="text" placeholder="dd/mm/yyyy" value="${wfEsc(wfDueDmy(rec.dueDate))}">
+      </div>
+      <div class="form-group">
         <label for="wf-node-assignee">Người phụ trách</label>
         <input id="wf-node-assignee" type="text" placeholder="Họ tên, đơn vị" value="${wfEsc(rec.assignee || '')}">
       </div>
@@ -297,6 +408,7 @@ function wfOpenNodeModal(nodeId) {
     wfSaveNode(nodeId, {
       status: document.getElementById('wf-node-status').value,
       date: document.getElementById('wf-node-date').value.trim(),
+      dueDate: wfDueIso(document.getElementById('wf-node-due').value.trim()),
       assignee: document.getElementById('wf-node-assignee').value.trim(),
       note: document.getElementById('wf-node-note').value.trim()
     });
@@ -312,6 +424,7 @@ function wfSaveNode(nodeId, data) {
     ...(project.workflow.nodes[nodeId] || {}),
     status: data.status || 'notStarted',
     date: data.date || '',
+    dueDate: data.dueDate || '',
     assignee: data.assignee || '',
     note: data.note || '',
     updatedAt: new Date().toISOString()
@@ -330,6 +443,72 @@ function wfSaveNode(nodeId, data) {
 // Ve lai khi tai lai trang o tab workflow
 if (typeof state !== 'undefined' && state.currentView === 'workflow') {
   wfRenderWorkflowView();
+}
+
+// Cảnh báo quy trình dùng chung cho dashboard (computeAlerts gọi nếu có).
+function computeWorkflowAlerts(project) {
+  if (!project || !WorkflowCatalog || typeof WorkflowCatalog.build !== 'function') return [];
+  const workflow = WorkflowCatalog.build(project);
+  const nodes = [...workflow.master, ...workflow.packages.flatMap(g => g.nodes)];
+  const rows = [];
+  for (const node of nodes) {
+    const status = wfNodeStatus(project, node.id);
+    if (status === 'done' || status === 'skipped') continue;
+    const rec = wfNodeRecord(project, node.id) || {};
+    const dueIso = wfDueIso(rec.dueDate);
+    const days = dueIso && typeof daysUntil === 'function' ? daysUntil(dueIso) : null;
+    const pkg = node.packageName ? ` - ${node.packageName}` : '';
+    const meta = {
+      workflowNodeId: node.id,
+      workflowPackageId: node.packageId || ''
+    };
+    if (status === 'blocked') {
+      rows.push({
+        level: 'warning',
+        icon: 'report_problem',
+        days: days == null ? 9998 : days,
+        message: `Quy trình: bước "${node.title}"${pkg} đang vướng mắc${rec.note ? `: ${rec.note}` : ''}.`,
+        ...meta
+      });
+      continue;
+    }
+    if (days == null) continue;
+    if (days < 0) {
+      rows.push({
+        level: 'danger',
+        icon: 'event_busy',
+        days,
+        message: `Quy trình: bước "${node.title}"${pkg} quá hạn ${-days} ngày (hạn ${formatDateVN(dueIso)}).`,
+        ...meta
+      });
+    } else if (days <= WF_REMIND_DAYS) {
+      rows.push({
+        level: 'warning',
+        icon: 'schedule',
+        days,
+        message: `Quy trình: bước "${node.title}"${pkg} sắp đến hạn (còn ${days} ngày, hạn ${formatDateVN(dueIso)}).`,
+        ...meta
+      });
+    }
+  }
+  rows.sort((a, b) => a.days - b.days);
+  return rows.slice(0, 20).map(({ days, ...rest }) => rest);
+}
+
+function openWorkflowAlert(nodeId) {
+  const project = wfGetProject();
+  if (!project || !WorkflowCatalog || typeof WorkflowCatalog.build !== 'function') return;
+  const workflow = WorkflowCatalog.build(project);
+  let found = null;
+  for (const node of workflow.master) if (node.id === nodeId) found = { node, pkg: null };
+  for (const group of workflow.packages) {
+    for (const node of group.nodes) if (node.id === nodeId) found = { node, pkg: group.pkg };
+  }
+  if (!found) return;
+  workflowPackageId = found.pkg ? found.pkg.id : 'all';
+  if (typeof switchView === 'function') switchView('workflow');
+  else wfRenderWorkflowView();
+  setTimeout(() => wfOpenNodeModal(nodeId), 30);
 }
 
 // Tên hàm theo quy ước chung của app.js
