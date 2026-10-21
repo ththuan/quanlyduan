@@ -5166,8 +5166,8 @@ function toggleCategory(headerEl) {
 }
 
 function switchView(viewName) {
-  if (viewName === 'templates' && currentUser?.role !== 'admin') {
-    showToast('Thư viện mẫu biểu chỉ dành cho quản trị viên', 'error');
+  if (viewName === 'workflow' && currentUser?.role !== 'admin') {
+    showToast('Cây quy trình chỉ dành cho quản trị viên', 'error');
     return;
   }
   state.currentView = viewName;
@@ -5184,7 +5184,7 @@ function switchView(viewName) {
   else if (viewName === 'legal') { if (typeof renderLegalLibrary === 'function') renderLegalLibrary(); }
   else if (viewName === 'qtda') renderQtdaView();
   else if (viewName === 'reports') renderReports();
-  else if (viewName === 'templates') { if (typeof renderTemplatesView === 'function') renderTemplatesView(); }
+  else if (viewName === 'workflow') { if (typeof renderWorkflowView === 'function') renderWorkflowView(); }
 }
 
 function renderAll() {
@@ -5196,7 +5196,7 @@ function renderAll() {
   else if (state.currentView === 'legal') { if (typeof renderLegalLibrary === 'function') renderLegalLibrary(); }
   else if (state.currentView === 'qtda') renderQtdaView();
   else if (state.currentView === 'reports') renderReports();
-  else if (state.currentView === 'templates') { if (typeof renderTemplatesView === 'function') renderTemplatesView(); }
+  else if (state.currentView === 'workflow') { if (typeof renderWorkflowView === 'function') renderWorkflowView(); }
 }
 
 // Nav tabs
@@ -5580,7 +5580,7 @@ function renderAccountUI() {
   document.getElementById('btn-backup-restore')?.classList.toggle('hidden', currentUser.role !== 'admin');
   document.getElementById('btn-sys-config')?.classList.toggle('hidden', currentUser.role !== 'admin');
   document.getElementById('btn-import-excel')?.classList.toggle('hidden', currentUser.role !== 'admin');
-  document.querySelector('.nav-tab[data-view="templates"]')?.classList.toggle('hidden', currentUser.role !== 'admin');
+  document.querySelector('.nav-tab[data-view="workflow"]')?.classList.toggle('hidden', currentUser.role !== 'admin');
   isReadOnly = currentUser.role !== 'admin';
   document.body.classList.toggle('read-only', isReadOnly);
   if (typeof loadAiHistory === 'function') loadAiHistory();

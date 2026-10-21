@@ -68,9 +68,9 @@
           <span class="material-symbols-rounded">bar_chart</span>
           <span>Báo cáo</span>
         </button>
-        <button class="nav-tab admin-only hidden" data-view="templates">
-          <span class="material-symbols-rounded">description</span>
-          <span>Mẫu biểu</span>
+        <button class="nav-tab admin-only hidden" data-view="workflow">
+          <span class="material-symbols-rounded">account_tree</span>
+          <span>Quy trình</span>
         </button>
       </div>
     </div>
@@ -258,27 +258,21 @@
       <div id="report-content"></div>
     </section>
 
-    <!-- Templates View -->
-    <section id="view-templates" class="view">
+    <!-- Workflow View -->
+    <section id="view-workflow" class="view">
       <div class="section-header">
-        <h2><span class="material-symbols-rounded">description</span> Thư viện mẫu biểu</h2>
-        <div class="header-actions">
-          <div class="search-box">
-            <span class="material-symbols-rounded">search</span>
-            <input type="text" id="search-templates" placeholder="Tìm theo tên, mã, căn cứ...">
-          </div>
-          <select id="filter-template-stage" title="Lọc theo giai đoạn">
-            <option value="">Tất cả giai đoạn</option>
-          </select>
-          <select id="filter-template-format" title="Lọc theo định dạng">
-            <option value="">Tất cả định dạng</option>
-            <option value="word">Word</option>
-            <option value="excel">Excel</option>
-          </select>
+        <h2><span class="material-symbols-rounded">account_tree</span> Cây quy trình thực hiện</h2>
+      </div>
+      <div class="wf-legal-note">
+        <span class="material-symbols-rounded">gavel</span>
+        <div>
+          Căn cứ NĐ 214/2025/NĐ-CP (được sửa đổi, bổ sung bởi NĐ 349/2026/NĐ-CP) và TT 79/2025/TT-BTC:
+          theo dõi việc đăng tải KHLCNT, KQLCNT, thông tin chủ yếu của hợp đồng và kết quả thực hiện hợp đồng
+          trên Hệ thống mạng đấu thầu quốc gia.
         </div>
       </div>
-      <div id="template-package-bar" class="template-package-bar"></div>
-      <div id="templates-container"></div>
+      <div id="workflow-toolbar" class="workflow-toolbar"></div>
+      <div id="workflow-container"></div>
     </section>
 
     <footer class="app-footer">Copyright &copy; 2026 Trường Cao đẳng Kinh tế - Kỹ thuật Cần Thơ</footer>
@@ -347,7 +341,8 @@
 
   <script src="assets/pdf.min.js"></script>
   <script src="app.js"></script>
-  <script src="templates-ui.js"></script>
+  <script src="workflow-catalog.js"></script>
+  <script src="workflow-ui.js"></script>
   <script src="legal-ui.js"></script>
   <script src="wiki-ui.js"></script>
 </body>

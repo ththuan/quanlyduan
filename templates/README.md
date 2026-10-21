@@ -137,15 +137,11 @@ node scripts/build-payment-templates.js
 
 ## Giao diện
 
-Thư viện đã được nối vào tab **Mẫu biểu** (chỉ quản trị viên thấy):
+Thư viện mẫu được tách khỏi giao diện quy trình. Ứng dụng dùng tab **Quy trình** để hiển thị cây quy trình; biểu mẫu được xử lý riêng bên ngoài.
 
-- Chọn dự án/gói thầu ở thanh trên cùng.
-- Tìm kiếm, lọc theo giai đoạn và định dạng.
-- **Xem & điền**: mở biểu mẫu, tự điền dữ liệu dự án/gói thầu, sửa trực tiếp và xem trước.
-- **Tải mẫu trống**: tải file gốc chưa điền.
-- Xuất Word (`.doc`) hoặc Excel (`.xlsx`) từ nút tải trong cửa sổ xem trước.
-
-Mã nguồn giao diện: `templates-ui.js`; route tĩnh: `/templates/*`; thư viện Excel trình duyệt: `/assets/xlsx.full.min.js`.
+- File mẫu vẫn nằm trong `templates/` và được phục vụ tại `/templates/...` để tải trực tiếp.
+- `templates-ui.js` là công cụ độc lập (không nạp trong ứng dụng chính).
+- Muốn dùng lại giao diện điền mẫu, có thể nạp `templates-ui.js` riêng hoặc chuyển thành trang độc lập.
 
 ## Bước tiếp theo
 

@@ -109,7 +109,8 @@ app.get('/', (req, res) => res.sendFile(path.join(ROOT_DIR, 'index.html'), { hea
 app.get('/index.html', (req, res) => res.sendFile(path.join(ROOT_DIR, 'index.html'), { headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' } }));
 app.get('/login.html', (req, res) => res.sendFile(path.join(ROOT_DIR, 'login.html'), { headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' } }));
 app.get('/app.js', (req, res) => res.sendFile(path.join(ROOT_DIR, 'app.js'), { headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' } }));
-app.get('/templates-ui.js', (req, res) => res.sendFile(path.join(ROOT_DIR, 'templates-ui.js'), { headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Content-Type': 'application/javascript; charset=utf-8' } }));
+app.get('/workflow-catalog.js', (req, res) => res.sendFile(path.join(ROOT_DIR, 'workflow-catalog.js'), { headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Content-Type': 'application/javascript; charset=utf-8' } }));
+app.get('/workflow-ui.js', (req, res) => res.sendFile(path.join(ROOT_DIR, 'workflow-ui.js'), { headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Content-Type': 'application/javascript; charset=utf-8' } }));
 app.get('/legal-ui.js', (req, res) => res.sendFile(path.join(ROOT_DIR, 'legal-ui.js'), { headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' } }));
 app.get('/wiki-ui.js', (req, res) => res.sendFile(path.join(ROOT_DIR, 'wiki-ui.js'), { headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' } }));
 app.get('/login.js', (req, res) => res.sendFile(path.join(ROOT_DIR, 'login.js'), { headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' } }));
@@ -133,16 +134,6 @@ app.use('/templates', express.static(path.join(ROOT_DIR, 'templates'), {
     else res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   }
 }));
-
-// SheetJS bản trình duyệt, chỉ tải khi người dùng xuất Excel từ thư viện mẫu.
-app.get('/assets/xlsx.full.min.js', (req, res) => {
-  res.sendFile(path.join(ROOT_DIR, 'server', 'node_modules', 'xlsx', 'dist', 'xlsx.full.min.js'), {
-    headers: {
-      'Cache-Control': 'public, max-age=31536000, immutable',
-      'Content-Type': 'application/javascript; charset=utf-8'
-    }
-  });
-});
 
 // ---- Auth API ----
 // Rate limiter đơn giản theo IP (in-memory)
