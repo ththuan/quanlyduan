@@ -174,7 +174,7 @@ const WF_MASTER_PROJECT = [
     type: 'document',
     optional: true,
     hint: 'Đăng tải KH tổng thể trên Hệ thống mạng đấu thầu quốc gia chậm nhất 05 ngày làm việc kể từ ngày ban hành.',
-    legalBasis: ['NĐ 214/2025 Đ16.5', 'TT 79/2025 Điều 13'],
+    legalBasis: ['NĐ 214/2025 Đ16.5; NĐ 349/2026', 'TT 79/2025 Điều 13'],
     outputs: ['KH tổng thể được đăng tải']
   },
   {
@@ -194,7 +194,7 @@ const WF_MASTER_PROJECT = [
     type: 'gate',
     required: true,
     hint: 'Đăng tải KHLCNT và tài liệu kèm theo trên Hệ thống mạng đấu thầu quốc gia chậm nhất 05 ngày làm việc kể từ ngày ban hành; kiểm tra tính thống nhất giữa tài liệu đăng tải và tài liệu đã phê duyệt.',
-    legalBasis: ['LĐT Đ7.1a, Đ8.4', 'TT 79/2025 Điều 13'],
+    legalBasis: ['LĐT Đ7.1a, Đ8.4', 'NĐ 214/2025; NĐ 349/2026', 'TT 79/2025 Điều 13'],
     outputs: ['KHLCNT được đăng tải']
   },
   {
@@ -259,7 +259,7 @@ const WF_MASTER_PURCHASE = [
     type: 'gate',
     required: true,
     hint: 'Đăng tải KHLCNT và tài liệu kèm theo trên Hệ thống mạng đấu thầu quốc gia chậm nhất 05 ngày làm việc kể từ ngày ban hành.',
-    legalBasis: ['LĐT Đ7.1a, Đ8.4', 'TT 79/2025 Điều 13'],
+    legalBasis: ['LĐT Đ7.1a, Đ8.4', 'NĐ 214/2025; NĐ 349/2026', 'TT 79/2025 Điều 13'],
     outputs: ['KHLCNT được đăng tải']
   },
   {
@@ -538,7 +538,7 @@ function wfBuildPackageNodes(pkg) {
     title: 'Đăng tải KQLCNT và thông báo kết quả',
     required: true,
     hint: 'Sau khi phê duyệt, đăng tải KQLCNT trên Hệ thống: qua mạng ngay khi phê duyệt; không qua mạng chậm nhất 05 ngày làm việc. Gửi thông báo cho nhà thầu trong 05 ngày làm việc; cập nhật thông tin nhà thầu vi phạm/uy tín (NĐ 214 Điều 22) nếu có.',
-    legalBasis: ['LĐT Đ7.1g, Đ8', 'NĐ 214/2025 Đ33.5, Đ22', 'TT 79/2025 Điều 20'],
+    legalBasis: ['LĐT Đ7.1g, Đ8', 'NĐ 214/2025 Đ33.5, Đ22; NĐ 349/2026', 'TT 79/2025 Điều 20'],
     outputs: ['KQLCNT được đăng tải', 'Thông báo kết quả cho nhà thầu']
   };
   const methodWithPosting = kqIndex >= 0
@@ -563,7 +563,7 @@ function wfBuildPackageNodes(pkg) {
     title: 'Công khai thông tin chủ yếu của hợp đồng',
     required: true,
     hint: 'Cung cấp/đăng tải thông tin chủ yếu của hợp đồng trên Hệ thống chậm nhất 05 ngày làm việc kể từ ngày hợp đồng có hiệu lực (số hợp đồng, chủ thể, giá, loại hợp đồng, thời gian thực hiện, nhà thầu phụ...).',
-    legalBasis: ['LĐT Đ7.1h, Đ8.4', 'TT 79/2025 Điều 12'],
+    legalBasis: ['LĐT Đ7.1h, Đ8.4', 'NĐ 214/2025; NĐ 349/2026', 'TT 79/2025 Điều 12'],
     outputs: ['Thông tin hợp đồng được đăng tải']
   };
   const progressUpdate = {
@@ -572,7 +572,7 @@ function wfBuildPackageNodes(pkg) {
     title: 'Cập nhật tiến độ thực hiện hợp đồng',
     required: true,
     hint: 'Cập nhật tiến độ thực tế trên Hệ thống khi hoàn thành các mốc của hợp đồng; cập nhật thay đổi phạm vi, danh sách và tỷ lệ nhà thầu phụ (nếu có).',
-    legalBasis: ['NĐ 214/2025 Đ35.2'],
+    legalBasis: ['NĐ 214/2025 Đ35.2; NĐ 349/2026'],
     outputs: ['Tiến độ hợp đồng được cập nhật']
   };
   const performancePosting = {
@@ -581,7 +581,7 @@ function wfBuildPackageNodes(pkg) {
     title: 'Công khai kết quả thực hiện hợp đồng',
     required: true,
     hint: 'Đăng tải kết quả thực hiện hợp đồng (tiến độ, chất lượng, vi phạm, chấm dứt...) trên Hệ thống chậm nhất 06 tháng kể từ ngày kết thúc thời gian thực hiện gói thầu; nếu bảo hành > 06 tháng thì cập nhật sau khi hoàn thành bảo hành. Nhà thầu phản hồi trong 20 ngày.',
-    legalBasis: ['LĐT Đ7.1k', 'NĐ 214/2025 Đ20.3-20.4, Đ35.3'],
+    legalBasis: ['LĐT Đ7.1k', 'NĐ 214/2025 Đ20.3-20.4, Đ35.3; NĐ 349/2026'],
     outputs: ['Kết quả thực hiện hợp đồng được đăng tải']
   };
   const goodsQuality = pkg.pkgType === 'goods' ? {
@@ -590,7 +590,7 @@ function wfBuildPackageNodes(pkg) {
     title: 'Công khai chất lượng hàng hóa đã sử dụng',
     required: true,
     hint: 'Đăng tải thông tin chất lượng hàng hóa trên Hệ thống chậm nhất 06 tháng kể từ ngày kết thúc thời gian thực hiện gói thầu; cập nhật sau bảo hành nếu bảo hành > 06 tháng.',
-    legalBasis: ['NĐ 214/2025 Đ20.5, Đ20.7, Đ35.3'],
+    legalBasis: ['NĐ 214/2025 Đ20.5, Đ20.7, Đ35.3; NĐ 349/2026'],
     outputs: ['Thông tin chất lượng hàng hóa được đăng tải']
   } : null;
   const reputationPosting = {
@@ -599,7 +599,7 @@ function wfBuildPackageNodes(pkg) {
     title: 'Công khai thông tin nhà thầu vi phạm/uy tín',
     optional: true,
     hint: 'Đăng tải thông tin nhà thầu không bảo đảm uy tín, bị chấm dứt hợp đồng do lỗi nhà thầu, bị cấm tham gia đấu thầu hoặc có hành vi vi phạm khác (nếu có).',
-    legalBasis: ['NĐ 214/2025 Đ22'],
+    legalBasis: ['NĐ 214/2025 Đ22; NĐ 349/2026'],
     outputs: ['Thông tin vi phạm được đăng tải']
   };
   const typeNodes = WF_TYPE_NODES[pkg.pkgType] || WF_TYPE_NODES.consulting;

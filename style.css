@@ -3762,3 +3762,28 @@ canvas {
   .wf-stage > summary::before { display: none; }
   .wf-stage-body { display: block !important; }
 }
+
+.wf-legal-details {
+  margin-bottom: 12px;
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  padding: 10px 14px;
+}
+.wf-legal-details > summary {
+  cursor: pointer;
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  list-style: none;
+}
+.wf-legal-details > summary::-webkit-details-marker { display: none; }
+.wf-legal-details > summary::before { content: '▸'; color: var(--text-muted); }
+.wf-legal-details[open] > summary::before { content: '▾'; }
+.wf-legal-details > summary .material-symbols-rounded { color: #2563eb; font-size: 20px; }
+.wf-legal-details ul { margin: 8px 0 0 22px; padding: 0; }
+.wf-legal-details li { font-size: 0.78rem; line-height: 1.55; color: var(--text-secondary); margin-bottom: 4px; }
+.wf-legal-details li b { color: var(--text-primary); }
