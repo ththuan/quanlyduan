@@ -235,7 +235,7 @@ function updateLegalActive() {
     else break;
   }
   if (viewer.scrollTop + viewer.clientHeight >= viewer.scrollHeight - 8) active = secs[secs.length - 1];
-  legalSetActive(active.dataset.article, false);
+  legalSetActive(active.dataset.article, true);
 }
 
 function legalSetActive(article, scrollOutline) {
@@ -257,8 +257,22 @@ function legalSetActive(article, scrollOutline) {
   document.querySelectorAll('#legal-outline .legal-item').forEach(el => {
     const on = el.dataset.article === article;
     el.classList.toggle('active', on);
-    if (on && scrollOutline) el.scrollIntoView({ block: 'nearest' });
   });
+  if (scrollOutline) legalScrollOutline(article);
+}
+
+// Giữ mục lục bên trái luôn cuộn theo điều đang đọc
+function legalScrollOutline(article) {
+  const left = document.getElementById('legal-left');
+  const list = document.getElementById('legal-outline');
+  if (!left || !list) return;
+  const el = [...list.querySelectorAll('.legal-item')].find(x => x.dataset.article === article);
+  if (!el) return;
+  const lr = left.getBoundingClientRect();
+  const er = el.getBoundingClientRect();
+  const pad = 8;
+  if (er.top < lr.top + pad) left.scrollTop -= lr.top + pad - er.top;
+  else if (er.bottom > lr.bottom - pad) left.scrollTop += er.bottom - lr.bottom + pad;
 }
 
 async function legalJumpTo(article) {
