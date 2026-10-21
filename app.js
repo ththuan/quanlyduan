@@ -784,10 +784,6 @@ function computeAlerts(project) {
     });
   });
 
-  if (typeof computeWorkflowAlerts === 'function') {
-    alerts.push(...computeWorkflowAlerts(project));
-  }
-
   return alerts;
 }
 
@@ -1234,10 +1230,9 @@ function renderAlertsPanel(project) {
       <h3><span class="material-symbols-rounded">notifications_active</span> Cảnh báo cần theo dõi (${alerts.length})</h3>
       <div class="alert-list">
         ${alerts.map(a => `
-          <div class="alert-item alert-${a.level}${a.workflowNodeId ? ' alert-clickable' : ''}"${a.workflowNodeId ? ` onclick="openWorkflowAlert('${esc(a.workflowNodeId)}')" title="Bấm để mở bước quy trình"` : ''}>
+          <div class="alert-item alert-${a.level}">
             <span class="material-symbols-rounded">${a.icon}</span>
             <span>${esc(a.message)}</span>
-            ${a.workflowNodeId ? '<span class="material-symbols-rounded alert-go">chevron_right</span>' : ''}
           </div>
         `).join('')}
       </div>

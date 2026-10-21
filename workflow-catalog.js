@@ -761,8 +761,42 @@ function wfBuildWorkflow(project) {
   return { master, packages, isPurchase };
 }
 
+// Quy trình tham khảo độc lập, không gắn với dự án cụ thể.
+// options: { scope: 'project'|'nonProject', packageType, method }
+function wfBuildScenario(options = {}) {
+  const scope = options.scope === 'nonProject' ? 'nonProject' : 'project';
+  const packageType = options.packageType || 'consulting';
+  const method = options.method || '';
+  const typeLabel = WF_PACKAGE_TYPE_LABELS[packageType] || packageType;
+  const methodLabel = method || 'Đấu thầu rộng rãi';
+  const pkg = {
+    id: 'scenario',
+    name: `${typeLabel} - ${methodLabel}`,
+    pkgType: packageType,
+    selectionMethod: method,
+    categoryName: typeLabel
+  };
+  const project = {
+    projectScope: scope,
+    categories: [{ name: typeLabel, packages: [pkg] }]
+  };
+  const isPurchase = scope === 'nonProject';
+  const master = (isPurchase ? WF_MASTER_PURCHASE : WF_MASTER_PROJECT)
+    .filter(n => !n.when || n.when(project))
+    .map(n => ({ ...n, id: n.id, stage: n.stage || 'chuanBiDauTu' }));
+  return {
+    master,
+    packages: [{ pkg, nodes: wfBuildPackageNodes(pkg) }],
+    isPurchase,
+    scope,
+    packageType,
+    method
+  };
+}
+
 const WF_WORKFLOW_CATALOG = {
   build: wfBuildWorkflow,
+  buildScenario: wfBuildScenario,
   stages: WF_STAGE_ORDER,
   stageLabels: WF_STAGE_LABELS,
   statuses: WF_STATUSES,

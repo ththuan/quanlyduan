@@ -3707,36 +3707,58 @@ canvas {
 }
 .wf-package-overview .wf-package-summary .btn { margin-left: 4px; }
 
-/* ===== Nhắc việc quy trình ===== */
-.wf-reminders { padding: 12px 14px; margin-bottom: 14px; border-left: 4px solid #d97706; }
-.wf-reminders-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 0.84rem; color: var(--text-primary); }
-.wf-reminders-head .material-symbols-rounded { color: #d97706; font-size: 20px; }
-.wf-reminders-count { background: #fef3c7; color: #b45309; border-radius: 999px; padding: 1px 8px; font-size: 0.72rem; font-weight: 700; }
-.wf-reminders-hint { color: var(--text-muted); font-size: 0.72rem; margin-left: auto; }
-.wf-reminders-list { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
-.wf-reminder-item {
-  display: flex;
-  align-items: center;
+
+/* ===== Chọn kịch bản cây quy trình ===== */
+.wf-scenario-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(170px, 1fr)) auto;
   gap: 10px;
-  padding: 8px 10px;
+  align-items: end;
+}
+.wf-scenario-field { display: flex; flex-direction: column; gap: 3px; }
+.wf-scenario-field label { font-size: 0.72rem; color: var(--text-muted); font-weight: 600; }
+.wf-scenario-field select {
+  width: 100%;
+  padding: 7px 10px;
   border: 1px solid var(--border-glass);
   border-radius: var(--radius-sm);
   background: var(--bg-card);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.8rem;
 }
-.wf-reminder-item.danger { border-color: #fecaca; background: #fef2f2; }
-.wf-reminder-item.warning { border-color: #fde68a; background: #fffbeb; }
-.wf-reminder-content { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
-.wf-reminder-content b { font-size: 0.8rem; color: var(--text-primary); }
-.wf-reminder-content span { font-size: 0.72rem; color: var(--text-muted); }
-.wf-reminder-due { font-weight: 600; }
-.wf-reminder-item.danger .wf-reminder-due { color: #b91c1c; }
-.wf-reminder-item.warning .wf-reminder-due { color: #b45309; }
-.wf-badge.overdue { background: #fee2e2; color: #b91c1c; }
-.wf-badge.due-soon { background: #fef3c7; color: #b45309; }
-.alert-clickable { cursor: pointer; }
-.alert-clickable:hover { background: var(--bg-card-hover); }
-.alert-go { margin-left: auto; font-size: 18px; color: var(--text-muted); }
-@media (max-width: 700px) {
-  .wf-reminders-hint { display: none; }
-  .wf-reminder-item { align-items: flex-start; flex-direction: column; }
+.wf-scenario-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.wf-scenario-summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.wf-scenario-summary .material-symbols-rounded { color: #2563eb; font-size: 20px; }
+.wf-scenario-note { margin-top: 3px; font-size: 0.72rem; color: var(--text-muted); }
+.wf-node-icon { font-size: 18px; color: #2563eb; }
+.wf-node-outputs { font-size: 0.72rem; color: var(--text-secondary); margin-top: 4px; }
+.wf-node .wf-node-dot { background: #2563eb; box-shadow: 0 0 0 1px #2563eb; }
+@media (max-width: 900px) {
+  .wf-scenario-grid { grid-template-columns: 1fr 1fr; }
+  .wf-scenario-actions { justify-content: flex-start; }
+}
+@media (max-width: 600px) {
+  .wf-scenario-grid { grid-template-columns: 1fr; }
+}
+@media print {
+  #navbar, .app-footer, .nav-actions, #project-info-bar, #toast-container,
+  #modal, #modal-backdrop, #ai-float-hint, #btn-ai-chat, #ai-chat-panel,
+  .wf-scenario-actions, .wf-scenario-field { display: none !important; }
+  #main-content { padding: 0 !important; }
+  .view { display: none !important; }
+  #view-workflow.active { display: block !important; }
+  .wf-legal-note { border: none; background: none; padding: 0 0 8px; }
+  .wf-scenario-grid { display: block; }
+  .wf-stage, .wf-node-card { break-inside: avoid; }
+  .wf-stage > summary::before { display: none; }
+  .wf-stage-body { display: block !important; }
 }
