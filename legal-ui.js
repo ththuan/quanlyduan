@@ -2,7 +2,7 @@
 // THƯ VIỆN PHÁP LUẬT (tra cứu văn bản trong thư mục phaply) + LỘ TRÌNH HÌNH THÀNH DỰ ÁN
 // Dữ liệu văn bản do server/legal.js cung cấp; lộ trình dựa trên điều khoản của các văn bản đó.
 // ============================================================
-const legalLib = { docs: null, docId: '', outline: [], results: null, query: '' };
+const legalLib = { docs: null, docId: '', outline: [], full: null, active: '', loadToken: 0, results: null, query: '' };
 
 async function legalGet(url) {
   const res = typeof handleAuthResponse === 'function' ? handleAuthResponse(await fetch(url)) : await fetch(url);
@@ -47,6 +47,7 @@ async function doRenderLegalLibrary() {
       <div class="legal-right glass-card" id="legal-viewer"><p class="legal-empty">Chọn một văn bản hoặc kết quả tìm kiếm để đọc nội dung.</p></div>
     </div>`;
   renderLegalLeft();
+  if (legalLib.full && legalLib.docId) renderLegalDocument(legalLib.full);
   loadLegalHistory();
 }
 
@@ -94,7 +95,7 @@ function legalOutlineHTML(filter) {
   const f = legalFold(filter);
   return legalLib.outline
     .filter(o => !f || legalFold(o.heading).includes(f))
-    .map(o => `<div class="legal-item compact" onclick="openLegalRef('${esc(legalLib.docId)}','${esc(o.article)}')">
+    .map(o => `<div class="legal-item compact${o.article === legalLib.active ? ' active' : ''}" data-article="${esc(o.article)}" onclick="legalJumpTo('${esc(o.article)}')">
       ${esc(o.heading)}${o.repealed ? ' <span class="badge badge-danger">Hết hiệu lực</span>' : ''}</div>`).join('')
     || '<p class="legal-empty">Không có mục phù hợp.</p>';
 }
@@ -106,16 +107,35 @@ function legalFilterOutline(v) {
 
 async function legalOpenDoc(id) {
   try {
-    legalLib.outline = await legalGet('/api/legal/doc/' + encodeURIComponent(id));
-    legalLib.docId = id;
-    legalLib.results = null;
-    renderLegalLeft();
+    await loadLegalDoc(id);
   } catch (err) { showToast(err.message, 'error'); }
+}
+
+async function loadLegalDoc(id) {
+  const token = ++legalLib.loadToken;
+  const base = '/api/legal/doc/' + encodeURIComponent(id);
+  const [outline, full] = await Promise.all([legalGet(base), legalGet(base + '/full')]);
+  if (token !== legalLib.loadToken) return;
+  legalLib.outline = outline;
+  legalLib.full = full;
+  legalLib.docId = id;
+  legalLib.results = null;
+  legalLib.active = '';
+  legalLib.current = null;
+  renderLegalLeft();
+  renderLegalDocument(full);
 }
 
 function legalBack() {
   legalLib.docId = '';
+  legalLib.full = null;
+  legalLib.active = '';
   legalLib.results = null;
+  legalLib.current = null;
+  legalLib.loadToken++;
+  detachLegalSpy();
+  const viewer = document.getElementById('legal-viewer');
+  if (viewer) viewer.innerHTML = '<p class="legal-empty">Chọn một văn bản hoặc kết quả tìm kiếm để đọc nội dung.</p>';
   renderLegalLeft();
 }
 
@@ -126,7 +146,11 @@ async function legalSearch() {
   try {
     legalLib.query = q;
     legalLib.results = await legalGet(`/api/legal/search?q=${encodeURIComponent(q)}&limit=20${doc ? '&doc=' + encodeURIComponent(doc) : ''}`);
+    legalLib.loadToken++;
     legalLib.docId = '';
+    legalLib.full = null;
+    legalLib.active = '';
+    detachLegalSpy();
     renderLegalLeft();
   } catch (err) { showToast(err.message, 'error'); }
 }
@@ -142,16 +166,141 @@ function legalFormatText(text) {
   }).join('');
 }
 
+// Toàn văn văn bản trong khung đọc: cuộn liên tục qua các Điều, mục lục bên trái tự bám theo
+function renderLegalDocument(full) {
+  const viewer = document.getElementById('legal-viewer');
+  if (!viewer) return;
+  const blocks = [];
+  let chapter = '';
+  full.articles.forEach((a, i) => {
+    if (a.chapter && a.chapter !== chapter) {
+      chapter = a.chapter;
+      blocks.push(`<div class="legal-chapter">${esc(chapter)}</div>`);
+    }
+    blocks.push(`
+      <section class="legal-article" data-article="${esc(a.article)}" id="legal-art-${i}">
+        ${a.repealed ? `<div class="legal-warn"><span class="material-symbols-rounded">warning</span> Nội dung này đã hết hiệu lực: ${esc(a.repealed)}.</div>` : ''}
+        <div class="legal-text">${legalFormatText(a.text)}</div>
+      </section>`);
+  });
+  viewer.innerHTML = `
+    <div class="legal-full-head">
+      <div class="legal-viewer-doc">${esc(full.docShort)} <small>(${esc(full.docNumber)})</small></div>
+      <h3>${esc(full.docTitle)}</h3>
+      <div class="legal-viewer-chapter">${full.effectiveDate ? 'Hiệu lực: ' + legalDocDate(full.effectiveDate) + ' · ' : ''}${full.articles.length} điều/mục · cuộn để đọc, bấm mục lục để nhảy tới</div>
+      <div class="legal-viewer-actions">
+        <button class="btn btn-secondary btn-sm" onclick="legalAskAI()"><span class="material-symbols-rounded">smart_toy</span> Hỏi AI về điều đang đọc</button>
+        <button class="btn btn-secondary btn-sm" onclick="legalCopyCite()"><span class="material-symbols-rounded">content_copy</span> Sao chép trích dẫn</button>
+      </div>
+    </div>
+    <div class="legal-full-body">${blocks.join('')}</div>`;
+  viewer.scrollTop = 0;
+  attachLegalSpy();
+  if (full.articles[0]) legalSetActive(full.articles[0].article, true);
+}
+
+function attachLegalSpy() {
+  const viewer = document.getElementById('legal-viewer');
+  if (!viewer) return;
+  detachLegalSpy();
+  let ticking = false;
+  const handler = () => {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(() => { ticking = false; updateLegalActive(); });
+  };
+  legalLib.spyViewer = viewer;
+  legalLib.spyHandler = handler;
+  viewer.addEventListener('scroll', handler, { passive: true });
+}
+
+function detachLegalSpy() {
+  if (legalLib.spyViewer && legalLib.spyHandler) legalLib.spyViewer.removeEventListener('scroll', legalLib.spyHandler);
+  legalLib.spyViewer = null;
+  legalLib.spyHandler = null;
+  legalLib.spyLock = false;
+  clearTimeout(legalLib.spyTimer);
+}
+
+function updateLegalActive() {
+  if (legalLib.spyLock) return;
+  const viewer = document.getElementById('legal-viewer');
+  if (!viewer || !legalLib.full) return;
+  const secs = viewer.querySelectorAll('.legal-article[data-article]');
+  if (!secs.length) return;
+  const top = viewer.getBoundingClientRect().top;
+  let active = secs[0];
+  for (const s of secs) {
+    if (s.getBoundingClientRect().top - top <= 24) active = s;
+    else break;
+  }
+  if (viewer.scrollTop + viewer.clientHeight >= viewer.scrollHeight - 8) active = secs[secs.length - 1];
+  legalSetActive(active.dataset.article, false);
+}
+
+function legalSetActive(article, scrollOutline) {
+  if (!article) return;
+  const changed = legalLib.active !== article;
+  legalLib.active = article;
+  if (changed) {
+    const item = legalLib.full?.articles.find(a => a.article === article);
+    if (item) {
+      legalLib.current = {
+        doc: legalLib.full.doc, docShort: legalLib.full.docShort, docNumber: legalLib.full.docNumber,
+        docTitle: legalLib.full.docTitle, effectiveDate: legalLib.full.effectiveDate,
+        article: item.article, heading: item.heading, chapter: item.chapter,
+        repealed: item.repealed, text: item.text
+      };
+    }
+  }
+  if (!changed && !scrollOutline) return;
+  document.querySelectorAll('#legal-outline .legal-item').forEach(el => {
+    const on = el.dataset.article === article;
+    el.classList.toggle('active', on);
+    if (on && scrollOutline) el.scrollIntoView({ block: 'nearest' });
+  });
+}
+
+async function legalJumpTo(article) {
+  if (!legalLib.full || legalLib.full.doc !== legalLib.docId) {
+    if (!legalLib.docId) return;
+    try { await loadLegalDoc(legalLib.docId); }
+    catch (err) { showToast(err.message, 'error'); return; }
+  }
+  legalScrollToArticle(article);
+}
+
+function legalScrollToArticle(article) {
+  const viewer = document.getElementById('legal-viewer');
+  if (!viewer) return;
+  const sec = [...viewer.querySelectorAll('.legal-article[data-article]')].find(el => el.dataset.article === article);
+  if (!sec) return;
+  const top = sec.getBoundingClientRect().top - viewer.getBoundingClientRect().top + viewer.scrollTop - 6;
+  legalLib.spyLock = true;
+  clearTimeout(legalLib.spyTimer);
+  legalLib.spyTimer = setTimeout(() => { legalLib.spyLock = false; updateLegalActive(); }, 700);
+  viewer.scrollTo({ top, behavior: 'smooth' });
+  legalSetActive(article, true);
+}
+
 // Mở một Điều/Mẫu trong thư viện (dùng cho lộ trình, nguồn chatbot, cấu hình)
 async function openLegalRef(docId, article) {
   if (state.currentView !== 'legal') switchView('legal');
   await renderLegalLibraryReady();
   const viewer = document.getElementById('legal-viewer');
   if (!viewer) return;
+  legalLib.full = null;
+  detachLegalSpy();
   viewer.innerHTML = '<p class="legal-empty">Đang tải…</p>';
   try {
     const a = await legalGet(`/api/legal/article?doc=${encodeURIComponent(docId)}&article=${encodeURIComponent(article)}`);
     legalLib.current = a;
+    if (legalLib.docId === docId) {
+      legalLib.active = a.article;
+      document.querySelectorAll('#legal-outline .legal-item').forEach(el => {
+        el.classList.toggle('active', el.dataset.article === a.article);
+      });
+    }
     viewer.innerHTML = `
       <div class="legal-viewer-head">
         <div class="legal-viewer-doc">${esc(a.docShort)} <small>(${esc(a.docNumber)})</small></div>

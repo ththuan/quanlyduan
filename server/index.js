@@ -732,6 +732,12 @@ app.get('/api/legal/doc/:id', requireAuth, (req, res) => {
   res.json(outline);
 });
 
+app.get('/api/legal/doc/:id/full', requireAuth, (req, res) => {
+  const doc = legal.getDocument(req.params.id);
+  if (!doc || !doc.articles.length) return res.status(404).json({ error: 'Không tìm thấy văn bản' });
+  res.json(doc);
+});
+
 app.get('/api/legal/article', requireAuth, (req, res) => {
   const art = legal.getArticle(String(req.query.doc || ''), String(req.query.article || ''));
   if (!art) return res.status(404).json({ error: 'Không tìm thấy điều khoản' });

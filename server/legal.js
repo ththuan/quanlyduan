@@ -219,6 +219,32 @@ function getOutline(docId) {
   return out;
 }
 
+// Toàn văn cả văn bản: danh sách các Điều/Mẫu theo đúng thứ tự xuất hiện
+function getDocument(docId) {
+  load();
+  const doc = index.docById.get(docId);
+  if (!doc) return null;
+  const map = new Map();
+  for (const c of kb.chunks) {
+    if (c.doc !== docId) continue;
+    const article = baseArticle(c.article);
+    let item = map.get(article);
+    if (!item) {
+      item = { article, heading: baseArticle(c.heading), chapter: c.chapter || '', repealed: c.repealed || '', texts: [] };
+      map.set(article, item);
+    }
+    item.texts.push(c.text);
+  }
+  return {
+    doc: docId, docShort: doc.short || docId, docNumber: doc.number || '', docTitle: doc.title || '',
+    effectiveDate: doc.effectiveDate || '',
+    articles: [...map.values()].map(it => ({
+      article: it.article, heading: it.heading, chapter: it.chapter,
+      repealed: it.repealed, text: it.texts.join('\n')
+    }))
+  };
+}
+
 // Toàn văn một Điều/Mẫu (nối các phần)
 function getArticle(docId, article) {
   load();
@@ -255,4 +281,4 @@ function buildContext(query, { limit = 7, maxChars = 16000 } = {}) {
   return { text: blocks.join('\n\n'), sources: [...uniq.values()] };
 }
 
-module.exports = { search, getDocuments, getOutline, getArticle, buildContext, load };
+module.exports = { search, getDocuments, getOutline, getDocument, getArticle, buildContext, load };
