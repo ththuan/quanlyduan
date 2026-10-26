@@ -4705,25 +4705,22 @@ function getProjectFormHTML(proj = null) {
     </div>
     <div class="form-group"><label>Năm bắt đầu thực hiện</label><input type="number" id="f-proj-startYear" min="1900" max="2200" value="${proj?.startYear ?? ''}" placeholder="Ví dụ: 2025"></div>
     <div class="form-group"><label>Năm kết thúc dự kiến</label><input type="number" id="f-proj-endYear" min="1900" max="2200" value="${proj?.endYear ?? ''}" placeholder="Ví dụ: 2027"></div>
-    <div id="proj-investment-fields" ${isNonProject ? 'style="display:none"' : ''}>
-      <div class="form-group">
-        <label>Nguồn vốn đầu tư</label>
-        <select id="f-proj-investmentSource">
-          <option value="">— Chọn —</option>
-          ${['Đầu tư công','PPP','Chi thường xuyên ngân sách','Vốn khác'].map(s => `<option value="${s}" ${proj?.investmentSource === s ? 'selected' : ''}>${s}</option>`).join('')}
-        </select>
-      </div>
-      <div class="form-group"><label>Tổng mức đầu tư (VNĐ)</label><input type="number" id="f-proj-totalInvestment" value="${proj?.totalInvestment ?? ''}"></div>
+    <div class="form-group" id="proj-investment-source-field" ${isNonProject ? 'style="display:none"' : ''}>
+      <label>Nguồn vốn đầu tư</label>
+      <select id="f-proj-investmentSource">
+        <option value="">— Chọn —</option>
+        ${['Đầu tư công','PPP','Chi thường xuyên ngân sách','Vốn khác'].map(s => `<option value="${s}" ${proj?.investmentSource === s ? 'selected' : ''}>${s}</option>`).join('')}
+      </select>
     </div>
+    <div class="form-group"><label>Tổng mức đầu tư (VNĐ)</label><input type="number" id="f-proj-totalInvestment" value="${proj?.totalInvestment ?? ''}"></div>
   `;
 }
 
 function toggleProjectScopeForm() {
   const scope = document.getElementById('f-proj-scope');
-  const invest = document.getElementById('proj-investment-fields');
+  const source = document.getElementById('proj-investment-source-field');
   if (!scope) return;
-  const isNonProject = scope.value === 'nonProject';
-  if (invest) invest.style.display = isNonProject ? 'none' : '';
+  if (source) source.style.display = scope.value === 'nonProject' ? 'none' : '';
 }
 
 function getProjectFormData() {
