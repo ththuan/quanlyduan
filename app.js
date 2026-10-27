@@ -5283,10 +5283,99 @@ function qltkCategoryOptionsHTML(selectedId) {
 }
 
 function populateQltkAssetSelects(asset) {
-  const dept = document.getElementById('f-asset-department');
   const cat = document.getElementById('f-asset-category');
-  if (dept) dept.innerHTML = qltkDepartmentOptionsHTML(asset?.qltkDepartmentId);
   if (cat) cat.innerHTML = qltkCategoryOptionsHTML(asset?.qltkCategoryId);
+}
+
+function qltkAllocRowHTML(deptId, qty) {
+  return `<div class="qltk-alloc-row">
+    <select class="qltk-alloc-dept">${qltkDepartmentOptionsHTML(deptId)}</select>
+    <input type="number" class="qltk-alloc-qty" min="0" step="1" value="${qty ?? ''}" placeholder="SL" oninput="updateQltkAllocationSummary()">
+    <button type="button" class="btn-icon btn-sm" title="Xóa dòng" onclick="removeQltkAllocationRow(this)"><span class="material-symbols-rounded">close</span></button>
+  </div>`;
+}
+
+function renderQltkAllocationRows(asset) {
+  const box = document.getElementById('f-asset-allocations');
+  if (!box) return;
+  if (!qltk.configured) {
+    box.innerHTML = '<span class="qltk-alloc-summary">Chưa cấu hình kết nối QLTS.</span>';
+    return;
+  }
+  if (qltk.error) {
+    box.innerHTML = `<span class="qltk-alloc-summary" style="color:var(--accent-red)">Lỗi QLTS: ${esc(qltk.error)}</span>`;
+    return;
+  }
+  const locked = Array.isArray(asset?.qltkItems) && asset.qltkItems.length > 0;
+  box.dataset.locked = locked ? '1' : '';
+  let allocations = Array.isArray(asset?.qltkAllocations) ? asset.qltkAllocations.filter(a => Number(a.quantity) > 0) : [];
+  if (!allocations.length) {
+    const qty = Number(document.getElementById('f-asset-qty')?.value) || 1;
+    allocations = [{ departmentId: asset?.qltkDepartmentId || '', quantity: qty }];
+  }
+  box.innerHTML = allocations.map(a => qltkAllocRowHTML(a.departmentId, a.quantity)).join('');
+  if (locked) box.querySelectorAll('select,input,button').forEach(el => { el.disabled = true; });
+  updateQltkAllocationSummary();
+}
+
+function addQltkAllocationRow() {
+  const box = document.getElementById('f-asset-allocations');
+  if (!box || box.dataset.locked) return;
+  const remaining = qltkAllocRemaining();
+  box.insertAdjacentHTML('beforeend', qltkAllocRowHTML('', remaining > 0 ? remaining : ''));
+  updateQltkAllocationSummary();
+}
+
+function removeQltkAllocationRow(btn) {
+  const box = document.getElementById('f-asset-allocations');
+  if (box?.dataset.locked) return;
+  btn?.closest('.qltk-alloc-row')?.remove();
+  updateQltkAllocationSummary();
+}
+
+function qltkAllocRemaining() {
+  const total = Number(document.getElementById('f-asset-qty')?.value) || 0;
+  const allocated = [...document.querySelectorAll('#f-asset-allocations .qltk-alloc-qty')]
+    .reduce((s, el) => s + (Number(el.value) || 0), 0);
+  return Math.max(0, total - allocated);
+}
+
+function updateQltkAllocationSummary() {
+  const el = document.getElementById('f-asset-alloc-summary');
+  if (!el) return;
+  const total = Number(document.getElementById('f-asset-qty')?.value) || 0;
+  const allocated = [...document.querySelectorAll('#f-asset-allocations .qltk-alloc-qty')]
+    .reduce((s, i) => s + (Number(i.value) || 0), 0);
+  const ok = Math.abs(total - allocated) < 1e-6;
+  el.innerHTML = `Đã phân bổ: <b>${formatNumberVN(allocated)}</b> / ${formatNumberVN(total)}`;
+  el.style.color = ok ? 'var(--accent-green)' : 'var(--accent-red)';
+  updateQltkTrackingHint();
+}
+
+function readQltkAllocations() {
+  const out = [];
+  document.querySelectorAll('#f-asset-allocations .qltk-alloc-row').forEach(row => {
+    const departmentId = Number(row.querySelector('.qltk-alloc-dept')?.value) || 0;
+    const quantity = Number(row.querySelector('.qltk-alloc-qty')?.value) || 0;
+    if (!departmentId || quantity <= 0) return;
+    const dept = qltk.departments.find(d => Number(d.id) === departmentId);
+    out.push({ departmentId, departmentName: dept?.name || '', quantity });
+  });
+  return out;
+}
+
+function updateQltkTrackingHint() {
+  const hint = document.getElementById('f-asset-tracking-hint');
+  if (!hint) return;
+  const catId = Number(document.getElementById('f-asset-category')?.value) || 0;
+  const cat = qltk.categories.find(c => Number(c.id) === catId);
+  if (!cat) { hint.textContent = ''; return; }
+  const qty = Number(document.getElementById('f-asset-qty')?.value) || 0;
+  const unit = String(cat.unit || '').toLowerCase();
+  const bulk = (cat.trackingType && cat.trackingType !== 'individual') || /m2|m²|mét vuông|met vuong/.test(unit);
+  hint.textContent = bulk
+    ? 'QLTS quản lý theo số lượng: mỗi phòng/khoa tạo 1 bản ghi với số lượng tương ứng.'
+    : `QLTS quản lý từng cá thể: ${formatNumberVN(qty)} tài sản sẽ tạo thành ${formatNumberVN(qty)} bản ghi riêng, mã do QLTS tự sinh.`;
 }
 
 function onQltkCategoryChange() {
@@ -5294,6 +5383,7 @@ function onQltkCategoryChange() {
   const cat = qltk.categories.find(c => Number(c.id) === catId);
   const unit = document.getElementById('f-asset-unit');
   if (cat?.unit && unit && !unit.value.trim()) unit.value = cat.unit;
+  updateQltkTrackingHint();
 }
 
 async function apiSaveAsset(projectId, assetId, payload) {
@@ -5388,7 +5478,7 @@ function renderAssetsView() {
       </div>
       <div class="edit-only" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
         <button class="btn btn-secondary btn-sm" onclick="syncProjectAssetsToQltk()"><span class="material-symbols-rounded">cloud_upload</span> Đồng bộ QLTS</button>
-        <span style="font-size:0.78rem;color:var(--text-muted)">Chỉ đồng bộ tài sản đã chọn <b>loại tài sản</b> và <b>phòng/khoa</b>.</span>
+        <span style="font-size:0.78rem;color:var(--text-muted)">Chỉ đồng bộ tài sản đã chọn <b>loại tài sản</b> và <b>phòng/khoa</b>; tài sản cá thể sẽ được tách theo số lượng.</span>
       </div>
       ${units ? `<p style="font-size:0.82rem;color:var(--text-secondary);margin:0 0 12px">Số lượng theo đơn vị tính: <b>${esc(units)}</b></p>` : ''}`;
   }
@@ -5489,12 +5579,23 @@ function openAssetForm(assetId, catId, pkgId) {
       <div class="form-group"><label>Tên tài sản *</label><input type="text" id="f-asset-name" value="${esc(a?.name || '')}"></div>
       <div class="form-group"><label>Nhà cung cấp / Nhà thầu</label><input type="text" id="f-asset-supplier" value="${esc(a?.supplier || '')}"></div>
       <div class="form-group"><label>Đơn vị tính</label><input type="text" id="f-asset-unit" value="${esc(a?.unit || '')}"></div>
-      <div class="form-group"><label>Số lượng</label><input type="number" id="f-asset-qty" value="${a?.quantity ?? ''}" oninput="calcAssetAmount()"></div>
+      <div class="form-group"><label>Số lượng</label><input type="number" id="f-asset-qty" value="${a?.quantity ?? ''}" oninput="calcAssetAmount();updateQltkAllocationSummary()"></div>
       <div class="form-group"><label>Đơn giá (VNĐ)</label><input type="number" id="f-asset-price" value="${a?.unitPrice ?? ''}" oninput="calcAssetAmount()"></div>
       <div class="form-group"><label>Thành tiền (VNĐ)</label><input type="number" id="f-asset-amount" value="${a?.amount ?? ''}"></div>
       <div class="form-group"><label>Nơi sử dụng</label><input type="text" id="f-asset-location" value="${esc(a?.location || '')}"></div>
-      <div class="form-group"><label>Phòng/khoa nhận sử dụng (QLTS)</label><select id="f-asset-department">${qltkDepartmentOptionsHTML(a?.qltkDepartmentId)}</select></div>
-      <div class="form-group"><label>Loại tài sản (QLTS)</label><select id="f-asset-category" onchange="onQltkCategoryChange()">${qltkCategoryOptionsHTML(a?.qltkCategoryId)}</select></div>
+      <div class="form-group full-width">
+        <label>Phòng/khoa nhận sử dụng (QLTS) và phân bổ số lượng</label>
+        <div id="f-asset-allocations" class="qltk-alloc-list"><span class="qltk-alloc-summary">Đang tải…</span></div>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="addQltkAllocationRow()"><span class="material-symbols-rounded">add</span> Thêm phòng/khoa</button>
+          <span id="f-asset-alloc-summary" class="qltk-alloc-summary"></span>
+        </div>
+      </div>
+      <div class="form-group full-width">
+        <label>Loại tài sản (QLTS)</label>
+        <select id="f-asset-category" onchange="onQltkCategoryChange()">${qltkCategoryOptionsHTML(a?.qltkCategoryId)}</select>
+        <div id="f-asset-tracking-hint" class="qltk-alloc-summary"></div>
+      </div>
       <div class="form-group"><label>Năm đưa vào sử dụng</label><input type="text" id="f-asset-year" value="${esc(a?.year || '')}"></div>
       <div class="form-group"><label>Trạng thái</label><select id="f-asset-status">${opts}</select></div>
       <div class="form-group full-width"><label>Ghi chú</label><textarea id="f-asset-note">${esc(a?.note || '')}</textarea></div>
@@ -5507,7 +5608,11 @@ function openAssetForm(assetId, catId, pkgId) {
     <button class="btn btn-secondary" onclick="closeModal()">Hủy</button>
     <button class="btn btn-primary" onclick="saveAsset('${a?.id || ''}','${catId || ''}','${pkgId || ''}')"><span class="material-symbols-rounded">save</span> Lưu</button>
   `, 'lg');
-  ensureQltkOptions().then(() => populateQltkAssetSelects(a));
+  ensureQltkOptions().then(() => {
+    populateQltkAssetSelects(a);
+    renderQltkAllocationRows(a);
+    updateQltkTrackingHint();
+  });
 }
 
 async function saveAsset(assetId, ctxCatId, ctxPkgId) {
@@ -5527,10 +5632,19 @@ async function saveAsset(assetId, ctxCatId, ctxPkgId) {
   const price = num('f-asset-price');
   let amount = num('f-asset-amount');
   if (!amount && qty && price) amount = Math.round(qty * price);
-  const deptId = num('f-asset-department');
-  const qltkCatId = num('f-asset-category');
-  const dept = qltk.departments.find(x => Number(x.id) === deptId);
+  const prevAsset = assetId ? findAsset(project, assetId)?.asset : null;
+  const allocations = readQltkAllocations();
+  const allocTotal = allocations.reduce((s, a) => s + a.quantity, 0);
+  if (qltk.configured && allocations.length && Math.abs(allocTotal - qty) > 1e-6) {
+    showToast(`Tổng phân bổ (${formatNumberVN(allocTotal)}) phải bằng số lượng tài sản (${formatNumberVN(qty)})`, 'error');
+    return;
+  }
+  const qltkCatId = num('f-asset-category') || Number(prevAsset?.qltkCategoryId) || 0;
   const qltkCat = qltk.categories.find(x => Number(x.id) === qltkCatId);
+  const deptId = allocations[0]?.departmentId || Number(prevAsset?.qltkDepartmentId) || 0;
+  const deptName = allocations.length > 1
+    ? `${allocations.length} phòng/khoa`
+    : (allocations[0]?.departmentName || prevAsset?.qltkDepartmentName || '');
   let unit = txt('f-asset-unit');
   if (!unit && qltkCat?.unit) unit = qltkCat.unit;
   const data = {
@@ -5538,9 +5652,10 @@ async function saveAsset(assetId, ctxCatId, ctxPkgId) {
     unit, quantity: qty, unitPrice: price, amount,
     location: txt('f-asset-location'), year: txt('f-asset-year'),
     status: txt('f-asset-status') || ASSET_STATUSES[0], note: txt('f-asset-note'),
-    qltkDepartmentId: deptId, qltkDepartmentName: dept?.name || '',
-    qltkCategoryId: qltkCatId, qltkCategoryName: qltkCat?.name || '',
-    qltkCategoryCode: qltkCat?.code || ''
+    qltkDepartmentId: deptId, qltkDepartmentName: deptName,
+    qltkCategoryId: qltkCatId, qltkCategoryName: qltkCat?.name || prevAsset?.qltkCategoryName || '',
+    qltkCategoryCode: qltkCat?.code || prevAsset?.qltkCategoryCode || '',
+    qltkAllocations: allocations.length ? allocations : (prevAsset?.qltkAllocations || [])
   };
   const syncNow = !!document.getElementById('f-asset-sync')?.checked && qltk.configured && qltkCatId && deptId;
   const code = txt('f-asset-code');

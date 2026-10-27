@@ -282,7 +282,7 @@ const ASSET_EDIT_FIELDS = [
   'name', 'code', 'supplier', 'unit', 'quantity', 'unitPrice', 'amount',
   'location', 'year', 'status', 'note', 'stt',
   'qltkDepartmentId', 'qltkDepartmentName', 'qltkCategoryId', 'qltkCategoryName',
-  'qltkCategoryCode', 'qltkId', 'qltkCode', 'qltkSyncedAt', 'qltkError'
+  'qltkCategoryCode', 'qltkId', 'qltkCode', 'qltkSyncedAt', 'qltkError', 'qltkAllocations'
 ];
 
 app.put('/api/projects/:projectId/assets/:assetId', requireAuth, requireAdmin, (req, res) => {
@@ -352,6 +352,106 @@ app.get('/api/qltk/options', requireAuth, async (req, res) => {
   }
 });
 
+function qltkIsBulkCategory(cat, asset) {
+  if (cat?.trackingType && cat.trackingType !== 'individual') return true;
+  const unit = String(cat?.unit || asset?.unit || '').toLowerCase();
+  return /m2|m²|mét vuông|met vuong/.test(unit);
+}
+
+// Tạo tài sản QLTS cho một dòng tài sản QLDA.
+// - Loại quản lý cá thể: tách thành N bản ghi, mỗi bản ghi SL = 1.
+// - Loại quản lý số lượng lớn (m2...): mỗi phòng 1 bản ghi với SL tương ứng.
+async function qltkSyncOneAsset(asset, ctx) {
+  const catId = Number(asset.qltkCategoryId) || 0;
+  const cat = ctx.catById.get(String(catId));
+  if (!cat) throw new Error('Chưa chọn loại tài sản QLTS');
+
+  const totalQty = Number(asset.quantity) || 1;
+  let allocations = (Array.isArray(asset.qltkAllocations) ? asset.qltkAllocations : [])
+    .map(a => ({
+      departmentId: Number(a.departmentId) || 0,
+      departmentName: a.departmentName || '',
+      quantity: Number(a.quantity) || 0
+    }))
+    .filter(a => a.departmentId && a.quantity > 0);
+  if (!allocations.length) {
+    const deptId = Number(asset.qltkDepartmentId || ctx.departmentId) || 0;
+    if (!deptId) throw new Error('Chưa chọn phòng/khoa nhận sử dụng');
+    allocations = [{ departmentId: deptId, departmentName: asset.qltkDepartmentName || '', quantity: totalQty }];
+  }
+  const totalAllocated = allocations.reduce((s, a) => s + a.quantity, 0);
+  if (Math.abs(totalAllocated - totalQty) > 1e-6) {
+    throw new Error(`Tổng phân bổ (${totalAllocated}) không bằng số lượng tài sản (${totalQty})`);
+  }
+
+  // Dữ liệu đồng bộ kiểu cũ (chưa tách): coi như đã xong, không tạo trùng.
+  if (asset.qltkId && !Array.isArray(asset.qltkItems)) return { created: false };
+
+  asset.qltkItems = Array.isArray(asset.qltkItems) ? asset.qltkItems : [];
+  const bulk = qltkIsBulkCategory(cat, asset);
+  const unitPrice = Number(asset.unitPrice) || (Number(asset.amount) || 0) / (totalQty || 1);
+  let createdCount = 0;
+
+  for (let i = 0; i < allocations.length; i++) {
+    const alloc = allocations[i];
+    const existing = asset.qltkItems.filter(x => Number(x.allocIndex) === i);
+
+    if (bulk) {
+      if (existing.length) continue;
+      const qty = alloc.quantity;
+      const price = Math.round((Number(asset.amount) || 0) * qty / totalQty);
+      const created = await qltk.createAsset({
+        ...asset,
+        quantity: qty,
+        amount: price,
+        unitPrice: qty ? price / qty : 0,
+        qltkDepartmentId: alloc.departmentId,
+        qltkDepartmentName: alloc.departmentName
+      }, { projectLabel: ctx.projectLabel, packageLabel: ctx.packageLabel });
+      const extId = created?.id ?? created?.asset_id ?? '';
+      if (!extId) throw new Error('QLTS không trả về ID tài sản');
+      asset.qltkItems.push({
+        id: extId, code: created?.asset_code || '',
+        departmentId: alloc.departmentId, departmentName: alloc.departmentName,
+        quantity: qty, allocIndex: i
+      });
+      createdCount++;
+    } else {
+      const need = Math.max(0, Math.round(alloc.quantity) - existing.length);
+      for (let n = 0; n < need; n++) {
+        const created = await qltk.createAsset({
+          ...asset,
+          quantity: 1,
+          amount: Math.round(unitPrice),
+          unitPrice,
+          qltkDepartmentId: alloc.departmentId,
+          qltkDepartmentName: alloc.departmentName
+        }, { projectLabel: ctx.projectLabel, packageLabel: ctx.packageLabel });
+        const extId = created?.id ?? created?.asset_id ?? '';
+        if (!extId) throw new Error('QLTS không trả về ID tài sản');
+        asset.qltkItems.push({
+          id: extId, code: created?.asset_code || '',
+          departmentId: alloc.departmentId, departmentName: alloc.departmentName,
+          quantity: 1, allocIndex: i
+        });
+        createdCount++;
+      }
+    }
+  }
+
+  const expected = bulk
+    ? allocations.length
+    : allocations.reduce((s, a) => s + Math.round(a.quantity), 0);
+  const done = asset.qltkItems.length >= expected;
+  asset.qltkId = asset.qltkItems[0]?.id || '';
+  const codes = [...new Set(asset.qltkItems.map(x => x.code).filter(Boolean))];
+  asset.qltkCode = codes.slice(0, 3).join(', ') + (codes.length > 3 ? ` +${codes.length - 3}` : '');
+  asset.qltkDepartmentName = [...new Set(allocations.map(a => a.departmentName).filter(Boolean))].slice(0, 3).join(', ') || asset.qltkDepartmentName || '';
+  asset.qltkSyncedAt = done ? new Date().toISOString() : (asset.qltkSyncedAt || '');
+  asset.qltkError = done ? '' : `Đã đồng bộ ${asset.qltkItems.length}/${expected} tài sản`;
+  return { created: createdCount > 0 };
+}
+
 app.post('/api/qltk/sync-assets', requireAuth, requireAdmin, async (req, res) => {
   if (!qltk.isConfigured()) {
     return res.status(400).json({ error: 'Chưa cấu hình kết nối QLTS (QLTS_USERNAME / QLTS_PASSWORD)' });
@@ -364,35 +464,33 @@ app.post('/api/qltk/sync-assets', requireAuth, requireAdmin, async (req, res) =>
   const targets = [];
   (project.categories || []).forEach(cat => (cat.packages || []).forEach(pkg => {
     if (packageId && pkg.id !== packageId) return;
-    (pkg.assets || []).forEach(a => targets.push(a));
+    (pkg.assets || []).forEach(a => targets.push({ asset: a, pkg }));
   }));
-  if (!packageId) (project.assets || []).forEach(a => targets.push(a));
+  if (!packageId) (project.assets || []).forEach(a => targets.push({ asset: a, pkg: null }));
 
   const only = Array.isArray(assetIds) && assetIds.length ? new Set(assetIds.map(String)) : null;
-  const list = targets.filter(a => !only || only.has(String(a.id)));
+  const list = targets.filter(t => !only || only.has(String(t.asset.id)));
   const summary = { total: list.length, synced: 0, skipped: 0, failed: 0, errors: [] };
 
-  for (const asset of list) {
-    if (asset.qltkId) { summary.skipped++; continue; }
-    const deptId = Number(asset.qltkDepartmentId || departmentId) || 0;
-    const catId = Number(asset.qltkCategoryId) || 0;
-    if (!catId || !deptId) {
-      summary.failed++;
-      if (summary.errors.length < 20) summary.errors.push({ asset: asset.name || asset.id, error: 'Thiếu loại tài sản hoặc phòng/khoa nhận sử dụng' });
-      continue;
-    }
+  let opts;
+  try {
+    opts = await qltk.getOptions();
+  } catch (err) {
+    return res.status(502).json({ error: 'Không kết nối được QLTS: ' + err.message });
+  }
+  const catById = new Map(opts.categories.map(c => [String(c.id), c]));
+  const projectLabel = [project.code, project.name].filter(Boolean).join(' - ');
+
+  for (const { asset, pkg } of list) {
     try {
-      const created = await qltk.createAsset({ ...asset, qltkDepartmentId: deptId });
-      const extId = created?.id ?? created?.asset_id ?? '';
-      if (!extId) throw new Error('QLTS không trả về ID tài sản');
-      asset.qltkId = extId;
-      asset.qltkCode = created?.asset_code || asset.code || '';
-      asset.qltkSyncedAt = new Date().toISOString();
-      asset.qltkError = '';
-      summary.synced++;
+      const result = await qltkSyncOneAsset(asset, {
+        catById, projectLabel, packageLabel: pkg?.name || '', departmentId
+      });
+      if (result.created) summary.synced++;
+      else summary.skipped++;
     } catch (err) {
-      asset.qltkError = err.message;
       summary.failed++;
+      asset.qltkError = err.message;
       if (summary.errors.length < 20) summary.errors.push({ asset: asset.name || asset.id, error: err.message });
     }
   }

@@ -2262,6 +2262,18 @@ canvas {
 .asset-table tr.total-row { background: #eff6ff; }
 .asset-table tr.total-row td { color: var(--text-primary); font-weight: 700; border-top: 2px solid var(--border); }
 
+.qltk-alloc-list { display: flex; flex-direction: column; gap: 6px; }
+.qltk-alloc-row { display: flex; gap: 8px; align-items: center; }
+.qltk-alloc-row select {
+  flex: 1; min-width: 0; padding: 7px 10px; border: 1px solid var(--border-glass);
+  border-radius: var(--radius-sm); font-family: inherit; font-size: 0.85rem;
+}
+.qltk-alloc-row input {
+  width: 90px; padding: 7px 10px; border: 1px solid var(--border-glass);
+  border-radius: var(--radius-sm); font-family: inherit; font-size: 0.85rem;
+}
+.qltk-alloc-summary { font-size: 0.78rem; color: var(--text-muted); }
+
 .capital-table-wrapper { overflow-x: auto; }
 .capital-summary-card { padding: 0; }
 .capital-summary-toggle {

@@ -135,8 +135,12 @@ function mapStatus(status) {
 function buildAssetPayload(asset, opts = {}) {
   const departmentId = Number(asset.qltkDepartmentId || opts.departmentId) || null;
   const categoryId = Number(asset.qltkCategoryId) || null;
+  const desc = [
+    asset.note,
+    opts.projectLabel ? `Dự án: ${opts.projectLabel}` : '',
+    opts.packageLabel ? `Gói thầu: ${opts.packageLabel}` : ''
+  ].filter(Boolean).join(' | ');
   const payload = {
-    asset_code: asset.code || undefined,
     name: asset.name,
     category_id: categoryId,
     category_code: asset.qltkCategoryCode || undefined,
@@ -148,7 +152,7 @@ function buildAssetPayload(asset, opts = {}) {
     year_in_use: Number(asset.year) || undefined,
     status: mapStatus(asset.status),
     asset_condition: 'good',
-    description: asset.note || undefined,
+    description: desc || undefined,
     is_depreciable: true
   };
   Object.keys(payload).forEach(k => { if (payload[k] === undefined || payload[k] === null) delete payload[k]; });
