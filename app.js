@@ -5510,6 +5510,7 @@ function renderAssetsView() {
             <th style="width:150px">Nơi sử dụng</th>
             <th style="width:150px">Phòng/khoa (QLTS)</th>
             <th class="text-center" style="width:52px">Năm</th>
+            <th class="text-center" style="width:100px">Nghiệm thu</th>
             <th class="text-center" style="width:46px">QLTS</th>
             <th class="edit-only" style="width:110px"></th>
           </tr></thead>
@@ -5525,6 +5526,7 @@ function renderAssetsView() {
               <td class="wrap">${esc(a.location || '')}</td>
               <td class="wrap">${esc(a.qltkDepartmentName || '')}</td>
               <td class="text-center">${esc(a.year || '')}</td>
+              <td class="text-center">${a.acceptanceDate ? esc(formatDateVN(a.acceptanceDate)) : ''}</td>
               <td class="text-center">${a.qltkId
                 ? `<span class="material-symbols-rounded" style="color:#16a34a" title="Đã đồng bộ: ${esc(a.qltkCode || a.qltkId)}">cloud_done</span>`
                 : a.qltkError
@@ -5539,7 +5541,7 @@ function renderAssetsView() {
             <tr class="total-row"><td colspan="5" class="text-center">Cộng gói</td>
               <td></td>
               <td class="text-right">${formatCurrency(sum)}</td>
-              <td colspan="5"></td></tr>
+              <td colspan="6"></td></tr>
           </tbody>
         </table>
       </div>
@@ -5597,6 +5599,7 @@ function openAssetForm(assetId, catId, pkgId) {
         <div id="f-asset-tracking-hint" class="qltk-alloc-summary"></div>
       </div>
       <div class="form-group"><label>Năm đưa vào sử dụng</label><input type="text" id="f-asset-year" value="${esc(a?.year || '')}"></div>
+      <div class="form-group"><label>Ngày nghiệm thu</label><input type="date" id="f-asset-acceptanceDate" value="${esc(a?.acceptanceDate || '')}"></div>
       <div class="form-group"><label>Trạng thái</label><select id="f-asset-status">${opts}</select></div>
       <div class="form-group full-width"><label>Ghi chú</label><textarea id="f-asset-note">${esc(a?.note || '')}</textarea></div>
       <div class="form-group full-width" style="display:flex;align-items:center;gap:8px">
@@ -5647,10 +5650,13 @@ async function saveAsset(assetId, ctxCatId, ctxPkgId) {
     : (allocations[0]?.departmentName || prevAsset?.qltkDepartmentName || '');
   let unit = txt('f-asset-unit');
   if (!unit && qltkCat?.unit) unit = qltkCat.unit;
+  const acceptanceDate = txt('f-asset-acceptanceDate');
+  let year = txt('f-asset-year');
+  if (!year && acceptanceDate) year = acceptanceDate.slice(0, 4);
   const data = {
     name, supplier: txt('f-asset-supplier'),
     unit, quantity: qty, unitPrice: price, amount,
-    location: txt('f-asset-location'), year: txt('f-asset-year'),
+    location: txt('f-asset-location'), year, acceptanceDate,
     status: txt('f-asset-status') || ASSET_STATUSES[0], note: txt('f-asset-note'),
     qltkDepartmentId: deptId, qltkDepartmentName: deptName,
     qltkCategoryId: qltkCatId, qltkCategoryName: qltkCat?.name || prevAsset?.qltkCategoryName || '',
@@ -5771,12 +5777,13 @@ function buildAssetsTableHTML(rows) {
     <td class="text-right">${formatCurrency(a.amount || 0)}</td>
     <td>${esc(a.location || '')}</td>
     <td class="text-center">${esc(a.year || '')}</td>
+    <td class="text-center">${a.acceptanceDate ? esc(formatDateVN(a.acceptanceDate)) : ''}</td>
   </tr>`; }).join('');
   const total = rows.reduce((s, r) => s + (Number(r.asset.amount) || 0), 0);
   return `<table>
-    <thead><tr><th style="width:32px">TT</th><th style="width:70px">Mã</th><th>Tên tài sản</th><th>Gói thầu</th><th>ĐVT</th><th class="text-right">SL</th><th class="text-right">Đơn giá</th><th class="text-right">Thành tiền</th><th>Nơi sử dụng</th><th style="width:52px">Năm</th></tr></thead>
+    <thead><tr><th style="width:32px">TT</th><th style="width:70px">Mã</th><th>Tên tài sản</th><th>Gói thầu</th><th>ĐVT</th><th class="text-right">SL</th><th class="text-right">Đơn giá</th><th class="text-right">Thành tiền</th><th>Nơi sử dụng</th><th style="width:52px">Năm</th><th style="width:90px">Nghiệm thu</th></tr></thead>
     <tbody>${body}
-      <tr class="total-row"><td colspan="7" class="text-center">TỔNG CỘNG</td><td class="text-right">${formatCurrency(total)}</td><td colspan="2"></td></tr>
+      <tr class="total-row"><td colspan="7" class="text-center">TỔNG CỘNG</td><td class="text-right">${formatCurrency(total)}</td><td colspan="3"></td></tr>
     </tbody></table>`;
 }
 
@@ -5805,7 +5812,7 @@ function exportAssets(mode) {
   else openPrintWindow(title, bodyHTML);
 }
 
-const importAssetDraft = { base64: '', fileName: '', previewOk: false, overwrite: false, defaultYear: '' };
+const importAssetDraft = { base64: '', fileName: '', previewOk: false, overwrite: false, defaultYear: '', defaultAcceptanceDate: '' };
 
 function readImportFileBase64(file) {
   return new Promise((resolve, reject) => {
@@ -5840,6 +5847,11 @@ function openImportAssetModal() {
         <label>Năm đưa vào sử dụng mặc định (nếu file không có cột năm)</label>
         <input type="number" id="import-asset-default-year" min="1900" max="2200" placeholder="Ví dụ: 2026" onchange="if(importAssetDraft.base64)previewImportAsset()">
         <small style="color:var(--text-muted)">Dùng để QLTS tính khấu hao cho các tài sản chưa có năm trong file.</small>
+      </div>
+      <div class="form-group">
+        <label>Ngày nghiệm thu mặc định (nếu file không có cột ngày)</label>
+        <input type="date" id="import-asset-default-acceptance" onchange="if(importAssetDraft.base64)previewImportAsset()">
+        <small style="color:var(--text-muted)">Có thể lấy theo ngày nghiệm thu của gói thầu khi đồng bộ QLTS.</small>
       </div>
       <div class="form-group" style="display:flex;gap:8px;align-items:flex-start">
         <input type="checkbox" id="import-asset-overwrite" style="width:auto;margin-top:3px" onchange="if(importAssetDraft.base64)previewImportAsset()">
@@ -5884,6 +5896,7 @@ function renderImportPreview(data) {
       <div><b>Thống kê file:</b> ${formatNumberVN(s.projects || 0)} dự án · ${formatNumberVN(s.packages || 0)} gói thầu · ${formatNumberVN(s.assets || 0)} tài sản · ${money}</div>
       <div><b>So với dữ liệu hiện có:</b> thêm mới ${formatNumberVN(s.create || 0)} · cập nhật ${formatNumberVN(s.update || 0)} · bỏ qua ${formatNumberVN(s.skip || 0)}</div>
       <div><b>Năm đưa vào sử dụng:</b> ${s.missingYear ? `<span style="color:#b45309">còn thiếu ${formatNumberVN(s.missingYear)} tài sản</span> — nhập "Năm mặc định" ở trên nếu file không có cột năm.` : 'đã có đủ để tính khấu hao.'}</div>
+      <div><b>Ngày nghiệm thu:</b> ${s.missingAcceptanceDate ? `<span style="color:#b45309">còn thiếu ${formatNumberVN(s.missingAcceptanceDate)} tài sản</span> — nhập "Ngày nghiệm thu mặc định" nếu file không có.` : 'đã có đủ.'}</div>
     </div>
     ${errors.length
       ? list('Lỗi - cần sửa file trước khi nhập', errors, 'var(--accent-red)', 'error')
@@ -5909,10 +5922,11 @@ async function previewImportAsset() {
     const base64 = await readImportFileBase64(file);
     const overwrite = !!document.getElementById('import-asset-overwrite')?.checked;
     const defaultYear = (document.getElementById('import-asset-default-year')?.value || '').trim();
+    const defaultAcceptanceDate = (document.getElementById('import-asset-default-acceptance')?.value || '').trim();
     const res = handleAuthResponse(await fetch(`${API_BASE}/admin/preview-asset-excel`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contentBase64: base64, overwrite, defaultYear })
+      body: JSON.stringify({ contentBase64: base64, overwrite, defaultYear, defaultAcceptanceDate })
     }));
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || 'Không kiểm tra được file');
@@ -5921,6 +5935,7 @@ async function previewImportAsset() {
     importAssetDraft.previewOk = !!data.ok;
     importAssetDraft.overwrite = overwrite;
     importAssetDraft.defaultYear = defaultYear;
+    importAssetDraft.defaultAcceptanceDate = defaultAcceptanceDate;
     renderImportPreview(data);
     if (confirmBtn) confirmBtn.disabled = !data.ok;
   } catch (err) {
@@ -5941,7 +5956,8 @@ async function submitImportAsset() {
   }
   const overwrite = !!document.getElementById('import-asset-overwrite')?.checked;
   const defaultYear = (document.getElementById('import-asset-default-year')?.value || '').trim();
-  if (!importAssetDraft.previewOk || !importAssetDraft.base64 || importAssetDraft.fileName !== file.name || importAssetDraft.overwrite !== overwrite || importAssetDraft.defaultYear !== defaultYear) {
+  const defaultAcceptanceDate = (document.getElementById('import-asset-default-acceptance')?.value || '').trim();
+  if (!importAssetDraft.previewOk || !importAssetDraft.base64 || importAssetDraft.fileName !== file.name || importAssetDraft.overwrite !== overwrite || importAssetDraft.defaultYear !== defaultYear || importAssetDraft.defaultAcceptanceDate !== defaultAcceptanceDate) {
     if (resultEl) resultEl.innerHTML = '<span style="color:var(--accent-red)">Vui lòng bấm "Kiểm tra file" trước khi nhập.</span>';
     return;
   }
@@ -5951,7 +5967,7 @@ async function submitImportAsset() {
     const res = handleAuthResponse(await fetch(`${API_BASE}/admin/import-asset-excel`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contentBase64: importAssetDraft.base64, overwrite, defaultYear })
+      body: JSON.stringify({ contentBase64: importAssetDraft.base64, overwrite, defaultYear, defaultAcceptanceDate })
     }));
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || 'Lỗi nhập file');

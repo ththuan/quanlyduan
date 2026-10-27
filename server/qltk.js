@@ -136,6 +136,10 @@ function mapStatus(status) {
 function buildAssetPayload(asset, opts = {}) {
   const departmentId = Number(asset.qltkDepartmentId || opts.departmentId) || null;
   const categoryId = Number(asset.qltkCategoryId) || null;
+  const acceptanceDate = asset.acceptanceDate || opts.acceptanceDate || '';
+  const yearInUse = Number(asset.year) ||
+    (acceptanceDate ? Number(String(acceptanceDate).slice(0, 4)) : 0) ||
+    Number(opts.projectYear) || 0;
   const desc = [
     asset.note,
     opts.projectLabel ? `Dự án: ${opts.projectLabel}` : '',
@@ -150,7 +154,8 @@ function buildAssetPayload(asset, opts = {}) {
     purchase_price: Number(asset.amount) || (Number(asset.quantity) || 1) * (Number(asset.unitPrice) || 0),
     current_department_id: departmentId,
     location: asset.location || undefined,
-    year_in_use: Number(asset.year) || undefined,
+    purchase_date: acceptanceDate || undefined,
+    year_in_use: yearInUse || undefined,
     status: mapStatus(asset.status),
     asset_condition: 'good',
     description: desc || undefined,

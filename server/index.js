@@ -280,7 +280,7 @@ app.put('/api/state', requireAuth, requireAdmin, (req, res) => {
 // ---- Cập nhật riêng một tài sản (tránh ghi đè toàn bộ state từ dữ liệu cũ) ----
 const ASSET_EDIT_FIELDS = [
   'name', 'code', 'supplier', 'unit', 'quantity', 'unitPrice', 'amount',
-  'location', 'year', 'status', 'note', 'stt',
+  'location', 'year', 'acceptanceDate', 'status', 'note', 'stt',
   'qltkDepartmentId', 'qltkDepartmentName', 'qltkCategoryId', 'qltkCategoryName',
   'qltkCategoryCode', 'qltkId', 'qltkCode', 'qltkSyncedAt', 'qltkError', 'qltkAllocations'
 ];
@@ -358,6 +358,12 @@ function qltkIsBulkCategory(cat, asset) {
   return /m2|m²|mét vuông|met vuong/.test(unit);
 }
 
+function qltkLatestAcceptanceDate(pkg) {
+  if (!pkg) return '';
+  const dates = (pkg.acceptances || []).map(a => a.date).filter(Boolean).sort();
+  return dates[dates.length - 1] || pkg.acceptanceDate || '';
+}
+
 // Tạo tài sản QLTS cho một dòng tài sản QLDA.
 // - Loại quản lý cá thể: tách thành N bản ghi, mỗi bản ghi SL = 1.
 // - Loại quản lý số lượng lớn (m2...): mỗi phòng 1 bản ghi với SL tương ứng.
@@ -407,7 +413,7 @@ async function qltkSyncOneAsset(asset, ctx) {
         unitPrice: qty ? price / qty : 0,
         qltkDepartmentId: alloc.departmentId,
         qltkDepartmentName: alloc.departmentName
-        }, { projectLabel: ctx.projectLabel, packageLabel: ctx.packageLabel, category: cat });
+        }, { projectLabel: ctx.projectLabel, packageLabel: ctx.packageLabel, category: cat, acceptanceDate: ctx.acceptanceDate, projectYear: ctx.projectYear });
       const extId = created?.id ?? created?.asset_id ?? '';
       if (!extId) throw new Error('QLTS không trả về ID tài sản');
       asset.qltkItems.push({
@@ -426,7 +432,7 @@ async function qltkSyncOneAsset(asset, ctx) {
           unitPrice,
           qltkDepartmentId: alloc.departmentId,
           qltkDepartmentName: alloc.departmentName
-      }, { projectLabel: ctx.projectLabel, packageLabel: ctx.packageLabel, category: cat });
+      }, { projectLabel: ctx.projectLabel, packageLabel: ctx.packageLabel, category: cat, acceptanceDate: ctx.acceptanceDate, projectYear: ctx.projectYear });
         const extId = created?.id ?? created?.asset_id ?? '';
         if (!extId) throw new Error('QLTS không trả về ID tài sản');
         asset.qltkItems.push({
@@ -484,7 +490,9 @@ app.post('/api/qltk/sync-assets', requireAuth, requireAdmin, async (req, res) =>
   for (const { asset, pkg } of list) {
     try {
       const result = await qltkSyncOneAsset(asset, {
-        catById, projectLabel, packageLabel: pkg?.name || '', departmentId
+        catById, projectLabel, packageLabel: pkg?.name || '', departmentId,
+        acceptanceDate: qltkLatestAcceptanceDate(pkg),
+        projectYear: Number(project.endYear || project.startYear) || 0
       });
       if (result.created) summary.synced++;
       else summary.skipped++;
@@ -694,23 +702,23 @@ app.post('/api/admin/import-project-excel', requireAuth, requireAdmin, (req, res
 // Tải file Excel mẫu để nhập danh mục tài sản
 app.get('/api/admin/import-asset-template', requireAuth, requireAdmin, (req, res) => {
   try {
-    const headers = ['STT', 'TÊN THIẾT BỊ', 'ĐVT', 'SL', 'ĐƠN GIÁ', 'THÀNH TIỀN', 'ĐẶT Ở', 'GHI CHÚ', 'NĂM ĐƯA VÀO SỬ DỤNG'];
+    const headers = ['STT', 'TÊN THIẾT BỊ', 'ĐVT', 'SL', 'ĐƠN GIÁ', 'THÀNH TIỀN', 'ĐẶT Ở', 'GHI CHÚ', 'NGÀY NGHIỆM THU', 'NĂM ĐƯA VÀO SỬ DỤNG'];
     const data = [
       headers,
-      ['', 'A. Dự án mẫu - Trường Cao đẳng Kinh tế - Kỹ thuật Cần Thơ', '', '', '', '', '', '', ''],
-      ['', 'I. Gói thầu mẫu - Công ty TNHH ABC', '', '', '', '', '', '', ''],
-      ['1', 'Máy tính để bàn', 'Cái', 2, 15000000, 30000000, 'Phòng CNTT', 'Ví dụ dòng tài sản', '2026'],
-      ['2', 'Màn hình máy tính 24 inch', 'Cái', 2, 3000000, 6000000, 'Phòng CNTT', '', '2026'],
-      ['', 'II. Gói thầu mẫu 2 - Công ty TNHH XYZ', '', '', '', '', '', '', ''],
-      ['1', 'Máy in laser', 'Cái', 1, 5000000, 5000000, 'Phòng Kế toán', '', '2026'],
-      ['', 'B. Dự án mẫu 2 - Trường Cao đẳng Kinh tế - Kỹ thuật Cần Thơ', '', '', '', '', '', '', ''],
-      ['', 'I. Gói thầu mẫu - Công ty TNHH DEF', '', '', '', '', '', '', ''],
-      ['1', 'Tủ lạnh', 'Cái', 1, 8000000, 8000000, 'Khoa Cơ khí', '', '2026']
+      ['', 'A. Dự án mẫu - Trường Cao đẳng Kinh tế - Kỹ thuật Cần Thơ', '', '', '', '', '', '', '', ''],
+      ['', 'I. Gói thầu mẫu - Công ty TNHH ABC', '', '', '', '', '', '', '', ''],
+      ['1', 'Máy tính để bàn', 'Cái', 2, 15000000, 30000000, 'Phòng CNTT', 'Ví dụ dòng tài sản', '2025-12-31', '2026'],
+      ['2', 'Màn hình máy tính 24 inch', 'Cái', 2, 3000000, 6000000, 'Phòng CNTT', '', '2025-12-31', '2026'],
+      ['', 'II. Gói thầu mẫu 2 - Công ty TNHH XYZ', '', '', '', '', '', '', '', ''],
+      ['1', 'Máy in laser', 'Cái', 1, 5000000, 5000000, 'Phòng Kế toán', '', '2025-12-31', '2026'],
+      ['', 'B. Dự án mẫu 2 - Trường Cao đẳng Kinh tế - Kỹ thuật Cần Thơ', '', '', '', '', '', '', '', ''],
+      ['', 'I. Gói thầu mẫu - Công ty TNHH DEF', '', '', '', '', '', '', '', ''],
+      ['1', 'Tủ lạnh', 'Cái', 1, 8000000, 8000000, 'Khoa Cơ khí', '', '2025-12-31', '2026']
     ];
     const ws = XLSX.utils.aoa_to_sheet(data);
     ws['!cols'] = [
       { wch: 6 }, { wch: 52 }, { wch: 8 }, { wch: 8 }, { wch: 16 },
-      { wch: 16 }, { wch: 20 }, { wch: 26 }, { wch: 18 }
+      { wch: 16 }, { wch: 20 }, { wch: 26 }, { wch: 16 }, { wch: 18 }
     ];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'TB CÁC DỰ ÁN');
@@ -723,9 +731,11 @@ app.get('/api/admin/import-asset-template', requireAuth, requireAdmin, (req, res
       ['3. Dòng gói thầu: cột B bắt đầu bằng "I. ", "II. ", "III. "...'],
       ['   Có thể ghi "I. Tên gói thầu - Tên nhà cung cấp" để tách nhà cung cấp.'],
       ['4. Dòng tài sản: cột STT là số (1, 2, 3...), điền TÊN THIẾT BỊ, ĐVT, SL, ĐƠN GIÁ, THÀNH TIỀN.'],
-      ['5. Các cột ĐẶT Ở, GHI CHÚ, NĂM ĐƯA VÀO SỬ DỤNG có thể để trống.'],
-      ['6. Sau khi nhập vào QLDA, mở từng tài sản để chọn Phòng/khoa nhận sử dụng và Loại tài sản QLTS.'],
-      ['7. Kiểm tra file trước khi nhập để xem cảnh báo/lỗi.']
+      ['5. Cột NGÀY NGHIỆM THU dùng để QLTS ghi nhận ngày đưa vào sử dụng/khấu hao.'],
+      ['6. Cột NĂM ĐƯA VÀO SỬ DỤNG dùng để QLTS tính khấu hao. Có thể để trống và nhập năm mặc định khi import.'],
+      ['7. Các cột ĐẶT Ở, GHI CHÚ có thể để trống.'],
+      ['8. Sau khi nhập vào QLDA, mở từng tài sản để chọn Phòng/khoa nhận sử dụng và Loại tài sản QLTS.'],
+      ['9. Kiểm tra file trước khi nhập để xem cảnh báo/lỗi.']
     ];
     const guideWs = XLSX.utils.aoa_to_sheet(guide);
     guideWs['!cols'] = [{ wch: 110 }];
@@ -743,11 +753,11 @@ app.get('/api/admin/import-asset-template', requireAuth, requireAdmin, (req, res
 // Kiểm tra file Excel tài sản trước khi nhập
 app.post('/api/admin/preview-asset-excel', requireAuth, requireAdmin, (req, res) => {
   try {
-    const { contentBase64, sheetName, overwrite, defaultYear } = req.body || {};
+    const { contentBase64, sheetName, overwrite, defaultYear, defaultAcceptanceDate } = req.body || {};
     if (!contentBase64) return res.status(400).json({ error: 'Thiếu nội dung file Excel' });
     const buf = Buffer.from(String(contentBase64).replace(/^data:.*;base64,/, ''), 'base64');
     if (!buf.length) return res.status(400).json({ error: 'File rỗng hoặc không hợp lệ' });
-    const result = assetImport.validateWorkbook(buf, sheetName || undefined, defaultYear);
+    const result = assetImport.validateWorkbook(buf, sheetName || undefined, defaultYear, defaultAcceptanceDate);
     const state = db.getState();
     const existing = new Set((state.projects || []).map(p => `${(p.name || '').trim().toLowerCase()}|${p.code || ''}`));
     let create = 0, update = 0, skip = 0;
@@ -782,11 +792,11 @@ app.post('/api/admin/preview-asset-excel', requireAuth, requireAdmin, (req, res)
 // Phân cấp: A/B/C... = dự án; I/II/... = gói thầu; dòng STT = tài sản
 app.post('/api/admin/import-asset-excel', requireAuth, requireAdmin, (req, res) => {
   try {
-    const { contentBase64, sheetName, overwrite, defaultYear } = req.body || {};
+    const { contentBase64, sheetName, overwrite, defaultYear, defaultAcceptanceDate } = req.body || {};
     if (!contentBase64) return res.status(400).json({ error: 'Thiếu nội dung file Excel' });
     const buf = Buffer.from(String(contentBase64).replace(/^data:.*;base64,/, ''), 'base64');
     if (!buf.length) return res.status(400).json({ error: 'File rỗng hoặc không hợp lệ' });
-    const checked = assetImport.validateWorkbook(buf, sheetName || undefined, defaultYear);
+    const checked = assetImport.validateWorkbook(buf, sheetName || undefined, defaultYear, defaultAcceptanceDate);
     if (checked.errors.length) {
       return res.status(400).json({
         error: 'File có lỗi, chưa nhập. ' + checked.errors[0],

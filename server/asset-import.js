@@ -67,11 +67,48 @@ function normalizeYear(value) {
   return extractYear(value);
 }
 
-function applyDefaultYear(projects, defaultYear) {
+function toIsoDate(y, m, d) {
+  if (!y || !m || !d) return '';
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d) return '';
+  return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+}
+
+// Chuẩn hóa ngày từ ô Excel hoặc chuỗi văn bản (dd/mm/yyyy, yyyy-mm-dd, serial Excel)
+function normalizeDate(value) {
+  if (value == null || value === '') return '';
+  if (value instanceof Date && !isNaN(value)) return toIsoDate(value.getFullYear(), value.getMonth() + 1, value.getDate());
+  if (typeof value === 'number' && isFinite(value)) {
+    const d = new Date(Date.UTC(1899, 11, 30) + Math.trunc(value) * 86400000);
+    return toIsoDate(d.getUTCFullYear(), d.getUTCMonth() + 1, d.getUTCDate());
+  }
+  const s = String(value).trim();
+  let m = s.match(/(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/);
+  if (m) return toIsoDate(Number(m[1]), Number(m[2]), Number(m[3]));
+  m = s.match(/(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2,4})/);
+  if (m) {
+    let y = Number(m[3]);
+    if (y < 100) y += 2000;
+    return toIsoDate(y, Number(m[2]), Number(m[1]));
+  }
+  return '';
+}
+
+function extractDate(text) {
+  return normalizeDate(text);
+}
+
+// Điền năm/ngày nghiệm thu mặc định cho tài sản chưa có
+function applyDefaults(projects, defaultYear, defaultAcceptanceDate) {
   const year = normalizeYear(defaultYear);
-  if (!year) return projects;
+  const date = normalizeDate(defaultAcceptanceDate);
+  const fallbackYear = year || (date ? date.slice(0, 4) : '');
   (projects || []).forEach(p => (p.categories || []).forEach(c => (c.packages || []).forEach(pk => {
-    (pk.assets || []).forEach(a => { if (!a.year) a.year = year; });
+    (pk.assets || []).forEach(a => {
+      if (!a.acceptanceDate && date) a.acceptanceDate = date;
+      if (!a.year && a.acceptanceDate) a.year = a.acceptanceDate.slice(0, 4);
+      if (!a.year && fallbackYear) a.year = fallbackYear;
+    });
   })));
   return projects;
 }
@@ -115,6 +152,7 @@ function mapColumns(headerRow) {
     else if (map.location == null && h.includes('dat o')) map.location = c;
     else if (map.note == null && h.includes('ghi chu')) map.note = c;
     else if (map.year == null && (h.includes('nam dua vao') || h.includes('nam su dung') || h.includes('ngay dua vao') || h.includes('ngay su dung'))) map.year = c;
+    if (map.acceptanceDate == null && (h.includes('ngay nghiem thu') || h.includes('ngay ban giao') || h.includes('ngay dua vao') || h.includes('ngay su dung'))) map.acceptanceDate = c;
   });
   return map;
 }
@@ -283,7 +321,12 @@ function parseSheet(ws) {
       if (!project) project = newProject('Mua sắm tài sản', '');
       if (!group) group = newGroup(project.name, '', 0);
       const noteRaw = toText(cell(row, map.note));
+      const locationRaw = toText(cell(row, map.location));
       const yearRaw = map.year != null ? cell(row, map.year) : '';
+      const acceptanceRaw = map.acceptanceDate != null ? cell(row, map.acceptanceDate) : '';
+      const acceptanceText = [noteRaw, locationRaw].filter(Boolean).join(' ');
+      const acceptanceDate = normalizeDate(acceptanceRaw) ||
+        (/nghi[eệ]m thu|b[aà]n giao/i.test(acceptanceText) ? extractDate(acceptanceText) : '');
       const assetName = B || (A ? (/^\d+$/.test(A) ? `Tài sản ${A}` : A) : 'Tài sản không tên');
       const asset = {
         id: 'asset-' + crypto.randomUUID(),
@@ -296,8 +339,9 @@ function parseSheet(ws) {
         quantity: toNum(cell(row, map.quantity)),
         unitPrice: toNum(cell(row, map.unitPrice)),
         amount: toNum(cell(row, map.amount)),
-        location: toText(cell(row, map.location)),
-        year: normalizeYear(yearRaw) || extractYear(noteRaw),
+        location: locationRaw,
+        acceptanceDate,
+        year: normalizeYear(yearRaw) || (acceptanceDate ? acceptanceDate.slice(0, 4) : '') || extractYear(noteRaw),
         note: noteRaw,
         status: 'Đang sử dụng'
       };
@@ -348,18 +392,18 @@ function pickSheet(wb, sheetName) {
   return null;
 }
 
-function parseWorkbook(buffer, sheetName, defaultYear) {
+function parseWorkbook(buffer, sheetName, defaultYear, defaultAcceptanceDate) {
   const wb = XLSX.read(buffer, { type: 'buffer' });
   const ws = pickSheet(wb, sheetName);
   if (!ws) return null;
   const projects = parseSheet(ws);
   if (!projects.length) return null;
-  applyDefaultYear(projects, defaultYear);
+  applyDefaults(projects, defaultYear, defaultAcceptanceDate);
   return projects;
 }
 
 // Kiểm tra file trước khi nhập: trả về lỗi chặn nhập, cảnh báo và thống kê
-function validateWorkbook(buffer, sheetName, defaultYear) {
+function validateWorkbook(buffer, sheetName, defaultYear, defaultAcceptanceDate) {
   const errors = [];
   const warnings = [];
   let wb;
@@ -388,12 +432,13 @@ function validateWorkbook(buffer, sheetName, defaultYear) {
   if (!projects.length) {
     return { errors: ['Không đọc được dự án/tài sản nào. Kiểm tra lại bố cục: dòng dự án bắt đầu bằng "A. ", gói thầu bằng "I. ", tài sản có STT là số.'], warnings, stats: null, projects: [] };
   }
-  applyDefaultYear(projects, defaultYear);
+  applyDefaults(projects, defaultYear, defaultAcceptanceDate);
 
   let packages = 0;
   let assets = 0;
   let totalValue = 0;
   let missingYear = 0;
+  let missingAcceptanceDate = 0;
   const assetNames = new Set();
   projects.forEach(p => {
     if (!p.name) errors.push('Có dự án không có tên.');
@@ -418,6 +463,10 @@ function validateWorkbook(buffer, sheetName, defaultYear) {
           missingYear += 1;
           if (missingYear <= 10) warnings.push(`${where}: thiếu năm đưa vào sử dụng (QLTS cần để tính khấu hao).`);
         }
+        if (!a.acceptanceDate) {
+          missingAcceptanceDate += 1;
+          if (missingAcceptanceDate <= 10) warnings.push(`${where}: thiếu ngày nghiệm thu.`);
+        }
         if (!amount && !price) warnings.push(`${where}: chưa có đơn giá và thành tiền.`);
         else if (qty && price && amount && Math.abs(amount - qty * price) > 1) {
           warnings.push(`${where}: thành tiền (${amount}) khác SL × đơn giá (${qty * price}).`);
@@ -426,6 +475,7 @@ function validateWorkbook(buffer, sheetName, defaultYear) {
     });
   });
   if (missingYear > 10) warnings.push(`Còn ${missingYear - 10} tài sản khác thiếu năm đưa vào sử dụng.`);
+  if (missingAcceptanceDate > 10) warnings.push(`Còn ${missingAcceptanceDate - 10} tài sản khác thiếu ngày nghiệm thu.`);
 
   // Cảnh báo các dòng trông giống tài sản nhưng không được nhận dạng
   let skippedRows = 0;
@@ -445,7 +495,7 @@ function validateWorkbook(buffer, sheetName, defaultYear) {
   return {
     errors,
     warnings,
-    stats: { projects: projects.length, packages, assets, totalValue, missingYear, skippedRows },
+    stats: { projects: projects.length, packages, assets, totalValue, missingYear, missingAcceptanceDate, skippedRows },
     projects
   };
 }
