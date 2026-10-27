@@ -138,14 +138,14 @@ function buildAssetPayload(asset, opts = {}) {
   const categoryId = Number(asset.qltkCategoryId) || null;
   const acceptanceDate = asset.acceptanceDate || opts.acceptanceDate || '';
   const yearInUse = Number(asset.year) ||
-    (acceptanceDate ? Number(String(acceptanceDate).slice(0, 4)) : 0) ||
-    Number(opts.projectYear) || 0;
+    (acceptanceDate ? Number(String(acceptanceDate).slice(0, 4)) : 0);
   const desc = [
     asset.note,
     opts.projectLabel ? `Dự án: ${opts.projectLabel}` : '',
     opts.packageLabel ? `Gói thầu: ${opts.packageLabel}` : ''
   ].filter(Boolean).join(' | ');
   const payload = {
+    asset_code: asset.code || undefined,
     name: asset.name,
     category_id: categoryId,
     category_code: asset.qltkCategoryCode || undefined,
@@ -173,4 +173,16 @@ async function createAsset(asset, opts = {}) {
   return d?.asset || d?.item || d;
 }
 
-module.exports = { isConfigured, getOptions, createAsset, buildAssetPayload, mapStatus, BASE_URL };
+// Sinh mã tài sản theo đúng quy tắc của QLTS (theo loại tài sản)
+async function generateAssetCode(categoryCode) {
+  if (!categoryCode) throw new Error('Thiếu mã loại tài sản để sinh mã');
+  const json = await request('/asset-categories/generate-code', {
+    method: 'POST',
+    body: { categoryCode }
+  });
+  const code = json?.data?.assetCode || json?.assetCode || '';
+  if (!code) throw new Error('QLTS không trả về mã tài sản');
+  return code;
+}
+
+module.exports = { isConfigured, getOptions, createAsset, generateAssetCode, buildAssetPayload, mapStatus, BASE_URL };

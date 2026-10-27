@@ -364,6 +364,22 @@ function qltkLatestAcceptanceDate(pkg) {
   return dates[dates.length - 1] || pkg.acceptanceDate || '';
 }
 
+// Sinh mã theo loại tài sản của QLTS rồi tạo tài sản; thử lại nếu mã bị trùng
+async function qltkCreateAssetWithGeneratedCode(asset, opts, categoryCode) {
+  let lastErr = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const code = await qltk.generateAssetCode(categoryCode);
+    try {
+      return await qltk.createAsset({ ...asset, code }, opts);
+    } catch (err) {
+      lastErr = err;
+      if (err.status === 409) continue;
+      throw err;
+    }
+  }
+  throw lastErr || new Error('Không sinh được mã tài sản QLTS');
+}
+
 // Tạo tài sản QLTS cho một dòng tài sản QLDA.
 // - Loại quản lý cá thể: tách thành N bản ghi, mỗi bản ghi SL = 1.
 // - Loại quản lý số lượng lớn (m2...): mỗi phòng 1 bản ghi với SL tương ứng.
@@ -406,14 +422,14 @@ async function qltkSyncOneAsset(asset, ctx) {
       if (existing.length) continue;
       const qty = alloc.quantity;
       const price = Math.round((Number(asset.amount) || 0) * qty / totalQty);
-      const created = await qltk.createAsset({
+      const created = await qltkCreateAssetWithGeneratedCode({
         ...asset,
         quantity: qty,
         amount: price,
         unitPrice: qty ? price / qty : 0,
         qltkDepartmentId: alloc.departmentId,
         qltkDepartmentName: alloc.departmentName
-        }, { projectLabel: ctx.projectLabel, packageLabel: ctx.packageLabel, category: cat, acceptanceDate: ctx.acceptanceDate, projectYear: ctx.projectYear });
+      }, { projectLabel: ctx.projectLabel, packageLabel: ctx.packageLabel, category: cat, acceptanceDate: ctx.acceptanceDate }, cat.code);
       const extId = created?.id ?? created?.asset_id ?? '';
       if (!extId) throw new Error('QLTS không trả về ID tài sản');
       asset.qltkItems.push({
@@ -425,14 +441,14 @@ async function qltkSyncOneAsset(asset, ctx) {
     } else {
       const need = Math.max(0, Math.round(alloc.quantity) - existing.length);
       for (let n = 0; n < need; n++) {
-        const created = await qltk.createAsset({
+        const created = await qltkCreateAssetWithGeneratedCode({
           ...asset,
           quantity: 1,
           amount: Math.round(unitPrice),
           unitPrice,
           qltkDepartmentId: alloc.departmentId,
           qltkDepartmentName: alloc.departmentName
-      }, { projectLabel: ctx.projectLabel, packageLabel: ctx.packageLabel, category: cat, acceptanceDate: ctx.acceptanceDate, projectYear: ctx.projectYear });
+        }, { projectLabel: ctx.projectLabel, packageLabel: ctx.packageLabel, category: cat, acceptanceDate: ctx.acceptanceDate }, cat.code);
         const extId = created?.id ?? created?.asset_id ?? '';
         if (!extId) throw new Error('QLTS không trả về ID tài sản');
         asset.qltkItems.push({
@@ -491,8 +507,7 @@ app.post('/api/qltk/sync-assets', requireAuth, requireAdmin, async (req, res) =>
     try {
       const result = await qltkSyncOneAsset(asset, {
         catById, projectLabel, packageLabel: pkg?.name || '', departmentId,
-        acceptanceDate: qltkLatestAcceptanceDate(pkg),
-        projectYear: Number(project.endYear || project.startYear) || 0
+        acceptanceDate: qltkLatestAcceptanceDate(pkg)
       });
       if (result.created) summary.synced++;
       else summary.skipped++;
@@ -732,7 +747,7 @@ app.get('/api/admin/import-asset-template', requireAuth, requireAdmin, (req, res
       ['   Có thể ghi "I. Tên gói thầu - Tên nhà cung cấp" để tách nhà cung cấp.'],
       ['4. Dòng tài sản: cột STT là số (1, 2, 3...), điền TÊN THIẾT BỊ, ĐVT, SL, ĐƠN GIÁ, THÀNH TIỀN.'],
       ['5. Cột NGÀY NGHIỆM THU dùng để QLTS ghi nhận ngày đưa vào sử dụng/khấu hao.'],
-      ['6. Cột NĂM ĐƯA VÀO SỬ DỤNG dùng để QLTS tính khấu hao. Có thể để trống và nhập năm mặc định khi import.'],
+      ['6. Cột NĂM ĐƯA VÀO SỬ DỤNG dùng để QLTS tính khấu hao. Nếu để trống, khi đồng bộ sẽ lấy năm theo biên bản nghiệm thu của gói thầu; nếu chưa có nghiệm thu thì để trống, không tự gán năm.'],
       ['7. Các cột ĐẶT Ở, GHI CHÚ có thể để trống.'],
       ['8. Sau khi nhập vào QLDA, mở từng tài sản để chọn Phòng/khoa nhận sử dụng và Loại tài sản QLTS.'],
       ['9. Kiểm tra file trước khi nhập để xem cảnh báo/lỗi.']
