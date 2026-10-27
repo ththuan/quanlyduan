@@ -349,14 +349,18 @@ function applyConfig() {
   if (Array.isArray(c.templates?.qtda)) QTDA_TITLES = c.templates.qtda;
 }
 
-function saveState() {
-  if (!state.loaded) return Promise.resolve();
+async function persistState() {
+  if (!state.loaded) return;
   // Tài khoản chỉ đọc (user) không lưu lên server để tránh 403; UI vẫn cập nhật cục bộ
-  if (currentUser && currentUser.role !== 'admin') return Promise.resolve();
-  return apiSaveState({
+  if (currentUser && currentUser.role !== 'admin') return;
+  await apiSaveState({
     projects: state.projects,
     currentProjectId: state.currentProjectId
-  }).catch(err => showToast('Lỗi lưu dữ liệu: ' + err.message, 'error'));
+  });
+}
+
+function saveState() {
+  return persistState().catch(err => showToast('Lỗi lưu dữ liệu: ' + err.message, 'error'));
 }
 
 function getCurrentProject() {
@@ -5292,6 +5296,17 @@ function onQltkCategoryChange() {
   if (cat?.unit && unit && !unit.value.trim()) unit.value = cat.unit;
 }
 
+async function apiSaveAsset(projectId, assetId, payload) {
+  const res = handleAuthResponse(await fetch(`${API_BASE}/projects/${encodeURIComponent(projectId)}/assets/${encodeURIComponent(assetId)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  }));
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Không lưu được tài sản');
+  return data;
+}
+
 async function apiQltkSync(body) {
   const res = handleAuthResponse(await fetch(`${API_BASE}/qltk/sync-assets`, {
     method: 'POST',
@@ -5495,7 +5510,7 @@ function openAssetForm(assetId, catId, pkgId) {
   ensureQltkOptions().then(() => populateQltkAssetSelects(a));
 }
 
-function saveAsset(assetId, ctxCatId, ctxPkgId) {
+async function saveAsset(assetId, ctxCatId, ctxPkgId) {
   if (!requireEditPermission()) return;
   const project = getCurrentProject();
   if (!project) return;
@@ -5549,15 +5564,25 @@ function saveAsset(assetId, ctxCatId, ctxPkgId) {
     targetId = 'asset-' + generateId();
     pkg.assets.push({ id: targetId, code: code || `${prefix}-${String(n + 1).padStart(4, '0')}`, stt: '', projectId: project.id, packageId: pkg.id, ...data });
   }
-  addAudit(project, assetId ? 'update' : 'create', 'tài sản', name);
-  const savePromise = saveState();
+  const targetAsset = pkg.assets.find(x => x.id === targetId) || findAsset(project, targetId)?.asset;
+  try {
+    if (assetId) {
+      await apiSaveAsset(project.id, assetId, { asset: targetAsset, catId: cat.id, pkgId: pkg.id });
+    } else {
+      addAudit(project, 'create', 'tài sản', name);
+      await persistState();
+    }
+  } catch (err) {
+    showToast('Lưu tài sản thất bại: ' + err.message, 'error');
+    closeModal();
+    try { await loadState(); renderAll(); } catch (_) {}
+    return;
+  }
   closeModal();
   if (ctxCatId && ctxPkgId) viewPackageDetail(ctxCatId, ctxPkgId);
   else renderAssetsView();
   showToast(assetId ? 'Đã cập nhật tài sản' : 'Đã thêm tài sản');
-  if (syncNow && targetId) {
-    Promise.resolve(savePromise).then(() => syncAssetToQltk(targetId, true));
-  }
+  if (syncNow && targetId) syncAssetToQltk(targetId, true);
 }
 
 async function syncAssetToQltk(assetId, silent) {

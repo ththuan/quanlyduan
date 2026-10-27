@@ -277,6 +277,68 @@ app.put('/api/state', requireAuth, requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
+// ---- Cập nhật riêng một tài sản (tránh ghi đè toàn bộ state từ dữ liệu cũ) ----
+const ASSET_EDIT_FIELDS = [
+  'name', 'code', 'supplier', 'unit', 'quantity', 'unitPrice', 'amount',
+  'location', 'year', 'status', 'note', 'stt',
+  'qltkDepartmentId', 'qltkDepartmentName', 'qltkCategoryId', 'qltkCategoryName',
+  'qltkCategoryCode', 'qltkId', 'qltkCode', 'qltkSyncedAt', 'qltkError'
+];
+
+app.put('/api/projects/:projectId/assets/:assetId', requireAuth, requireAdmin, (req, res) => {
+  const { asset, catId, pkgId } = req.body || {};
+  const state = db.getState();
+  const project = (state.projects || []).find(p => p.id === req.params.projectId);
+  if (!project) return res.status(404).json({ error: 'Không tìm thấy dự án' });
+
+  let found = null;
+  let oldPkg = null;
+  for (const cat of (project.categories || [])) {
+    for (const pkg of (cat.packages || [])) {
+      const a = (pkg.assets || []).find(x => x.id === req.params.assetId);
+      if (a) { found = a; oldPkg = pkg; break; }
+    }
+    if (found) break;
+  }
+  if (!found) found = (project.assets || []).find(x => x.id === req.params.assetId);
+  if (!found) return res.status(404).json({ error: 'Không tìm thấy tài sản' });
+
+  const targetCat = (project.categories || []).find(c => c.id === catId);
+  const targetPkg = targetCat?.packages.find(p => p.id === pkgId);
+  if (!targetPkg) return res.status(400).json({ error: 'Gói thầu không hợp lệ' });
+
+  const clean = {};
+  for (const k of ASSET_EDIT_FIELDS) if (asset && asset[k] !== undefined) clean[k] = asset[k];
+  clean.id = found.id;
+  clean.projectId = project.id;
+  clean.packageId = targetPkg.id;
+
+  if (oldPkg !== targetPkg) {
+    if (oldPkg) oldPkg.assets = (oldPkg.assets || []).filter(x => x.id !== found.id);
+    else project.assets = (project.assets || []).filter(x => x.id !== found.id);
+    targetPkg.assets = targetPkg.assets || [];
+    targetPkg.assets.push({ ...found, ...clean });
+  } else {
+    Object.assign(found, clean);
+  }
+
+  project.auditLog = project.auditLog || [];
+  project.auditLog.push({
+    id: crypto.randomUUID(),
+    timestamp: new Date().toISOString(),
+    user: req.user.username,
+    action: 'update',
+    target: 'tài sản',
+    name: clean.name || found.name,
+    detail: ''
+  });
+  if (project.auditLog.length > 1000) project.auditLog = project.auditLog.slice(-1000);
+
+  db.saveStateToDb(state);
+  const updated = (targetPkg.assets || []).find(x => x.id === found.id);
+  res.json({ ok: true, asset: updated });
+});
+
 // ---- Kết nối phần mềm Quản lý tài sản (QLTS) ----
 app.get('/api/qltk/options', requireAuth, async (req, res) => {
   if (!qltk.isConfigured()) {
