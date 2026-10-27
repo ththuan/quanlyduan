@@ -691,6 +691,93 @@ app.post('/api/admin/import-project-excel', requireAuth, requireAdmin, (req, res
   }
 });
 
+// Tải file Excel mẫu để nhập danh mục tài sản
+app.get('/api/admin/import-asset-template', requireAuth, requireAdmin, (req, res) => {
+  try {
+    const headers = ['STT', 'TÊN THIẾT BỊ', 'ĐVT', 'SL', 'ĐƠN GIÁ', 'THÀNH TIỀN', 'ĐẶT Ở', 'GHI CHÚ', 'NĂM ĐƯA VÀO SỬ DỤNG'];
+    const data = [
+      headers,
+      ['', 'A. Dự án mẫu - Trường Cao đẳng Kinh tế - Kỹ thuật Cần Thơ', '', '', '', '', '', '', ''],
+      ['', 'I. Gói thầu mẫu - Công ty TNHH ABC', '', '', '', '', '', '', ''],
+      ['1', 'Máy tính để bàn', 'Cái', 2, 15000000, 30000000, 'Phòng CNTT', 'Ví dụ dòng tài sản', '2026'],
+      ['2', 'Màn hình máy tính 24 inch', 'Cái', 2, 3000000, 6000000, 'Phòng CNTT', '', '2026'],
+      ['', 'II. Gói thầu mẫu 2 - Công ty TNHH XYZ', '', '', '', '', '', '', ''],
+      ['1', 'Máy in laser', 'Cái', 1, 5000000, 5000000, 'Phòng Kế toán', '', '2026'],
+      ['', 'B. Dự án mẫu 2 - Trường Cao đẳng Kinh tế - Kỹ thuật Cần Thơ', '', '', '', '', '', '', ''],
+      ['', 'I. Gói thầu mẫu - Công ty TNHH DEF', '', '', '', '', '', '', ''],
+      ['1', 'Tủ lạnh', 'Cái', 1, 8000000, 8000000, 'Khoa Cơ khí', '', '2026']
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    ws['!cols'] = [
+      { wch: 6 }, { wch: 52 }, { wch: 8 }, { wch: 8 }, { wch: 16 },
+      { wch: 16 }, { wch: 20 }, { wch: 26 }, { wch: 18 }
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'TB CÁC DỰ ÁN');
+
+    const guide = [
+      ['HƯỚNG DẪN NHẬP DANH MỤC TÀI SẢN TỪ EXCEL'],
+      [''],
+      ['1. Nhập dữ liệu vào sheet "TB CÁC DỰ ÁN". Không đổi tên các cột tiêu đề.'],
+      ['2. Dòng dự án: cột B bắt đầu bằng "A. ", "B. ", "C. "... (mỗi dự án một chữ cái).'],
+      ['3. Dòng gói thầu: cột B bắt đầu bằng "I. ", "II. ", "III. "...'],
+      ['   Có thể ghi "I. Tên gói thầu - Tên nhà cung cấp" để tách nhà cung cấp.'],
+      ['4. Dòng tài sản: cột STT là số (1, 2, 3...), điền TÊN THIẾT BỊ, ĐVT, SL, ĐƠN GIÁ, THÀNH TIỀN.'],
+      ['5. Các cột ĐẶT Ở, GHI CHÚ, NĂM ĐƯA VÀO SỬ DỤNG có thể để trống.'],
+      ['6. Sau khi nhập vào QLDA, mở từng tài sản để chọn Phòng/khoa nhận sử dụng và Loại tài sản QLTS.'],
+      ['7. Kiểm tra file trước khi nhập để xem cảnh báo/lỗi.']
+    ];
+    const guideWs = XLSX.utils.aoa_to_sheet(guide);
+    guideWs['!cols'] = [{ wch: 110 }];
+    XLSX.utils.book_append_sheet(wb, guideWs, 'HƯỚNG DẪN');
+
+    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="mau-nhap-tai-san.xlsx"');
+    res.send(buf);
+  } catch (err) {
+    res.status(500).json({ error: 'Lỗi tạo file mẫu: ' + err.message });
+  }
+});
+
+// Kiểm tra file Excel tài sản trước khi nhập
+app.post('/api/admin/preview-asset-excel', requireAuth, requireAdmin, (req, res) => {
+  try {
+    const { contentBase64, sheetName, overwrite } = req.body || {};
+    if (!contentBase64) return res.status(400).json({ error: 'Thiếu nội dung file Excel' });
+    const buf = Buffer.from(String(contentBase64).replace(/^data:.*;base64,/, ''), 'base64');
+    if (!buf.length) return res.status(400).json({ error: 'File rỗng hoặc không hợp lệ' });
+    const result = assetImport.validateWorkbook(buf, sheetName || undefined);
+    const state = db.getState();
+    const existing = new Set((state.projects || []).map(p => `${(p.name || '').trim().toLowerCase()}|${p.code || ''}`));
+    let create = 0, update = 0, skip = 0;
+    (result.projects || []).forEach(np => {
+      const key = `${(np.name || '').trim().toLowerCase()}|${np.code || ''}`;
+      if (existing.has(key)) {
+        if (overwrite) update += 1;
+        else skip += 1;
+      } else create += 1;
+    });
+    const preview = (result.projects || []).slice(0, 20).map(p => {
+      const pkgs = p.categories?.[0]?.packages || [];
+      return {
+        name: p.name, code: p.code,
+        packages: pkgs.length,
+        assets: pkgs.reduce((s, pk) => s + (pk.assets || []).length, 0)
+      };
+    });
+    res.json({
+      ok: result.errors.length === 0,
+      errors: result.errors.slice(0, 50),
+      warnings: result.warnings.slice(0, 50),
+      stats: { ...(result.stats || {}), create, update, skip },
+      preview
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Lỗi kiểm tra file: ' + err.message });
+  }
+});
+
 // Nhập danh mục tài sản từ Excel "BÁO CÁO TĂNG TÀI SẢN ..." (sheet "TB CÁC DỰ ÁN")
 // Phân cấp: A/B/C... = dự án; I/II/... = gói thầu; dòng STT = tài sản
 app.post('/api/admin/import-asset-excel', requireAuth, requireAdmin, (req, res) => {
@@ -699,7 +786,14 @@ app.post('/api/admin/import-asset-excel', requireAuth, requireAdmin, (req, res) 
     if (!contentBase64) return res.status(400).json({ error: 'Thiếu nội dung file Excel' });
     const buf = Buffer.from(String(contentBase64).replace(/^data:.*;base64,/, ''), 'base64');
     if (!buf.length) return res.status(400).json({ error: 'File rỗng hoặc không hợp lệ' });
-    const projects = assetImport.parseWorkbook(buf, sheetName || undefined);
+    const checked = assetImport.validateWorkbook(buf, sheetName || undefined);
+    if (checked.errors.length) {
+      return res.status(400).json({
+        error: 'File có lỗi, chưa nhập. ' + checked.errors[0],
+        details: checked.errors.slice(0, 50)
+      });
+    }
+    const projects = checked.projects;
     if (!projects || !projects.length) return res.status(400).json({ error: 'Không đọc được dữ liệu. Cần sheet "TB CÁC DỰ ÁN".' });
     const state = db.getState();
     state.projects = Array.isArray(state.projects) ? state.projects : [];
@@ -730,7 +824,7 @@ app.post('/api/admin/import-asset-excel', requireAuth, requireAdmin, (req, res) 
         state.projects.push(np);
         created += 1;
       }
-      assets += (np.assets || []).length;
+      assets += (np.categories || []).reduce((s, c) => s + (c.packages || []).reduce((x, pk) => x + (pk.assets || []).length, 0), 0);
       packages += np.categories.reduce((a, c) => a + c.packages.length, 0);
     }
     if (!state.currentProjectId) state.currentProjectId = state.projects[0]?.id || null;

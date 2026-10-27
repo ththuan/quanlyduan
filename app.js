@@ -5805,20 +5805,39 @@ function exportAssets(mode) {
   else openPrintWindow(title, bodyHTML);
 }
 
+const importAssetDraft = { base64: '', fileName: '', previewOk: false, overwrite: false };
+
+function readImportFileBase64(file) {
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => resolve(String(fr.result).split(',')[1] || '');
+    fr.onerror = () => reject(new Error('Không đọc được file'));
+    fr.readAsDataURL(file);
+  });
+}
+
 function openImportAssetModal() {
   if (!requireEditPermission()) return;
+  importAssetDraft.base64 = '';
+  importAssetDraft.fileName = '';
+  importAssetDraft.previewOk = false;
   openModal('Nhập danh mục tài sản từ Excel', `
     <div style="display:flex;flex-direction:column;gap:14px">
       <p style="font-size:0.85rem;color:var(--text-secondary);margin:0;line-height:1.5">
-        Chọn file Excel <b>"Báo cáo tăng tài sản ..."</b> (đọc sheet <b>"TB CÁC DỰ ÁN"</b>).
+        Tải <b>file mẫu</b>, điền dữ liệu rồi chọn file để kiểm tra trước khi nhập.
         App tự tách: <b>A/B/C... = dự án</b>, <b>I/II/III... = gói thầu</b>, các dòng STT = tài sản.
       </p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <a class="btn btn-secondary btn-sm" href="${API_BASE}/admin/import-asset-template" download="mau-nhap-tai-san.xlsx">
+          <span class="material-symbols-rounded">download</span> Tải file Excel mẫu
+        </a>
+      </div>
       <div class="form-group">
         <label>File Excel (.xlsx)</label>
-        <input type="file" id="import-asset-file" accept=".xlsx,.xls">
+        <input type="file" id="import-asset-file" accept=".xlsx,.xls" onchange="previewImportAsset()">
       </div>
       <div class="form-group" style="display:flex;gap:8px;align-items:flex-start">
-        <input type="checkbox" id="import-asset-overwrite" style="width:auto;margin-top:3px">
+        <input type="checkbox" id="import-asset-overwrite" style="width:auto;margin-top:3px" onchange="if(importAssetDraft.base64)previewImportAsset()">
         <label for="import-asset-overwrite" style="margin:0;font-weight:400;line-height:1.45">
           Ghi đè dự án đã có (cập nhật lại số liệu tài sản từ Excel).<br>
           <span style="color:var(--text-muted)">Mặc định chỉ thêm dự án mới, giữ nguyên các chỉnh sửa thủ công.</span>
@@ -5828,34 +5847,107 @@ function openImportAssetModal() {
     </div>
   `, `
     <button class="btn btn-secondary" onclick="closeModal()">Đóng</button>
-    <button class="btn btn-primary" onclick="submitImportAsset()"><span class="material-symbols-rounded">upload_file</span> Nhập</button>
-  `);
+    <button class="btn btn-secondary" id="import-asset-check" onclick="previewImportAsset()"><span class="material-symbols-rounded">fact_check</span> Kiểm tra file</button>
+    <button class="btn btn-primary" id="import-asset-confirm" onclick="submitImportAsset()" disabled><span class="material-symbols-rounded">upload_file</span> Xác nhận nhập</button>
+  `, 'lg');
+}
+
+function renderImportPreview(data) {
+  const resultEl = document.getElementById('import-asset-result');
+  if (!resultEl) return;
+  const s = data.stats || {};
+  const errors = data.errors || [];
+  const warnings = data.warnings || [];
+  const money = typeof formatCurrency === 'function' ? formatCurrency(s.totalValue || 0) : String(s.totalValue || 0);
+  const list = (title, items, color, icon) => items.length ? `
+    <div style="border:1px solid var(--border-glass);background:#fff;border-radius:8px;padding:8px 10px;margin-top:8px">
+      <div style="font-weight:700;color:${color};display:flex;align-items:center;gap:6px">
+        <span class="material-symbols-rounded" style="font-size:18px">${icon}</span>${esc(title)} (${items.length})
+      </div>
+      <ul style="margin:6px 0 0;padding-left:18px;line-height:1.5">
+        ${items.slice(0, 30).map(x => `<li>${esc(x)}</li>`).join('')}
+      </ul>
+      ${items.length > 30 ? `<div style="color:${color};margin-top:4px">… và ${items.length - 30} mục khác</div>` : ''}
+    </div>` : '';
+
+  const projects = (data.preview || []).map(p =>
+    `<li><b>${esc(p.name || '(chưa tên)')}</b>${p.code ? ` (${esc(p.code)})` : ''} · ${p.packages} gói · ${p.assets} tài sản</li>`
+  ).join('');
+
+  resultEl.innerHTML = `
+    <div style="background:#f8fafc;border:1px solid var(--border-glass);border-radius:8px;padding:8px 10px;line-height:1.55">
+      <div><b>Thống kê file:</b> ${formatNumberVN(s.projects || 0)} dự án · ${formatNumberVN(s.packages || 0)} gói thầu · ${formatNumberVN(s.assets || 0)} tài sản · ${money}</div>
+      <div><b>So với dữ liệu hiện có:</b> thêm mới ${formatNumberVN(s.create || 0)} · cập nhật ${formatNumberVN(s.update || 0)} · bỏ qua ${formatNumberVN(s.skip || 0)}</div>
+    </div>
+    ${errors.length
+      ? list('Lỗi - cần sửa file trước khi nhập', errors, 'var(--accent-red)', 'error')
+      : '<div style="margin-top:8px;color:var(--accent-green);font-weight:600;display:flex;align-items:center;gap:6px"><span class="material-symbols-rounded" style="font-size:18px">check_circle</span>File hợp lệ, có thể nhập.</div>'}
+    ${list('Cảnh báo (vẫn có thể nhập)', warnings, '#b45309', 'warning')}
+    ${projects ? `<div style="margin-top:8px"><b>Dự án trong file:</b><ul style="margin:4px 0 0;padding-left:18px;line-height:1.5">${projects}</ul>${(data.preview || []).length < (s.projects || 0) ? `<div style="color:var(--text-muted)">… và ${(s.projects || 0) - (data.preview || []).length} dự án khác</div>` : ''}</div>` : ''}
+  `;
+}
+
+async function previewImportAsset() {
+  const input = document.getElementById('import-asset-file');
+  const resultEl = document.getElementById('import-asset-result');
+  const confirmBtn = document.getElementById('import-asset-confirm');
+  const file = input?.files?.[0];
+  importAssetDraft.previewOk = false;
+  if (confirmBtn) confirmBtn.disabled = true;
+  if (!file) {
+    if (resultEl) resultEl.innerHTML = '<span style="color:var(--accent-red)">Vui lòng chọn file Excel.</span>';
+    return;
+  }
+  if (resultEl) resultEl.innerHTML = 'Đang kiểm tra file…';
+  try {
+    const base64 = await readImportFileBase64(file);
+    const overwrite = !!document.getElementById('import-asset-overwrite')?.checked;
+    const res = handleAuthResponse(await fetch(`${API_BASE}/admin/preview-asset-excel`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contentBase64: base64, overwrite })
+    }));
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Không kiểm tra được file');
+    importAssetDraft.base64 = base64;
+    importAssetDraft.fileName = file.name;
+    importAssetDraft.previewOk = !!data.ok;
+    importAssetDraft.overwrite = overwrite;
+    renderImportPreview(data);
+    if (confirmBtn) confirmBtn.disabled = !data.ok;
+  } catch (err) {
+    importAssetDraft.base64 = '';
+    importAssetDraft.previewOk = false;
+    if (resultEl) resultEl.innerHTML = `<span style="color:var(--accent-red)">${esc(err.message)}</span>`;
+  }
 }
 
 async function submitImportAsset() {
   const input = document.getElementById('import-asset-file');
   const resultEl = document.getElementById('import-asset-result');
-  if (!input || !input.files || !input.files[0]) {
+  const confirmBtn = document.getElementById('import-asset-confirm');
+  const file = input?.files?.[0];
+  if (!file) {
     if (resultEl) resultEl.innerHTML = '<span style="color:var(--accent-red)">Vui lòng chọn file Excel.</span>';
     return;
   }
-  const file = input.files[0];
-  if (resultEl) resultEl.innerHTML = 'Đang xử lý...';
+  const overwrite = !!document.getElementById('import-asset-overwrite')?.checked;
+  if (!importAssetDraft.previewOk || !importAssetDraft.base64 || importAssetDraft.fileName !== file.name || importAssetDraft.overwrite !== overwrite) {
+    if (resultEl) resultEl.innerHTML = '<span style="color:var(--accent-red)">Vui lòng bấm "Kiểm tra file" trước khi nhập.</span>';
+    return;
+  }
+  if (confirmBtn) confirmBtn.disabled = true;
+  if (resultEl) resultEl.innerHTML = 'Đang nhập dữ liệu…';
   try {
-    const base64 = await new Promise((resolve, reject) => {
-      const fr = new FileReader();
-      fr.onload = () => resolve(String(fr.result).split(',')[1] || '');
-      fr.onerror = () => reject(new Error('Không đọc được file'));
-      fr.readAsDataURL(file);
-    });
-    const overwrite = !!document.getElementById('import-asset-overwrite')?.checked;
-    const res = await fetch('/api/admin/import-asset-excel', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contentBase64: base64, overwrite })
-    });
-    const data = await res.json();
+    const res = handleAuthResponse(await fetch(`${API_BASE}/admin/import-asset-excel`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contentBase64: importAssetDraft.base64, overwrite })
+    }));
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || 'Lỗi nhập file');
     if (resultEl) resultEl.innerHTML = `<span style="color:var(--accent-green)">Đã nhập: ${data.created} dự án mới, ${data.updated} cập nhật, ${data.skipped || 0} bỏ qua (đã có), ${data.packages} gói thầu, ${data.assets} tài sản.</span>`;
+    importAssetDraft.previewOk = false;
     await loadState();
     renderProjectSelector();
     renderAll();

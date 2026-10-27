@@ -332,4 +332,89 @@ function parseWorkbook(buffer, sheetName) {
   return projects.length ? projects : null;
 }
 
-module.exports = { parseWorkbook };
+// Kiểm tra file trước khi nhập: trả về lỗi chặn nhập, cảnh báo và thống kê
+function validateWorkbook(buffer, sheetName) {
+  const errors = [];
+  const warnings = [];
+  let wb;
+  try {
+    wb = XLSX.read(buffer, { type: 'buffer' });
+  } catch (err) {
+    return { errors: ['Không đọc được file Excel: ' + err.message], warnings, stats: null, projects: [] };
+  }
+  const ws = pickSheet(wb, sheetName);
+  if (!ws) {
+    return { errors: ['Không tìm thấy sheet dữ liệu. Cần sheet tên "TB CÁC DỰ ÁN" (hoặc sheet có dòng tiêu đề STT / TÊN THIẾT BỊ).'], warnings, stats: null, projects: [] };
+  }
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, blankrows: true, defval: '' });
+  const headerRowIndex = findHeaderRow(rows);
+  if (headerRowIndex < 0) {
+    return { errors: ['Không tìm thấy dòng tiêu đề. Cần có cột "STT" và cột "TÊN THIẾT BỊ" (hoặc "NHÃN HIỆU").'], warnings, stats: null, projects: [] };
+  }
+  const map = mapColumns(rows[headerRowIndex]);
+  if (map.name == null) {
+    return { errors: ['Không xác định được cột tên tài sản. Đặt tiêu đề cột là "TÊN THIẾT BỊ".'], warnings, stats: null, projects: [] };
+  }
+  if (map.quantity == null) warnings.push('Không thấy cột "SL" (số lượng); tài sản sẽ có số lượng 0.');
+  if (map.unitPrice == null && map.amount == null) warnings.push('Không thấy cột "ĐƠN GIÁ" hoặc "THÀNH TIỀN"; giá trị tài sản sẽ bằng 0.');
+
+  const projects = parseSheet(ws);
+  if (!projects.length) {
+    return { errors: ['Không đọc được dự án/tài sản nào. Kiểm tra lại bố cục: dòng dự án bắt đầu bằng "A. ", gói thầu bằng "I. ", tài sản có STT là số.'], warnings, stats: null, projects: [] };
+  }
+
+  let packages = 0;
+  let assets = 0;
+  let totalValue = 0;
+  const assetNames = new Set();
+  projects.forEach(p => {
+    if (!p.name) errors.push('Có dự án không có tên.');
+    if (!p.code) warnings.push(`Dự án "${p.name || '(chưa tên)'}" chưa có mã ở cột A (dạng "A. Tên dự án").`);
+    const pkgs = p.categories?.[0]?.packages || [];
+    packages += pkgs.length;
+    if (!pkgs.length) warnings.push(`Dự án "${p.name || '(chưa tên)'}" không có gói thầu nào.`);
+    pkgs.forEach(pk => {
+      if (!pk.name) warnings.push(`Dự án "${p.name}": có gói thầu chưa có tên.`);
+      (pk.assets || []).forEach(a => {
+        assets += 1;
+        const amount = Number(a.amount) || 0;
+        const price = Number(a.unitPrice) || 0;
+        const qty = Number(a.quantity) || 0;
+        totalValue += amount;
+        if (a.name) assetNames.add(norm(a.name));
+        const where = `Dự án "${p.name}" / gói "${pk.name || '(chưa tên)'}" / tài sản "${a.name || '(chưa tên)'}"`;
+        if (!a.name) errors.push(`${where}: thiếu tên tài sản.`);
+        if (!(qty > 0)) warnings.push(`${where}: số lượng ${a.quantity} không hợp lệ.`);
+        if (!a.unit) warnings.push(`${where}: thiếu đơn vị tính.`);
+        if (!amount && !price) warnings.push(`${where}: chưa có đơn giá và thành tiền.`);
+        else if (qty && price && amount && Math.abs(amount - qty * price) > 1) {
+          warnings.push(`${where}: thành tiền (${amount}) khác SL × đơn giá (${qty * price}).`);
+        }
+      });
+    });
+  });
+
+  // Cảnh báo các dòng trông giống tài sản nhưng không được nhận dạng
+  let skippedRows = 0;
+  for (let i = headerRowIndex + 1; i < rows.length; i++) {
+    const row = rows[i] || [];
+    const a = toText(cell(row, map.stt));
+    const name = toText(cell(row, map.name));
+    if (!a || !name || !/^\d+$/.test(a)) continue;
+    if (assetNames.has(norm(name))) continue;
+    skippedRows += 1;
+    if (skippedRows <= 10) {
+      warnings.push(`Dòng ${i + 1}: "${name}" chưa được nhận dạng là tài sản (kiểm tra cột STT/SL).`);
+    }
+  }
+  if (skippedRows > 10) warnings.push(`Còn ${skippedRows - 10} dòng tương tự chưa được nhận dạng.`);
+
+  return {
+    errors,
+    warnings,
+    stats: { projects: projects.length, packages, assets, totalValue, skippedRows },
+    projects
+  };
+}
+
+module.exports = { parseWorkbook, validateWorkbook };
