@@ -5817,6 +5817,13 @@ function openImportAssetModal() {
         <label>File Excel (.xlsx)</label>
         <input type="file" id="import-asset-file" accept=".xlsx,.xls">
       </div>
+      <div class="form-group" style="display:flex;gap:8px;align-items:flex-start">
+        <input type="checkbox" id="import-asset-overwrite" style="width:auto;margin-top:3px">
+        <label for="import-asset-overwrite" style="margin:0;font-weight:400;line-height:1.45">
+          Ghi đè dự án đã có (cập nhật lại số liệu tài sản từ Excel).<br>
+          <span style="color:var(--text-muted)">Mặc định chỉ thêm dự án mới, giữ nguyên các chỉnh sửa thủ công.</span>
+        </label>
+      </div>
       <div id="import-asset-result" style="font-size:0.85rem"></div>
     </div>
   `, `
@@ -5841,13 +5848,14 @@ async function submitImportAsset() {
       fr.onerror = () => reject(new Error('Không đọc được file'));
       fr.readAsDataURL(file);
     });
+    const overwrite = !!document.getElementById('import-asset-overwrite')?.checked;
     const res = await fetch('/api/admin/import-asset-excel', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contentBase64: base64 })
+      body: JSON.stringify({ contentBase64: base64, overwrite })
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Lỗi nhập file');
-    if (resultEl) resultEl.innerHTML = `<span style="color:var(--accent-green)">Đã nhập: ${data.created} dự án mới, ${data.updated} cập nhật, ${data.packages} gói thầu, ${data.assets} tài sản.</span>`;
+    if (resultEl) resultEl.innerHTML = `<span style="color:var(--accent-green)">Đã nhập: ${data.created} dự án mới, ${data.updated} cập nhật, ${data.skipped || 0} bỏ qua (đã có), ${data.packages} gói thầu, ${data.assets} tài sản.</span>`;
     await loadState();
     renderProjectSelector();
     renderAll();

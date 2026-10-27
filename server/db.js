@@ -13,8 +13,8 @@ const { DatabaseSync } = require('node:sqlite');
 const seedData = require('./seed-data');
 const assetSeedData = require('./asset-seed-data');
 
-const DATA_DIR = path.join(__dirname, 'data');
-const UPLOADS_DIR = path.join(__dirname, 'uploads');
+const DATA_DIR = process.env.QLDA_DATA_DIR || path.join(__dirname, 'data');
+const UPLOADS_DIR = process.env.QLDA_UPLOADS_DIR || path.join(__dirname, 'uploads');
 fs.mkdirSync(DATA_DIR, { recursive: true });
 fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
