@@ -1204,9 +1204,9 @@ function renderProjectInfoBar() {
   if (!project) { bar.innerHTML = ''; return; }
   const scopeLabel = project.projectScope === 'nonProject'
     ? '<div class="info-item"><span class="badge badge-warning">Mua sắm / sửa chữa thường xuyên</span></div>'
-    : '<div class="info-item"><span class="badge badge-info">Dự án</span></div>';
+    : '<div class="info-item"><span class="badge badge-info">Xây dựng</span></div>';
   bar.innerHTML = `
-    <div class="info-item"><span class="info-label">${project.projectScope === 'nonProject' ? 'Mua sắm:' : 'Dự án:'}</span><span class="info-value">${esc(project.fullName || project.name)}</span></div>
+    <div class="info-item"><span class="info-label">${project.projectScope === 'nonProject' ? 'Mua sắm:' : 'Xây dựng:'}</span><span class="info-value">${esc(project.fullName || project.name)}</span></div>
     ${scopeLabel}
     <div class="info-item"><span class="info-label">Chủ đầu tư / Đơn vị:</span><span class="info-value">${esc(project.owner || '—')}</span></div>
     <div class="info-item"><span class="info-label">Địa điểm:</span><span class="info-value">${esc(project.location || '—')}</span></div>
