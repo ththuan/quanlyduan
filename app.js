@@ -350,10 +350,10 @@ function applyConfig() {
 }
 
 function saveState() {
-  if (!state.loaded) return;
+  if (!state.loaded) return Promise.resolve();
   // Tài khoản chỉ đọc (user) không lưu lên server để tránh 403; UI vẫn cập nhật cục bộ
-  if (currentUser && currentUser.role !== 'admin') return;
-  apiSaveState({
+  if (currentUser && currentUser.role !== 'admin') return Promise.resolve();
+  return apiSaveState({
     projects: state.projects,
     currentProjectId: state.currentProjectId
   }).catch(err => showToast('Lỗi lưu dữ liệu: ' + err.message, 'error'));
@@ -5233,6 +5233,76 @@ function setPkgStatusFilter(code) {
 // ============================================================
 const ASSET_STATUSES = ['Đang sử dụng', 'Chưa sử dụng', 'Hỏng', 'Điều chuyển', 'Thanh lý', 'Mất'];
 
+// ---- Liên kết danh mục/phòng khoa từ phần mềm Quản lý tài sản (QLTS) ----
+const qltk = { loaded: false, loading: null, configured: false, departments: [], categories: [], error: '' };
+
+function ensureQltkOptions(force) {
+  if (!force && qltk.loaded) return Promise.resolve(qltk);
+  if (!force && qltk.loading) return qltk.loading;
+  qltk.loading = (async () => {
+    try {
+      const res = handleAuthResponse(await fetch(`${API_BASE}/qltk/options`));
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Không tải được danh mục QLTS');
+      qltk.configured = !!data.configured;
+      qltk.departments = data.departments || [];
+      qltk.categories = data.categories || [];
+      qltk.error = data.error || '';
+    } catch (err) {
+      qltk.error = err.message;
+    } finally {
+      qltk.loaded = true;
+      qltk.loading = null;
+    }
+    return qltk;
+  })();
+  return qltk.loading;
+}
+
+function qltkDepartmentOptionsHTML(selectedId) {
+  if (qltk.loading) return '<option value="">Đang tải…</option>';
+  if (!qltk.configured) return '<option value="">— Chưa cấu hình kết nối QLTS —</option>';
+  if (qltk.error) return `<option value="">— Lỗi QLTS: ${esc(qltk.error)} —</option>`;
+  return `<option value="">— Chọn phòng/khoa —</option>` + qltk.departments.map(d =>
+    `<option value="${d.id}" ${String(selectedId || '') === String(d.id) ? 'selected' : ''}>${esc(d.name)}</option>`
+  ).join('');
+}
+
+function qltkCategoryOptionsHTML(selectedId) {
+  if (qltk.loading) return '<option value="">Đang tải…</option>';
+  if (!qltk.configured) return '<option value="">— Chưa cấu hình kết nối QLTS —</option>';
+  if (qltk.error) return `<option value="">— Lỗi QLTS: ${esc(qltk.error)} —</option>`;
+  return `<option value="">— Chọn loại tài sản —</option>` + qltk.categories.map(c => {
+    const label = [c.code, c.name].filter(Boolean).join(' — ');
+    return `<option value="${c.id}" data-unit="${esc(c.unit || '')}" ${String(selectedId || '') === String(c.id) ? 'selected' : ''}>${esc(label)}</option>`;
+  }).join('');
+}
+
+function populateQltkAssetSelects(asset) {
+  const dept = document.getElementById('f-asset-department');
+  const cat = document.getElementById('f-asset-category');
+  if (dept) dept.innerHTML = qltkDepartmentOptionsHTML(asset?.qltkDepartmentId);
+  if (cat) cat.innerHTML = qltkCategoryOptionsHTML(asset?.qltkCategoryId);
+}
+
+function onQltkCategoryChange() {
+  const catId = Number(document.getElementById('f-asset-category')?.value) || 0;
+  const cat = qltk.categories.find(c => Number(c.id) === catId);
+  const unit = document.getElementById('f-asset-unit');
+  if (cat?.unit && unit && !unit.value.trim()) unit.value = cat.unit;
+}
+
+async function apiQltkSync(body) {
+  const res = handleAuthResponse(await fetch(`${API_BASE}/qltk/sync-assets`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  }));
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Đồng bộ QLTS thất bại');
+  return data;
+}
+
 function getAllProjectAssets(project) {
   const out = [];
   if (!project) return out;
@@ -5301,6 +5371,10 @@ function renderAssetsView() {
         <div class="glass-card kpi-card"><div class="kpi-label">Số gói thầu</div><div class="kpi-value">${formatNumberVN(groups.length)}</div></div>
         <div class="glass-card kpi-card"><div class="kpi-label">Tổng nguyên giá</div><div class="kpi-value">${formatCurrency(total)}</div></div>
       </div>
+      <div class="edit-only" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+        <button class="btn btn-secondary btn-sm" onclick="syncProjectAssetsToQltk()"><span class="material-symbols-rounded">cloud_upload</span> Đồng bộ QLTS</button>
+        <span style="font-size:0.78rem;color:var(--text-muted)">Chỉ đồng bộ tài sản đã chọn <b>loại tài sản</b> và <b>phòng/khoa</b>.</span>
+      </div>
       ${units ? `<p style="font-size:0.82rem;color:var(--text-secondary);margin:0 0 12px">Số lượng theo đơn vị tính: <b>${esc(units)}</b></p>` : ''}`;
   }
 
@@ -5329,8 +5403,10 @@ function renderAssetsView() {
             <th class="text-right" style="width:112px">Đơn giá</th>
             <th class="text-right" style="width:124px">Thành tiền</th>
             <th style="width:150px">Nơi sử dụng</th>
+            <th style="width:150px">Phòng/khoa (QLTS)</th>
             <th class="text-center" style="width:52px">Năm</th>
-            <th class="edit-only" style="width:78px"></th>
+            <th class="text-center" style="width:46px">QLTS</th>
+            <th class="edit-only" style="width:110px"></th>
           </tr></thead>
           <tbody>
             ${g.assets.map((a, i) => `<tr>
@@ -5342,8 +5418,15 @@ function renderAssetsView() {
               <td class="text-right">${formatCurrency(a.unitPrice || 0)}</td>
               <td class="text-right">${formatCurrency(a.amount || 0)}</td>
               <td class="wrap">${esc(a.location || '')}</td>
+              <td class="wrap">${esc(a.qltkDepartmentName || '')}</td>
               <td class="text-center">${esc(a.year || '')}</td>
+              <td class="text-center">${a.qltkId
+                ? `<span class="material-symbols-rounded" style="color:#16a34a" title="Đã đồng bộ: ${esc(a.qltkCode || a.qltkId)}">cloud_done</span>`
+                : a.qltkError
+                  ? `<span class="material-symbols-rounded" style="color:#dc2626" title="${esc(a.qltkError)}">error</span>`
+                  : `<span class="material-symbols-rounded" style="color:#94a3b8" title="Chưa đồng bộ">cloud_off</span>`}</td>
               <td class="edit-only" style="white-space:nowrap">
+                <button class="btn-icon btn-sm" title="Đồng bộ QLTS" onclick="syncAssetToQltk('${a.id}')"><span class="material-symbols-rounded">cloud_upload</span></button>
                 <button class="btn-icon btn-sm" title="Sửa" onclick="openAssetForm('${a.id}')"><span class="material-symbols-rounded">edit</span></button>
                 <button class="btn-icon btn-sm" title="Xóa" onclick="deleteAsset('${a.id}')"><span class="material-symbols-rounded">delete</span></button>
               </td>
@@ -5351,7 +5434,7 @@ function renderAssetsView() {
             <tr class="total-row"><td colspan="5" class="text-center">Cộng gói</td>
               <td></td>
               <td class="text-right">${formatCurrency(sum)}</td>
-              <td colspan="3"></td></tr>
+              <td colspan="5"></td></tr>
           </tbody>
         </table>
       </div>
@@ -5395,14 +5478,21 @@ function openAssetForm(assetId, catId, pkgId) {
       <div class="form-group"><label>Đơn giá (VNĐ)</label><input type="number" id="f-asset-price" value="${a?.unitPrice ?? ''}" oninput="calcAssetAmount()"></div>
       <div class="form-group"><label>Thành tiền (VNĐ)</label><input type="number" id="f-asset-amount" value="${a?.amount ?? ''}"></div>
       <div class="form-group"><label>Nơi sử dụng</label><input type="text" id="f-asset-location" value="${esc(a?.location || '')}"></div>
+      <div class="form-group"><label>Phòng/khoa nhận sử dụng (QLTS)</label><select id="f-asset-department">${qltkDepartmentOptionsHTML(a?.qltkDepartmentId)}</select></div>
+      <div class="form-group"><label>Loại tài sản (QLTS)</label><select id="f-asset-category" onchange="onQltkCategoryChange()">${qltkCategoryOptionsHTML(a?.qltkCategoryId)}</select></div>
       <div class="form-group"><label>Năm đưa vào sử dụng</label><input type="text" id="f-asset-year" value="${esc(a?.year || '')}"></div>
       <div class="form-group"><label>Trạng thái</label><select id="f-asset-status">${opts}</select></div>
       <div class="form-group full-width"><label>Ghi chú</label><textarea id="f-asset-note">${esc(a?.note || '')}</textarea></div>
+      <div class="form-group full-width" style="display:flex;align-items:center;gap:8px">
+        <input type="checkbox" id="f-asset-sync" style="width:auto" ${a?.qltkId ? '' : 'checked'}>
+        <label for="f-asset-sync" style="margin:0">Đồng bộ ngay sang QLTS sau khi lưu (cần chọn loại tài sản và phòng/khoa)</label>
+      </div>
     </div>
   `, `
     <button class="btn btn-secondary" onclick="closeModal()">Hủy</button>
     <button class="btn btn-primary" onclick="saveAsset('${a?.id || ''}','${catId || ''}','${pkgId || ''}')"><span class="material-symbols-rounded">save</span> Lưu</button>
   `, 'lg');
+  ensureQltkOptions().then(() => populateQltkAssetSelects(a));
 }
 
 function saveAsset(assetId, ctxCatId, ctxPkgId) {
@@ -5422,13 +5512,24 @@ function saveAsset(assetId, ctxCatId, ctxPkgId) {
   const price = num('f-asset-price');
   let amount = num('f-asset-amount');
   if (!amount && qty && price) amount = Math.round(qty * price);
+  const deptId = num('f-asset-department');
+  const qltkCatId = num('f-asset-category');
+  const dept = qltk.departments.find(x => Number(x.id) === deptId);
+  const qltkCat = qltk.categories.find(x => Number(x.id) === qltkCatId);
+  let unit = txt('f-asset-unit');
+  if (!unit && qltkCat?.unit) unit = qltkCat.unit;
   const data = {
     name, supplier: txt('f-asset-supplier'),
-    unit: txt('f-asset-unit'), quantity: qty, unitPrice: price, amount,
+    unit, quantity: qty, unitPrice: price, amount,
     location: txt('f-asset-location'), year: txt('f-asset-year'),
-    status: txt('f-asset-status') || ASSET_STATUSES[0], note: txt('f-asset-note')
+    status: txt('f-asset-status') || ASSET_STATUSES[0], note: txt('f-asset-note'),
+    qltkDepartmentId: deptId, qltkDepartmentName: dept?.name || '',
+    qltkCategoryId: qltkCatId, qltkCategoryName: qltkCat?.name || '',
+    qltkCategoryCode: qltkCat?.code || ''
   };
+  const syncNow = !!document.getElementById('f-asset-sync')?.checked && qltk.configured && qltkCatId && deptId;
   const code = txt('f-asset-code');
+  let targetId = assetId;
   if (assetId) {
     const found = findAsset(project, assetId);
     if (found) {
@@ -5445,13 +5546,61 @@ function saveAsset(assetId, ctxCatId, ctxPkgId) {
   } else {
     const prefix = project.code || 'TS';
     const n = getAllProjectAssets(project).length;
-    pkg.assets.push({ id: 'asset-' + generateId(), code: code || `${prefix}-${String(n + 1).padStart(4, '0')}`, stt: '', projectId: project.id, packageId: pkg.id, ...data });
+    targetId = 'asset-' + generateId();
+    pkg.assets.push({ id: targetId, code: code || `${prefix}-${String(n + 1).padStart(4, '0')}`, stt: '', projectId: project.id, packageId: pkg.id, ...data });
   }
   addAudit(project, assetId ? 'update' : 'create', 'tài sản', name);
-  saveState(); closeModal();
+  const savePromise = saveState();
+  closeModal();
   if (ctxCatId && ctxPkgId) viewPackageDetail(ctxCatId, ctxPkgId);
   else renderAssetsView();
   showToast(assetId ? 'Đã cập nhật tài sản' : 'Đã thêm tài sản');
+  if (syncNow && targetId) {
+    Promise.resolve(savePromise).then(() => syncAssetToQltk(targetId, true));
+  }
+}
+
+async function syncAssetToQltk(assetId, silent) {
+  if (!requireEditPermission()) return;
+  const project = getCurrentProject();
+  if (!project) return;
+  try {
+    const data = await apiQltkSync({ projectId: project.id, assetIds: [assetId] });
+    const s = data.summary || {};
+    if (s.synced) {
+      if (!silent) showToast('Đã đồng bộ tài sản sang QLTS');
+    } else if (s.skipped) {
+      if (!silent) showToast('Tài sản đã được đồng bộ trước đó', 'info');
+    } else if (s.errors?.[0]) {
+      showToast('QLTS: ' + s.errors[0].error, 'error');
+    } else if (s.failed) {
+      showToast('Không đồng bộ được tài sản', 'error');
+    }
+    if (s.synced || s.failed) { await loadState(); renderAll(); }
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function syncProjectAssetsToQltk() {
+  if (!requireEditPermission()) return;
+  const project = getCurrentProject();
+  if (!project) return;
+  const pending = getAllProjectAssets(project).filter(x => !x.asset.qltkId).length;
+  if (!pending) { showToast('Tất cả tài sản đã được đồng bộ QLTS', 'info'); return; }
+  if (!confirm(`Đồng bộ ${pending} tài sản chưa đồng bộ của "${project.name}" sang QLTS?`)) return;
+  try {
+    const data = await apiQltkSync({ projectId: project.id });
+    const s = data.summary || {};
+    if (s.synced) {
+      showToast(`QLTS: đã đồng bộ ${s.synced} tài sản${s.failed ? `, ${s.failed} lỗi` : ''}`);
+    } else {
+      showToast(s.errors?.[0] ? 'QLTS: ' + s.errors[0].error : 'Không có tài sản nào được đồng bộ', 'error');
+    }
+    if (s.synced || s.failed) { await loadState(); renderAll(); }
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
 }
 
 function deleteAsset(assetId, ctxCatId, ctxPkgId) {

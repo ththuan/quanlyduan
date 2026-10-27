@@ -15,6 +15,7 @@ const legal = require('./legal');
 const wiki = require('./legal-wiki');
 const excelImport = require('./excel-import');
 const assetImport = require('./asset-import');
+const qltk = require('./qltk');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -274,6 +275,68 @@ app.put('/api/state', requireAuth, requireAdmin, (req, res) => {
   // Giữ nguyên các trường khác của state (vd migrations) để không chạy lại seed/migration
   db.saveStateToDb({ ...existing, projects, currentProjectId: currentProjectId || null });
   res.json({ ok: true });
+});
+
+// ---- Kết nối phần mềm Quản lý tài sản (QLTS) ----
+app.get('/api/qltk/options', requireAuth, async (req, res) => {
+  if (!qltk.isConfigured()) {
+    return res.json({ configured: false, departments: [], categories: [] });
+  }
+  try {
+    const opts = await qltk.getOptions();
+    res.json({ configured: true, ...opts });
+  } catch (err) {
+    res.json({ configured: true, departments: [], categories: [], error: err.message });
+  }
+});
+
+app.post('/api/qltk/sync-assets', requireAuth, requireAdmin, async (req, res) => {
+  if (!qltk.isConfigured()) {
+    return res.status(400).json({ error: 'Chưa cấu hình kết nối QLTS (QLTS_USERNAME / QLTS_PASSWORD)' });
+  }
+  const { projectId, packageId, assetIds, departmentId } = req.body || {};
+  const state = db.getState();
+  const project = (state.projects || []).find(p => p.id === projectId);
+  if (!project) return res.status(404).json({ error: 'Không tìm thấy dự án' });
+
+  const targets = [];
+  (project.categories || []).forEach(cat => (cat.packages || []).forEach(pkg => {
+    if (packageId && pkg.id !== packageId) return;
+    (pkg.assets || []).forEach(a => targets.push(a));
+  }));
+  if (!packageId) (project.assets || []).forEach(a => targets.push(a));
+
+  const only = Array.isArray(assetIds) && assetIds.length ? new Set(assetIds.map(String)) : null;
+  const list = targets.filter(a => !only || only.has(String(a.id)));
+  const summary = { total: list.length, synced: 0, skipped: 0, failed: 0, errors: [] };
+
+  for (const asset of list) {
+    if (asset.qltkId) { summary.skipped++; continue; }
+    const deptId = Number(asset.qltkDepartmentId || departmentId) || 0;
+    const catId = Number(asset.qltkCategoryId) || 0;
+    if (!catId || !deptId) {
+      summary.failed++;
+      if (summary.errors.length < 20) summary.errors.push({ asset: asset.name || asset.id, error: 'Thiếu loại tài sản hoặc phòng/khoa nhận sử dụng' });
+      continue;
+    }
+    try {
+      const created = await qltk.createAsset({ ...asset, qltkDepartmentId: deptId });
+      const extId = created?.id ?? created?.asset_id ?? '';
+      if (!extId) throw new Error('QLTS không trả về ID tài sản');
+      asset.qltkId = extId;
+      asset.qltkCode = created?.asset_code || asset.code || '';
+      asset.qltkSyncedAt = new Date().toISOString();
+      asset.qltkError = '';
+      summary.synced++;
+    } catch (err) {
+      asset.qltkError = err.message;
+      summary.failed++;
+      if (summary.errors.length < 20) summary.errors.push({ asset: asset.name || asset.id, error: err.message });
+    }
+  }
+
+  if (summary.synced || summary.failed) db.saveStateToDb(state);
+  res.json({ ok: true, summary });
 });
 
 // ---- File attachments (PDF, Word, Excel, Ảnh, Văn bản) ----

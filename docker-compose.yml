@@ -22,6 +22,10 @@ services:
       # Tương thích ngược với Gemini
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       - GEMINI_MODEL=${GEMINI_MODEL:-gemini-3.5-flash-lite}
+      # Kết nối phần mềm Quản lý tài sản (QLTS)
+      - QLTS_API_URL=${QLTS_API_URL:-https://quanlytaisanctec.dpdns.org/api}
+      - QLTS_USERNAME=${QLTS_USERNAME:-}
+      - QLTS_PASSWORD=${QLTS_PASSWORD:-}
     volumes:
       - qlda_data:/app/server/data
       - qlda_uploads:/app/server/uploads

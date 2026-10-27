@@ -117,6 +117,22 @@ docker compose up -d qlda
 > - Tương thích ngược: `GEMINI_API_KEY` / `GEMINI_MODEL` vẫn dùng được nếu không đặt `AI_*`.
 > - Chatbot, lưu kho tri thức và tóm tắt văn bản đều dùng chung cấu hình này.
 
+**3b. (Tuỳ chọn) Kết nối phần mềm Quản lý tài sản (QLTS)**
+
+Thêm tài khoản dịch vụ QLTS vào `.env` để QLDA lấy danh mục loại tài sản, phòng/khoa và đồng bộ tài sản sang QLTS:
+
+```bash
+cat >> .env <<'EOF'
+QLTS_API_URL=https://quanlytaisanctec.dpdns.org/api
+QLTS_USERNAME=ten_dang_nhap_dich_vu
+QLTS_PASSWORD=mat_khau_dich_vu
+EOF
+```
+
+> - Tài khoản cần quyền tạo tài sản; nên tạo tài khoản riêng, không bật 2FA.
+> - Nếu không cấu hình, QLDA vẫn chạy bình thường, chỉ ẩn/để trống phần liên kết QLTS.
+> - Sau khi đổi `.env`, chạy `docker compose up -d qlda` để nạp lại biến môi trường.
+
 **4. Build & chạy**
 ```bash
 docker compose up -d --build
