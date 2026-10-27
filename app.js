@@ -5805,7 +5805,7 @@ function exportAssets(mode) {
   else openPrintWindow(title, bodyHTML);
 }
 
-const importAssetDraft = { base64: '', fileName: '', previewOk: false, overwrite: false };
+const importAssetDraft = { base64: '', fileName: '', previewOk: false, overwrite: false, defaultYear: '' };
 
 function readImportFileBase64(file) {
   return new Promise((resolve, reject) => {
@@ -5835,6 +5835,11 @@ function openImportAssetModal() {
       <div class="form-group">
         <label>File Excel (.xlsx)</label>
         <input type="file" id="import-asset-file" accept=".xlsx,.xls" onchange="previewImportAsset()">
+      </div>
+      <div class="form-group">
+        <label>Năm đưa vào sử dụng mặc định (nếu file không có cột năm)</label>
+        <input type="number" id="import-asset-default-year" min="1900" max="2200" placeholder="Ví dụ: 2026" onchange="if(importAssetDraft.base64)previewImportAsset()">
+        <small style="color:var(--text-muted)">Dùng để QLTS tính khấu hao cho các tài sản chưa có năm trong file.</small>
       </div>
       <div class="form-group" style="display:flex;gap:8px;align-items:flex-start">
         <input type="checkbox" id="import-asset-overwrite" style="width:auto;margin-top:3px" onchange="if(importAssetDraft.base64)previewImportAsset()">
@@ -5878,6 +5883,7 @@ function renderImportPreview(data) {
     <div style="background:#f8fafc;border:1px solid var(--border-glass);border-radius:8px;padding:8px 10px;line-height:1.55">
       <div><b>Thống kê file:</b> ${formatNumberVN(s.projects || 0)} dự án · ${formatNumberVN(s.packages || 0)} gói thầu · ${formatNumberVN(s.assets || 0)} tài sản · ${money}</div>
       <div><b>So với dữ liệu hiện có:</b> thêm mới ${formatNumberVN(s.create || 0)} · cập nhật ${formatNumberVN(s.update || 0)} · bỏ qua ${formatNumberVN(s.skip || 0)}</div>
+      <div><b>Năm đưa vào sử dụng:</b> ${s.missingYear ? `<span style="color:#b45309">còn thiếu ${formatNumberVN(s.missingYear)} tài sản</span> — nhập "Năm mặc định" ở trên nếu file không có cột năm.` : 'đã có đủ để tính khấu hao.'}</div>
     </div>
     ${errors.length
       ? list('Lỗi - cần sửa file trước khi nhập', errors, 'var(--accent-red)', 'error')
@@ -5902,10 +5908,11 @@ async function previewImportAsset() {
   try {
     const base64 = await readImportFileBase64(file);
     const overwrite = !!document.getElementById('import-asset-overwrite')?.checked;
+    const defaultYear = (document.getElementById('import-asset-default-year')?.value || '').trim();
     const res = handleAuthResponse(await fetch(`${API_BASE}/admin/preview-asset-excel`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contentBase64: base64, overwrite })
+      body: JSON.stringify({ contentBase64: base64, overwrite, defaultYear })
     }));
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || 'Không kiểm tra được file');
@@ -5913,6 +5920,7 @@ async function previewImportAsset() {
     importAssetDraft.fileName = file.name;
     importAssetDraft.previewOk = !!data.ok;
     importAssetDraft.overwrite = overwrite;
+    importAssetDraft.defaultYear = defaultYear;
     renderImportPreview(data);
     if (confirmBtn) confirmBtn.disabled = !data.ok;
   } catch (err) {
@@ -5932,7 +5940,8 @@ async function submitImportAsset() {
     return;
   }
   const overwrite = !!document.getElementById('import-asset-overwrite')?.checked;
-  if (!importAssetDraft.previewOk || !importAssetDraft.base64 || importAssetDraft.fileName !== file.name || importAssetDraft.overwrite !== overwrite) {
+  const defaultYear = (document.getElementById('import-asset-default-year')?.value || '').trim();
+  if (!importAssetDraft.previewOk || !importAssetDraft.base64 || importAssetDraft.fileName !== file.name || importAssetDraft.overwrite !== overwrite || importAssetDraft.defaultYear !== defaultYear) {
     if (resultEl) resultEl.innerHTML = '<span style="color:var(--accent-red)">Vui lòng bấm "Kiểm tra file" trước khi nhập.</span>';
     return;
   }
@@ -5942,7 +5951,7 @@ async function submitImportAsset() {
     const res = handleAuthResponse(await fetch(`${API_BASE}/admin/import-asset-excel`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contentBase64: importAssetDraft.base64, overwrite })
+      body: JSON.stringify({ contentBase64: importAssetDraft.base64, overwrite, defaultYear })
     }));
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || 'Lỗi nhập file');

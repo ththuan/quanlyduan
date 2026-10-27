@@ -112,7 +112,8 @@ async function getOptions() {
       id: c.id, code: c.code || '', name: c.name || '', unit: c.unit || '',
       group: c.category_group || '', parentCode: c.parent_code || '',
       trackingType: c.tracking_type || 'individual',
-      isDepreciable: c.is_depreciable, usefulLife: c.useful_life_years || c.useful_life || null
+      isDepreciable: c.is_depreciable, usefulLife: c.useful_life_years || c.useful_life || null,
+      depreciationRate: c.depreciation_rate ?? null
     }))
     .filter(c => c.id && c.name && c.is_active !== false)
     .sort((a, b) => (a.code || a.name).localeCompare(b.code || b.name, 'vi'));
@@ -153,8 +154,10 @@ function buildAssetPayload(asset, opts = {}) {
     status: mapStatus(asset.status),
     asset_condition: 'good',
     description: desc || undefined,
-    is_depreciable: true
+    is_depreciable: opts.category ? opts.category.isDepreciable !== false : true
   };
+  if (opts.category?.usefulLife) payload.useful_life = Number(opts.category.usefulLife);
+  if (opts.category?.depreciationRate != null) payload.depreciation_rate = Number(opts.category.depreciationRate);
   Object.keys(payload).forEach(k => { if (payload[k] === undefined || payload[k] === null) delete payload[k]; });
   return payload;
 }

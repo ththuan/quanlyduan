@@ -53,6 +53,29 @@ function extractYear(text) {
   return m ? m[0] : '';
 }
 
+// Chuẩn hóa năm từ ô Excel: số năm, chuỗi ngày/tháng/năm hoặc serial date của Excel
+function normalizeYear(value) {
+  if (value == null || value === '') return '';
+  if (typeof value === 'number' && isFinite(value)) {
+    if (value >= 1900 && value <= 2200) return String(Math.trunc(value));
+    if (value > 20000 && value < 80000) {
+      const d = new Date(Date.UTC(1899, 11, 30) + Math.trunc(value) * 86400000);
+      return String(d.getUTCFullYear());
+    }
+    return '';
+  }
+  return extractYear(value);
+}
+
+function applyDefaultYear(projects, defaultYear) {
+  const year = normalizeYear(defaultYear);
+  if (!year) return projects;
+  (projects || []).forEach(p => (p.categories || []).forEach(c => (c.packages || []).forEach(pk => {
+    (pk.assets || []).forEach(a => { if (!a.year) a.year = year; });
+  })));
+  return projects;
+}
+
 // Chuyển tên VIẾT HOA HẾT về dạng chữ thường đúng chuẩn (Title Case)
 function toTitleCase(s) {
   return String(s == null ? '' : s)
@@ -91,7 +114,7 @@ function mapColumns(headerRow) {
     else if (map.amount == null && h.includes('thanh tien')) map.amount = c;
     else if (map.location == null && h.includes('dat o')) map.location = c;
     else if (map.note == null && h.includes('ghi chu')) map.note = c;
-    else if (map.year == null && h.includes('nam dua vao')) map.year = c;
+    else if (map.year == null && (h.includes('nam dua vao') || h.includes('nam su dung') || h.includes('ngay dua vao') || h.includes('ngay su dung'))) map.year = c;
   });
   return map;
 }
@@ -260,12 +283,13 @@ function parseSheet(ws) {
       if (!project) project = newProject('Mua sắm tài sản', '');
       if (!group) group = newGroup(project.name, '', 0);
       const noteRaw = toText(cell(row, map.note));
-      const yearRaw = map.year != null ? toText(cell(row, map.year)) : '';
+      const yearRaw = map.year != null ? cell(row, map.year) : '';
+      const assetName = B || (A ? (/^\d+$/.test(A) ? `Tài sản ${A}` : A) : 'Tài sản không tên');
       const asset = {
         id: 'asset-' + crypto.randomUUID(),
         code: '',
         stt: A,
-        name: B,
+        name: assetName,
         group: group.name,
         supplier: group.contractor,
         unit: toText(cell(row, map.unit)),
@@ -273,7 +297,7 @@ function parseSheet(ws) {
         unitPrice: toNum(cell(row, map.unitPrice)),
         amount: toNum(cell(row, map.amount)),
         location: toText(cell(row, map.location)),
-        year: yearRaw || extractYear(noteRaw),
+        year: normalizeYear(yearRaw) || extractYear(noteRaw),
         note: noteRaw,
         status: 'Đang sử dụng'
       };
@@ -324,16 +348,18 @@ function pickSheet(wb, sheetName) {
   return null;
 }
 
-function parseWorkbook(buffer, sheetName) {
+function parseWorkbook(buffer, sheetName, defaultYear) {
   const wb = XLSX.read(buffer, { type: 'buffer' });
   const ws = pickSheet(wb, sheetName);
   if (!ws) return null;
   const projects = parseSheet(ws);
-  return projects.length ? projects : null;
+  if (!projects.length) return null;
+  applyDefaultYear(projects, defaultYear);
+  return projects;
 }
 
 // Kiểm tra file trước khi nhập: trả về lỗi chặn nhập, cảnh báo và thống kê
-function validateWorkbook(buffer, sheetName) {
+function validateWorkbook(buffer, sheetName, defaultYear) {
   const errors = [];
   const warnings = [];
   let wb;
@@ -362,10 +388,12 @@ function validateWorkbook(buffer, sheetName) {
   if (!projects.length) {
     return { errors: ['Không đọc được dự án/tài sản nào. Kiểm tra lại bố cục: dòng dự án bắt đầu bằng "A. ", gói thầu bằng "I. ", tài sản có STT là số.'], warnings, stats: null, projects: [] };
   }
+  applyDefaultYear(projects, defaultYear);
 
   let packages = 0;
   let assets = 0;
   let totalValue = 0;
+  let missingYear = 0;
   const assetNames = new Set();
   projects.forEach(p => {
     if (!p.name) errors.push('Có dự án không có tên.');
@@ -383,9 +411,13 @@ function validateWorkbook(buffer, sheetName) {
         totalValue += amount;
         if (a.name) assetNames.add(norm(a.name));
         const where = `Dự án "${p.name}" / gói "${pk.name || '(chưa tên)'}" / tài sản "${a.name || '(chưa tên)'}"`;
-        if (!a.name) errors.push(`${where}: thiếu tên tài sản.`);
+        if (!a.name) warnings.push(`${where}: thiếu tên tài sản, sẽ đặt tên tạm.`);
         if (!(qty > 0)) warnings.push(`${where}: số lượng ${a.quantity} không hợp lệ.`);
         if (!a.unit) warnings.push(`${where}: thiếu đơn vị tính.`);
+        if (!a.year) {
+          missingYear += 1;
+          if (missingYear <= 10) warnings.push(`${where}: thiếu năm đưa vào sử dụng (QLTS cần để tính khấu hao).`);
+        }
         if (!amount && !price) warnings.push(`${where}: chưa có đơn giá và thành tiền.`);
         else if (qty && price && amount && Math.abs(amount - qty * price) > 1) {
           warnings.push(`${where}: thành tiền (${amount}) khác SL × đơn giá (${qty * price}).`);
@@ -393,6 +425,7 @@ function validateWorkbook(buffer, sheetName) {
       });
     });
   });
+  if (missingYear > 10) warnings.push(`Còn ${missingYear - 10} tài sản khác thiếu năm đưa vào sử dụng.`);
 
   // Cảnh báo các dòng trông giống tài sản nhưng không được nhận dạng
   let skippedRows = 0;
@@ -412,7 +445,7 @@ function validateWorkbook(buffer, sheetName) {
   return {
     errors,
     warnings,
-    stats: { projects: projects.length, packages, assets, totalValue, skippedRows },
+    stats: { projects: projects.length, packages, assets, totalValue, missingYear, skippedRows },
     projects
   };
 }

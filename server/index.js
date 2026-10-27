@@ -407,7 +407,7 @@ async function qltkSyncOneAsset(asset, ctx) {
         unitPrice: qty ? price / qty : 0,
         qltkDepartmentId: alloc.departmentId,
         qltkDepartmentName: alloc.departmentName
-      }, { projectLabel: ctx.projectLabel, packageLabel: ctx.packageLabel });
+        }, { projectLabel: ctx.projectLabel, packageLabel: ctx.packageLabel, category: cat });
       const extId = created?.id ?? created?.asset_id ?? '';
       if (!extId) throw new Error('QLTS không trả về ID tài sản');
       asset.qltkItems.push({
@@ -426,7 +426,7 @@ async function qltkSyncOneAsset(asset, ctx) {
           unitPrice,
           qltkDepartmentId: alloc.departmentId,
           qltkDepartmentName: alloc.departmentName
-        }, { projectLabel: ctx.projectLabel, packageLabel: ctx.packageLabel });
+      }, { projectLabel: ctx.projectLabel, packageLabel: ctx.packageLabel, category: cat });
         const extId = created?.id ?? created?.asset_id ?? '';
         if (!extId) throw new Error('QLTS không trả về ID tài sản');
         asset.qltkItems.push({
@@ -743,11 +743,11 @@ app.get('/api/admin/import-asset-template', requireAuth, requireAdmin, (req, res
 // Kiểm tra file Excel tài sản trước khi nhập
 app.post('/api/admin/preview-asset-excel', requireAuth, requireAdmin, (req, res) => {
   try {
-    const { contentBase64, sheetName, overwrite } = req.body || {};
+    const { contentBase64, sheetName, overwrite, defaultYear } = req.body || {};
     if (!contentBase64) return res.status(400).json({ error: 'Thiếu nội dung file Excel' });
     const buf = Buffer.from(String(contentBase64).replace(/^data:.*;base64,/, ''), 'base64');
     if (!buf.length) return res.status(400).json({ error: 'File rỗng hoặc không hợp lệ' });
-    const result = assetImport.validateWorkbook(buf, sheetName || undefined);
+    const result = assetImport.validateWorkbook(buf, sheetName || undefined, defaultYear);
     const state = db.getState();
     const existing = new Set((state.projects || []).map(p => `${(p.name || '').trim().toLowerCase()}|${p.code || ''}`));
     let create = 0, update = 0, skip = 0;
@@ -782,11 +782,11 @@ app.post('/api/admin/preview-asset-excel', requireAuth, requireAdmin, (req, res)
 // Phân cấp: A/B/C... = dự án; I/II/... = gói thầu; dòng STT = tài sản
 app.post('/api/admin/import-asset-excel', requireAuth, requireAdmin, (req, res) => {
   try {
-    const { contentBase64, sheetName, overwrite } = req.body || {};
+    const { contentBase64, sheetName, overwrite, defaultYear } = req.body || {};
     if (!contentBase64) return res.status(400).json({ error: 'Thiếu nội dung file Excel' });
     const buf = Buffer.from(String(contentBase64).replace(/^data:.*;base64,/, ''), 'base64');
     if (!buf.length) return res.status(400).json({ error: 'File rỗng hoặc không hợp lệ' });
-    const checked = assetImport.validateWorkbook(buf, sheetName || undefined);
+    const checked = assetImport.validateWorkbook(buf, sheetName || undefined, defaultYear);
     if (checked.errors.length) {
       return res.status(400).json({
         error: 'File có lỗi, chưa nhập. ' + checked.errors[0],
