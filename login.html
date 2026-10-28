@@ -417,8 +417,8 @@
 })();
 
 </script>
-<script src="login.js"></script>
-<script>if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js')</script>
+  <script src="login.js?v=20261029"></script>
+<script>if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).then(r => r.update()).catch(() => {})</script>
 
 </body>
 </html>

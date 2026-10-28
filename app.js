@@ -6554,9 +6554,20 @@ document.addEventListener('DOMContentLoaded', () => {
   }).observe(document.body, { childList: true, subtree: true });
 });
 
-// Service Worker — PWA offline support
+// Service Worker — PWA offline support (luôn kiểm tra bản mới, tránh kẹt cache trên iPad)
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js').catch(() => {});
+  navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).then(reg => {
+    reg.update().catch(() => {});
+  }).catch(() => {});
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (refreshing) return;
+    if (!navigator.serviceWorker.controller) return;
+    if (sessionStorage.getItem('qlda-sw-reloaded') === '1') return;
+    refreshing = true;
+    sessionStorage.setItem('qlda-sw-reloaded', '1');
+    location.reload();
+  });
 }
 
 // Handle window resize for charts
