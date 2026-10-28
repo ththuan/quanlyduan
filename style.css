@@ -2263,7 +2263,7 @@ canvas {
 .asset-table tr.total-row td { color: var(--text-primary); font-weight: 700; border-top: 2px solid var(--border); }
 
 /* Tài sản trên iPhone/iPad: chuyển bảng thành dạng thẻ, tên tài sản nổi bật */
-@media (max-width: 1024px) {
+@media (max-width: 1024px), (any-pointer: coarse) {
   .asset-table { display: block; table-layout: auto; }
   .asset-table thead { display: none; }
   .asset-table tbody { display: block; }
