@@ -4005,14 +4005,14 @@ function viewPackageDetail(catId, pkgId) {
       <div class="detail-item full-width">
         ${pkgAssets.length ? `<table class="asset-table"><thead><tr><th class="text-center" style="width:42px">TT</th><th style="width:86px">Mã</th><th>Tên tài sản</th><th class="text-center" style="width:56px">ĐVT</th><th class="text-right" style="width:64px">SL</th><th class="text-right" style="width:112px">Đơn giá</th><th class="text-right" style="width:124px">Thành tiền</th><th style="width:150px">Nơi sử dụng</th><th></th></tr></thead><tbody>
           ${pkgAssets.map((a, i) => `<tr>
-            <td class="text-center">${i + 1}</td>
-            <td class="mono">${esc(a.code || '')}</td>
-            <td class="wrap">${esc(a.name || '')}</td>
-            <td class="text-center">${esc(a.unit || '')}</td>
-            <td class="text-right">${formatNumberVN(a.quantity || 0)}</td>
-            <td class="text-right">${formatCurrency(a.unitPrice || 0)}</td>
-            <td class="text-right">${formatCurrency(a.amount || 0)}</td>
-            <td class="wrap">${esc(a.location || '')}</td>
+            <td class="text-center" data-label="TT">${i + 1}</td>
+            <td class="mono" data-label="Mã">${esc(a.code || '')}</td>
+            <td class="wrap" data-label="Tên tài sản">${esc(a.name || '')}</td>
+            <td class="text-center" data-label="ĐVT">${esc(a.unit || '')}</td>
+            <td class="text-right" data-label="Số lượng">${formatNumberVN(a.quantity || 0)}</td>
+            <td class="text-right" data-label="Đơn giá">${formatCurrency(a.unitPrice || 0)}</td>
+            <td class="text-right" data-label="Thành tiền">${formatCurrency(a.amount || 0)}</td>
+            <td class="wrap" data-label="Nơi sử dụng">${esc(a.location || '')}</td>
             <td class="edit-only" style="white-space:nowrap">
               <button class="btn-icon btn-sm" title="Sửa" onclick="openAssetForm('${a.id}','${catId}','${pkgId}')"><span class="material-symbols-rounded">edit</span></button>
               <button class="btn-icon btn-sm" title="Xóa" onclick="deleteAsset('${a.id}','${catId}','${pkgId}')"><span class="material-symbols-rounded">delete</span></button>
@@ -5497,7 +5497,7 @@ function renderAssetsView() {
         <span>${g.catName ? `<span style="color:var(--text-muted)">${esc(g.catName)} › </span>` : ''}<strong>${esc(g.pkgName)}</strong></span>
         <span style="font-size:0.8rem;color:var(--text-muted)">(${g.assets.length} tài sản · ${formatQtyByUnit(g.assets)} · ${formatCurrency(sum)})</span>
       </div>
-      <div class="report-table-wrapper">
+      <div class="report-table-wrapper asset-table-wrapper">
         <table class="asset-table">
           <thead><tr>
             <th class="text-center" style="width:42px">TT</th>
@@ -5516,18 +5516,18 @@ function renderAssetsView() {
           </tr></thead>
           <tbody>
             ${g.assets.map((a, i) => `<tr>
-              <td class="text-center">${i + 1}</td>
-              <td class="mono">${esc(a.code || '')}</td>
-              <td class="wrap">${esc(a.name || '')}</td>
-              <td class="text-center">${esc(a.unit || '')}</td>
-              <td class="text-right">${formatNumberVN(a.quantity || 0)}</td>
-              <td class="text-right">${formatCurrency(a.unitPrice || 0)}</td>
-              <td class="text-right">${formatCurrency(a.amount || 0)}</td>
-              <td class="wrap">${esc(a.location || '')}</td>
-              <td class="wrap">${esc(a.qltkDepartmentName || '')}</td>
-              <td class="text-center">${esc(a.year || '')}</td>
-              <td class="text-center">${a.acceptanceDate ? esc(formatDateVN(a.acceptanceDate)) : ''}</td>
-              <td class="text-center">${a.qltkId
+              <td class="text-center" data-label="TT">${i + 1}</td>
+              <td class="mono" data-label="Mã">${esc(a.code || '')}</td>
+              <td class="wrap" data-label="Tên tài sản">${esc(a.name || '')}</td>
+              <td class="text-center" data-label="ĐVT">${esc(a.unit || '')}</td>
+              <td class="text-right" data-label="Số lượng">${formatNumberVN(a.quantity || 0)}</td>
+              <td class="text-right" data-label="Đơn giá">${formatCurrency(a.unitPrice || 0)}</td>
+              <td class="text-right" data-label="Thành tiền">${formatCurrency(a.amount || 0)}</td>
+              <td class="wrap" data-label="Nơi sử dụng">${esc(a.location || '')}</td>
+              <td class="wrap" data-label="Phòng/khoa">${esc(a.qltkDepartmentName || '')}</td>
+              <td class="text-center" data-label="Năm">${esc(a.year || '')}</td>
+              <td class="text-center" data-label="Nghiệm thu">${a.acceptanceDate ? esc(formatDateVN(a.acceptanceDate)) : ''}</td>
+              <td class="text-center" data-label="QLTS">${a.qltkId
                 ? `<span class="material-symbols-rounded" style="color:#16a34a" title="Đã đồng bộ: ${esc(a.qltkCode || a.qltkId)}">cloud_done</span>`
                 : a.qltkError
                   ? `<span class="material-symbols-rounded" style="color:#dc2626" title="${esc(a.qltkError)}">error</span>`
