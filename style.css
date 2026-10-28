@@ -2262,12 +2262,15 @@ canvas {
 .asset-table tr.total-row { background: #eff6ff; }
 .asset-table tr.total-row td { color: var(--text-primary); font-weight: 700; border-top: 2px solid var(--border); }
 
-/* Tài sản trên iPhone/iPad: chuyển bảng thành dạng thẻ để không bị bóp cột */
+/* Tài sản trên iPhone/iPad: chuyển bảng thành dạng thẻ, tên tài sản nổi bật */
 @media (max-width: 1024px) {
   .asset-table { display: block; table-layout: auto; }
   .asset-table thead { display: none; }
-  .asset-table tbody, .asset-table tr, .asset-table td { display: block; width: 100%; }
+  .asset-table tbody { display: block; }
   .asset-table tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 6px 12px;
     border: 1px solid var(--border-glass);
     border-radius: 10px;
     margin: 0 0 10px;
@@ -2277,34 +2280,55 @@ canvas {
   }
   .asset-table td {
     display: flex;
-    justify-content: space-between;
+    flex-direction: column;
     align-items: flex-start;
-    gap: 12px;
-    padding: 4px 0;
+    gap: 2px;
+    min-width: 0;
+    padding: 0;
     border: none;
     white-space: normal;
     overflow: visible;
     text-overflow: unset;
-    font-size: 0.84rem;
+    word-break: break-word;
+    font-size: 0.86rem;
+    line-height: 1.4;
   }
   .asset-table td::before {
     content: attr(data-label);
-    flex: 0 0 38%;
     color: var(--text-muted);
     font-weight: 600;
-    font-size: 0.74rem;
+    font-size: 0.68rem;
     text-transform: uppercase;
     letter-spacing: .02em;
   }
   .asset-table td:not([data-label])::before { content: none; }
   .asset-table td.text-right, .asset-table td.text-center { text-align: left; }
+  .asset-table td[data-label="TT"] { display: none; }
+  .asset-table td[data-label="Mã"] { order: -6; }
+  .asset-table td[data-label="QLTS"] { order: -6; align-items: flex-end; text-align: right; }
+  .asset-table td[data-label="Tên tài sản"] {
+    order: -5;
+    grid-column: 1 / -1;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.35;
+    padding-bottom: 2px;
+  }
+  .asset-table td[data-label="Tên tài sản"]::before { content: 'Tài sản'; }
+  .asset-table td[data-label="Nơi sử dụng"],
+  .asset-table td[data-label="Phòng/khoa"] { grid-column: 1 / -1; }
   .asset-table td.edit-only {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    align-items: center;
     justify-content: flex-end;
-    gap: 4px;
+    gap: 6px;
     padding-top: 8px;
-    margin-top: 4px;
+    margin-top: 2px;
     border-top: 1px dashed var(--border-glass);
   }
+  .asset-table td.edit-only::before { content: none; }
   .asset-table tr.total-row { display: none; }
   .asset-table-wrapper { border: none; background: transparent; overflow: visible; }
   .qltk-alloc-row { flex-wrap: wrap; }
