@@ -2270,11 +2270,11 @@ canvas {
   .asset-table tr {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 6px 12px;
+    gap: 8px 12px;
     border: 1px solid var(--border-glass);
     border-radius: 10px;
     margin: 0 0 10px;
-    padding: 10px 12px;
+    padding: 12px 14px;
     background: var(--bg-card, #fff);
     box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
   }
@@ -2290,14 +2290,14 @@ canvas {
     overflow: visible;
     text-overflow: unset;
     word-break: break-word;
-    font-size: 0.86rem;
+    font-size: 0.92rem;
     line-height: 1.4;
   }
   .asset-table td::before {
     content: attr(data-label);
     color: var(--text-muted);
     font-weight: 600;
-    font-size: 0.68rem;
+    font-size: 0.72rem;
     text-transform: uppercase;
     letter-spacing: .02em;
   }
@@ -2309,7 +2309,7 @@ canvas {
   .asset-table td[data-label="Tên tài sản"] {
     order: -5;
     grid-column: 1 / -1;
-    font-size: 1rem;
+    font-size: 1.08rem;
     font-weight: 600;
     color: var(--text-primary);
     line-height: 1.35;
@@ -2334,6 +2334,24 @@ canvas {
   .qltk-alloc-row { flex-wrap: wrap; }
   .qltk-alloc-row select { flex: 1 1 100%; }
   .qltk-alloc-row input { flex: 1 1 auto; width: auto; }
+}
+
+/* iPad / màn hình cảm ứng lớn: dùng 3 cột và chữ lớn hơn */
+@media (min-width: 768px) and (any-pointer: coarse) {
+  .asset-table tr {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px 22px;
+    padding: 16px 18px;
+    border-radius: 12px;
+  }
+  .asset-table td { font-size: 1rem; }
+  .asset-table td::before { font-size: 0.75rem; }
+  .asset-table td[data-label="Mã"] { grid-column: span 2; }
+  .asset-table td[data-label="Tên tài sản"] { font-size: 1.22rem; line-height: 1.4; }
+  .asset-table td[data-label="Nơi sử dụng"],
+  .asset-table td[data-label="Phòng/khoa"] { grid-column: 1 / -1; order: 5; }
+  .asset-table td.edit-only { padding-top: 12px; order: 10; }
+  .asset-table td.edit-only .btn-icon { width: 40px; height: 40px; }
 }
 
 .qltk-alloc-list { display: flex; flex-direction: column; gap: 6px; }
