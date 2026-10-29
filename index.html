@@ -15,7 +15,7 @@
   <link rel="apple-touch-icon" href="logoCTEC.png">
   <!-- Bundled locally so icon ligatures do not degrade to their raw names when Google Fonts is blocked. -->
   <link href="/assets/material-symbols-rounded.css" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20261029d">
+  <link rel="stylesheet" href="style.css?v=20261029e">
 </head>
 <body>
   <!-- ========== TOP NAVIGATION ========== -->
@@ -76,7 +76,7 @@
     </div>
 
     <div class="nav-actions">
-      <select id="project-selector" title="Chọn dự án"></select>
+      <select id="project-selector" title="Chọn dự án" data-motion-select data-motion-search data-motion-placeholder="Chọn dự án…" data-motion-label="Chọn dự án"></select>
       <div class="nav-action-buttons">
         <button id="btn-add-project" class="btn-icon edit-only" title="Thêm dự án mới">
           <span class="material-symbols-rounded">add_circle</span>
@@ -154,7 +154,7 @@
             <span class="material-symbols-rounded">search</span>
             <input type="text" id="search-packages" placeholder="Tìm kiếm gói thầu...">
           </div>
-          <select id="filter-pkg-status" title="Lọc theo trạng thái">
+          <select id="filter-pkg-status" title="Lọc theo trạng thái" data-motion-select data-motion-placeholder="Tất cả trạng thái" data-motion-label="Lọc theo trạng thái">
             <option value="">Tất cả trạng thái</option>
             <option value="notStarted">Chưa triển khai</option>
             <option value="selecting">Đang lựa chọn nhà thầu</option>
@@ -163,7 +163,7 @@
             <option value="accepted">Đã nghiệm thu</option>
             <option value="handedOver">Đã bàn giao</option>
           </select>
-          <select id="filter-pkg-type" title="Lọc theo loại gói">
+          <select id="filter-pkg-type" title="Lọc theo loại gói" data-motion-select data-motion-placeholder="Tất cả loại gói" data-motion-label="Lọc theo loại gói">
             <option value="">Tất cả loại gói</option>
             <option value="construction">Xây lắp</option>
             <option value="consulting">Tư vấn</option>
@@ -354,7 +354,8 @@
   <div id="toast-container"></div>
 
   <script src="assets/pdf.min.js"></script>
-  <script src="motion.js?v=20261029d"></script>
+  <script src="motion.js?v=20261029e"></script>
+  <script src="motion-ui.js?v=20261029e"></script>
   <script src="app.js?v=20261029d"></script>
   <script src="workflow-catalog.js?v=20261029c"></script>
   <script src="workflow-ui.js?v=20261029c"></script>

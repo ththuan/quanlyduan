@@ -4052,3 +4052,269 @@ canvas {
   .motion-reveal { opacity: 1 !important; transform: none !important; transition: none !important; }
   .motion-tab-indicator { display: none !important; }
 }
+
+/* ============================================================
+   MOTION UI: animated select / combobox / tooltip / bottom sheet
+   ============================================================ */
+
+.motion-select {
+  position: relative;
+  display: inline-flex;
+  min-width: 0;
+  font-family: inherit;
+}
+
+.motion-select-native { display: none !important; }
+
+.motion-select-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 36px;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+  color: var(--text-primary);
+  background: #ffffff;
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-sm);
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+}
+
+.motion-select-trigger:hover { border-color: var(--border-active); }
+.motion-select-trigger:focus-visible {
+  outline: none;
+  border-color: var(--border-active);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+}
+.motion-select-trigger:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.motion-select-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.motion-select-trigger.is-placeholder .motion-select-label { color: var(--text-muted); }
+
+.motion-select-chevron {
+  font-size: 20px;
+  color: #64748b;
+  flex-shrink: 0;
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.motion-select-trigger.is-open .motion-select-chevron { transform: rotate(180deg); }
+
+.nav-actions > .motion-select {
+  flex: 1 1 360px;
+  min-width: 0;
+  max-width: none;
+}
+
+.nav-actions > .motion-select .motion-select-trigger {
+  height: 38px;
+  padding: 8px 12px;
+  font-size: 0.85rem;
+}
+
+.header-actions .motion-select { min-width: 180px; }
+
+.header-actions .motion-select-trigger {
+  padding: 7px 10px;
+  font-size: 0.85rem;
+}
+
+.motion-select-popup {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 1500;
+  width: max(100%, 280px);
+  max-width: min(94vw, 440px);
+  padding: 6px;
+  background: #ffffff;
+  border: 1px solid var(--border-glass);
+  border-radius: 14px;
+  box-shadow: 0 18px 50px rgba(15, 23, 42, 0.18), 0 2px 8px rgba(15, 23, 42, 0.08);
+  transform-origin: top center;
+}
+
+.motion-select-search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: -2px -2px 6px;
+  padding: 6px 8px;
+  border-bottom: 1px solid #eef2f7;
+}
+
+.motion-select-search-wrap .material-symbols-rounded { font-size: 18px; color: #94a3b8; }
+
+.motion-select-search {
+  width: 100%;
+  padding: 6px 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 0.86rem;
+  color: var(--text-primary);
+}
+
+.motion-select-list {
+  max-height: 320px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.motion-select-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 10px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  font-family: inherit;
+  font-size: 0.86rem;
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.motion-select-option:hover,
+.motion-select-option:focus-visible { background: #f1f5f9; outline: none; }
+
+.motion-select-option.is-selected {
+  background: #eff6ff;
+  color: var(--accent-blue);
+  font-weight: 600;
+}
+
+.motion-select-option-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.motion-select-check {
+  font-size: 18px;
+  opacity: 0;
+  transform: scale(0.7);
+  transition: opacity 0.15s, transform 0.15s;
+  flex-shrink: 0;
+}
+
+.motion-select-option.is-selected .motion-select-check { opacity: 1; transform: none; }
+
+.motion-select-empty {
+  padding: 14px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+/* Bottom sheet (mobile) */
+.motion-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2400;
+  background: rgba(15, 23, 42, 0.45);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+}
+
+.motion-select-popup.motion-select-sheet {
+  position: fixed;
+  top: auto;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  max-height: 76vh;
+  padding: 10px 12px calc(12px + env(safe-area-inset-bottom));
+  border-radius: 20px 20px 0 0;
+  z-index: 2401;
+  transform-origin: bottom center;
+}
+
+.motion-select-popup.motion-select-sheet::before {
+  content: '';
+  display: block;
+  width: 44px;
+  height: 4px;
+  margin: 2px auto 10px;
+  border-radius: 999px;
+  background: #cbd5e1;
+}
+
+.motion-select-sheet .motion-select-list { max-height: 58vh; }
+
+body.motion-sheet-open { overflow: hidden; }
+
+/* Tooltip */
+.motion-tooltip {
+  position: fixed;
+  z-index: 4000;
+  max-width: 280px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: #0f172a;
+  color: #f8fafc;
+  font-size: 0.76rem;
+  line-height: 1.4;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.28);
+  pointer-events: none;
+}
+
+/* Modal becomes a bottom sheet on phones */
+@media (max-width: 640px) {
+  #modal {
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-width: 100%;
+    max-height: 92vh;
+    border-radius: 20px 20px 0 0;
+    transform: none;
+  }
+
+  #modal.modal-lg,
+  #modal.modal-xl { width: 100%; max-width: 100%; }
+
+  #modal::before {
+    content: '';
+    flex: 0 0 auto;
+    width: 44px;
+    height: 4px;
+    margin: 10px auto 0;
+    border-radius: 999px;
+    background: #cbd5e1;
+  }
+
+  .header-actions .motion-select { flex: 1 1 160px; min-width: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .motion-select-chevron,
+  .motion-select-option,
+  .motion-select-check { transition: none !important; }
+}
+
+@media print {
+  .motion-select-popup,
+  .motion-tooltip,
+  .motion-sheet-backdrop { display: none !important; }
+}

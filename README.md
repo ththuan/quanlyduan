@@ -255,6 +255,7 @@ quanlyduan/
 ├── login.html          # Trang đăng nhập
 ├── app.js              # Logic frontend (~4300 dòng)
 ├── motion.js           # Lớp animation (CSS + Web Animations API)
+├── motion-ui.js        # Select/combobox, tooltip, bottom sheet có animation
 ├── style.css           # CSS toàn bộ ứng dụng
 ├── manifest.json       # PWA manifest
 ├── sw.js               # Service Worker (offline)

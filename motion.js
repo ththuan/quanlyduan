@@ -154,12 +154,23 @@
 
   /* ---------- Modal ---------- */
 
+  function sheetMode() {
+    return !!(window.matchMedia && window.matchMedia('(max-width: 640px)').matches);
+  }
+
   function modalOpen(modal, backdrop) {
     if (!modal) return;
     modal._motionOpenId = (modal._motionOpenId || 0) + 1;
     stopAnimations(modal);
     stopAnimations(backdrop);
     animate(backdrop, [{ opacity: 0 }, { opacity: 1 }], { duration: 220, easing: 'ease-out', fill: 'none' });
+    if (sheetMode()) {
+      animate(modal, [
+        { opacity: 1, transform: 'translateY(100%)' },
+        { opacity: 1, transform: 'translateY(0)' }
+      ], { duration: 320, easing: EASE_SPRING, fill: 'none' });
+      return;
+    }
     animate(modal, [
       { opacity: 0, transform: 'translate(-50%, -50%) scale(0.94)' },
       { opacity: 1, transform: 'translate(-50%, -50%) scale(1)' }
@@ -185,7 +196,11 @@
     if (!modal || prefersReduced()) { finish(); return; }
     stopAnimations(modal);
     stopAnimations(backdrop);
-    var anim = animate(modal, [
+    var sheet = sheetMode();
+    var anim = animate(modal, sheet ? [
+      { opacity: 1, transform: 'translateY(0)' },
+      { opacity: 1, transform: 'translateY(100%)' }
+    ] : [
       { opacity: 1, transform: 'translate(-50%, -50%) scale(1)' },
       { opacity: 0, transform: 'translate(-50%, -50%) scale(0.96)' }
     ], { duration: 180, easing: EASE_IN });
