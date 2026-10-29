@@ -164,14 +164,29 @@ body.read-only .edit-only { display: none !important; }
 }
 
 .brand-text h1 {
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   font-weight: 800;
-  letter-spacing: 0.05em;
-  background: var(--gradient-primary);
+  letter-spacing: 0.01em;
+  background-image: linear-gradient(100deg, #1d4ed8 0%, #06b6d4 22%, #8b5cf6 48%, #ec4899 72%, #1d4ed8 100%);
+  background-size: 320% 100%;
   -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
   background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: brandGradientFlow 7s linear infinite;
   line-height: 1.2;
+  white-space: nowrap;
+}
+
+@keyframes brandGradientFlow {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 320% 50%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-text h1 {
+    animation: none;
+    background-position: 50% 50%;
+  }
 }
 
 .brand-text span {
@@ -3067,7 +3082,7 @@ canvas {
 
   .nav-tabs { gap: 2px; }
   .nav-tab { padding: 6px 8px; font-size: 0.72rem; letter-spacing: 0; }
-  .brand-text h1 { font-size: 1.05rem; }
+  .brand-text h1 { font-size: 0.92rem; }
 
   .settlement-kpis .kpi-grid { grid-template-columns: 1fr 1fr; }
 }
