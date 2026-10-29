@@ -1,4 +1,4 @@
-const CACHE = 'qlda-v16';
+const CACHE = 'qlda-v17';
 const STATIC = [
   '/logoCTEC.png',
   '/manifest.json',

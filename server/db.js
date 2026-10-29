@@ -224,6 +224,8 @@ function listUsers() {
 
 function updateUserPassword(id, password) {
   db.prepare('UPDATE users SET password_hash = ?, must_change_password = 0, failed_login_attempts = 0, locked_until = 0 WHERE id = ?').run(hashPassword(password), id);
+  // Đổi/đặt lại mật khẩu phải thu hồi mọi phiên cũ (token bị lộ không dùng tiếp được).
+  db.prepare('DELETE FROM sessions WHERE user_id = ?').run(id);
 }
 
 function deleteUser(id) {
@@ -269,10 +271,17 @@ function getLockRemainingMs(user) {
 
 // Seed admin mặc định lần đầu với mật khẩu ngẫu nhiên, bắt buộc đổi khi đăng nhập
 if (countUsers() === 0) {
-  const initialPw = crypto.randomBytes(6).toString('hex');
+  const envPw = String(process.env.QLDA_ADMIN_PASSWORD || '');
+  const initialPw = envPw || crypto.randomBytes(12).toString('base64url');
   createUser('admin', initialPw, 'admin', 1);
-  console.warn(`[QLDA] Đã tạo tài khoản admin với mật khẩu tạm: ${initialPw}`);
-  console.warn('[QLDA] Mật khẩu này chỉ hiện 1 lần. Đăng nhập và đổi ngay.');
+  if (envPw) {
+    console.warn('[QLDA] Đã tạo tài khoản admin từ QLDA_ADMIN_PASSWORD. Hãy đổi mật khẩu sau khi đăng nhập.');
+  } else {
+    const pwFile = path.join(DATA_DIR, 'initial-admin-password.txt');
+    fs.writeFileSync(pwFile, initialPw + '\n', { mode: 0o600 });
+    console.warn(`[QLDA] Đã tạo tài khoản admin. Mật khẩu tạm lưu tại: ${pwFile}`);
+    console.warn('[QLDA] Đọc file, đăng nhập, đổi mật khẩu rồi xóa file này.');
+  }
 }
 
 // ---- Sessions ----
@@ -507,7 +516,9 @@ function getConfig() {
 
 function deepMerge(base, override) {
   if (!override || typeof override !== 'object') return;
+  const blocked = new Set(['__proto__', 'constructor', 'prototype']);
   Object.keys(override).forEach(k => {
+    if (blocked.has(k)) return;
     const v = override[k];
     if (v && typeof v === 'object' && !Array.isArray(v) && base[k] && typeof base[k] === 'object') {
       deepMerge(base[k], v);

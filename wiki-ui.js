@@ -58,6 +58,7 @@ function wikiRenderBody() {
 }
 
 function wikiListHTML() {
+  const canModerate = typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'admin';
   const pending = wikiState.entries.filter(e => e.status === 'pending');
   const approved = wikiState.entries.filter(e => e.status === 'approved');
 
@@ -69,17 +70,17 @@ function wikiListHTML() {
       </div>
       <div class="wiki-item-content">${esc(e.content)}</div>
       ${e.sources && e.sources.length ? `<div class="wiki-item-sources">Nguồn: ${e.sources.map(s => esc(s.doc + (s.article ? ' · Điều ' + s.article : ''))).join(', ')}</div>` : ''}
-      <div class="wiki-item-actions">
+      ${canModerate ? `<div class="wiki-item-actions">
         ${e.status === 'pending' ? `<button class="btn btn-primary btn-sm" onclick="wikiApprove('${e.id}')">Duyệt</button>` : ''}
         <button class="btn btn-secondary btn-sm" onclick="wikiDelete('${e.id}')">Xóa</button>
-      </div>
+      </div>` : ''}
     </div>`;
 
   return `
-    <div class="wiki-section">
+    ${canModerate ? `<div class="wiki-section">
       <h3 class="wiki-section-title"><span class="material-symbols-rounded">pending_actions</span> Chờ duyệt (${pending.length})</h3>
       ${pending.length ? pending.map(itemHTML).join('') : '<p class="pdf-empty">Không có mục chờ duyệt.</p>'}
-    </div>
+    </div>` : ''}
     <div class="wiki-section">
       <h3 class="wiki-section-title"><span class="material-symbols-rounded">verified</span> Đã duyệt (${approved.length})</h3>
       ${approved.length ? approved.map(itemHTML).join('') : '<p class="pdf-empty">Chưa có tri thức đã duyệt. Hãy hỏi trợ lý AI rồi bấm "Lưu vào kho tri thức", hoặc bấm "Ingest văn bản mới".</p>'}

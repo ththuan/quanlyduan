@@ -38,7 +38,20 @@ if (HTTPS_PFX && fs.existsSync(HTTPS_PFX)) {
 const IS_HTTPS = !!tlsOptions;
 
 app.disable('x-powered-by');
-app.use(express.json({ limit: '10mb' }));
+const jsonSmall = express.json({ limit: '256kb' });
+const jsonMedium = express.json({ limit: '1mb' });
+const jsonLarge = express.json({ limit: '12mb' });
+const LARGE_BODY_PATHS = new Set([
+  '/api/state', '/api/restore', '/api/admin/import-project-excel',
+  '/api/admin/preview-asset-excel', '/api/admin/import-asset-excel'
+]);
+const MEDIUM_BODY_PATHS = new Set(['/api/ai/history', '/api/qltk/sync-assets']);
+// Chỉ parse body lớn sau khi đã qua requireAuth/requireAdmin ở từng route.
+app.use((req, res, next) => {
+  if (LARGE_BODY_PATHS.has(req.path)) return next();
+  const parser = MEDIUM_BODY_PATHS.has(req.path) ? jsonMedium : jsonSmall;
+  parser(req, res, next);
+});
 
 // ---- Security headers (không cần helmet) ----
 app.use((req, res, next) => {
@@ -72,7 +85,7 @@ function requireAuth(req, res, next) {
   if (!user) return res.status(401).json({ error: 'Chưa đăng nhập' });
   req.sessionId = session.id;
   // Đồng bộ cookie phiên web (đọc bởi các luồng web cùng nguồn)
-  setSessionCookie(res, session.id);
+  setSessionCookie(req, res, session.id);
   req.user = { id: user.id, username: user.username, role: user.role, mustChangePassword: !!user.must_change_password };
   // Ép đổi mật khẩu: chặn mọi API trừ logout, đổi mật khẩu, /api/me
   if (req.user.mustChangePassword) {
@@ -88,8 +101,9 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-function setSessionCookie(res, sessionId) {
-  const flags = 'HttpOnly; Path=/; SameSite=Lax; Max-Age=' + (7 * 24 * 60 * 60);
+function setSessionCookie(req, res, sessionId) {
+  const secure = req.secure || String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim() === 'https';
+  const flags = 'HttpOnly; Path=/; SameSite=Lax; Max-Age=' + (7 * 24 * 60 * 60) + (secure ? '; Secure' : '');
   res.setHeader('Set-Cookie', `qlda_sid=${sessionId}; ${flags}`);
 }
 
@@ -143,12 +157,18 @@ app.use('/templates', express.static(path.join(ROOT_DIR, 'templates'), {
 const loginAttempts = new Map();
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 const LOGIN_MAX_ATTEMPTS = 20; // mỗi IP tối đa 20 lần / 15 phút
+const LOGIN_MAX_KEYS = 5000;
 
 app.post('/api/login', (req, res) => {
   const { username, password } = req.body || {};
-  if (!username || !password) return res.status(400).json({ error: 'Vui lòng nhập tên đăng nhập và mật khẩu' });
+  if (typeof username !== 'string' || typeof password !== 'string' ||
+      !username || !password || username.length > 64 || password.length > 128) {
+    return res.status(400).json({ error: 'Vui lòng nhập tên đăng nhập và mật khẩu' });
+  }
 
-  const ip = req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
+  const cfIp = String(req.headers['cf-connecting-ip'] || '').trim().slice(0, 64);
+  const xff = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim().slice(0, 64);
+  const ip = cfIp || xff || req.socket.remoteAddress || 'unknown';
   const now = Date.now();
   const rec = loginAttempts.get(ip) || { count: 0, resetAt: now + LOGIN_WINDOW_MS };
   if (now > rec.resetAt) { rec.count = 0; rec.resetAt = now + LOGIN_WINDOW_MS; }
@@ -156,6 +176,9 @@ app.post('/api/login', (req, res) => {
     return res.status(429).json({ error: 'Quá nhiều lần đăng nhập. Vui lòng thử lại sau 15 phút.' });
   }
   rec.count++;
+  if (loginAttempts.size >= LOGIN_MAX_KEYS && !loginAttempts.has(ip)) {
+    loginAttempts.delete(loginAttempts.keys().next().value);
+  }
   loginAttempts.set(ip, rec);
 
   const user = db.getUserByUsername(username);
@@ -175,7 +198,7 @@ app.post('/api/login', (req, res) => {
   }
   db.resetFailedLogin(user.id);
   const session = db.createSession(user.id);
-  setSessionCookie(res, session.id);
+  setSessionCookie(req, res, session.id);
   res.json({
     accessToken: session.accessToken, refreshToken: session.refreshToken,
     accessExpiresAt: session.accessExpiresAt, expiresAt: session.expiresAt,
@@ -221,7 +244,7 @@ app.post('/api/users', requireAuth, requireAdmin, (req, res) => {
   if (!/^[A-Za-z0-9._-]{3,64}$/.test(uname)) {
     return res.status(400).json({ error: 'Tên đăng nhập chỉ gồm chữ, số, dấu . _ - (3-64 ký tự)' });
   }
-  if (password.length < 6) return res.status(400).json({ error: 'Mật khẩu phải có ít nhất 6 ký tự' });
+  if (!password || password.length < 10 || password.length > 128) return res.status(400).json({ error: 'Mật khẩu phải có ít nhất 10 ký tự' });
   if (db.getUserByUsername(uname)) return res.status(409).json({ error: 'Tên đăng nhập đã tồn tại' });
   const user = db.createUser(uname, password, role === 'admin' ? 'admin' : 'user', 1);
   res.status(201).json(user);
@@ -233,7 +256,7 @@ app.put('/api/users/:id/password', requireAuth, (req, res) => {
   if (req.user.role !== 'admin' && req.user.id !== id) {
     return res.status(403).json({ error: 'Bạn không có quyền đổi mật khẩu tài khoản này' });
   }
-  if (!password || password.length < 6) return res.status(400).json({ error: 'Mật khẩu phải có ít nhất 6 ký tự' });
+  if (!password || password.length < 10 || password.length > 128) return res.status(400).json({ error: 'Mật khẩu phải có ít nhất 10 ký tự' });
   const target = db.getUserById(id);
   if (!target) return res.status(404).json({ error: 'Không tìm thấy tài khoản' });
   // Tự đổi mật khẩu (không phải admin) phải xác nhận mật khẩu hiện tại,
@@ -264,7 +287,7 @@ app.get('/api/state', requireAuth, (req, res) => {
   res.json(db.getState());
 });
 
-app.put('/api/state', requireAuth, requireAdmin, (req, res) => {
+app.put('/api/state', requireAuth, requireAdmin, jsonLarge, (req, res) => {
   const { projects, currentProjectId } = req.body || {};
   if (!Array.isArray(projects)) {
     return res.status(400).json({ error: 'projects phải là một mảng' });
@@ -350,7 +373,8 @@ app.get('/api/qltk/options', requireAuth, async (req, res) => {
     const opts = await qltk.getOptions();
     res.json({ configured: true, ...opts });
   } catch (err) {
-    res.json({ configured: true, departments: [], categories: [], error: err.message });
+    console.error('[QLDA] Lỗi QLTS options:', err.message);
+    res.json({ configured: true, departments: [], categories: [], error: 'Không kết nối được hệ thống QLTS' });
   }
 });
 
@@ -500,7 +524,8 @@ app.post('/api/qltk/sync-assets', requireAuth, requireAdmin, async (req, res) =>
   try {
     opts = await qltk.getOptions();
   } catch (err) {
-    return res.status(502).json({ error: 'Không kết nối được QLTS: ' + err.message });
+    console.error('[QLDA] Lỗi kết nối QLTS:', err.message);
+    return res.status(502).json({ error: 'Không kết nối được hệ thống QLTS' });
   }
   const catById = new Map(opts.categories.map(c => [String(c.id), c]));
   const projectLabel = [project.code, project.name].filter(Boolean).join(' - ');
@@ -627,7 +652,7 @@ app.get('/api/backup', requireAuth, requireAdmin, (req, res) => {
   }
 });
 
-app.post('/api/restore', requireAuth, requireAdmin, (req, res) => {
+app.post('/api/restore', requireAuth, requireAdmin, jsonLarge, (req, res) => {
   try {
     const backup = req.body;
     if (!backup || !backup.state || !Array.isArray(backup.state.projects)) {
@@ -646,16 +671,22 @@ app.post('/api/restore', requireAuth, requireAdmin, (req, res) => {
     db.saveStateToDb(backup.state);
 
     if (hasPdfFiles) {
+      const uploadsRoot = path.resolve(db.UPLOADS_DIR) + path.sep;
       for (const meta of pdfs) {
+        const name = typeof meta.name === 'string' ? meta.name : '';
+        const ext = fileExt(name);
+        if (!FILE_MIME_MAP[ext]) continue;
+        const target = path.resolve(path.join(db.UPLOADS_DIR, meta.id + ext));
+        if (!target.startsWith(uploadsRoot)) continue;
         if (!db.getPdfRecord(meta.id)) {
           const size = Number(meta.size);
-          db.addPdfRecord(meta.id, typeof meta.name === 'string' ? meta.name : '', Number.isFinite(size) && size > 0 ? size : 0);
+          db.addPdfRecord(meta.id, name, Number.isFinite(size) && size > 0 ? size : 0);
         }
         const b64 = backup.pdfFiles[meta.id];
         if (typeof b64 === 'string' && b64.length > 0) {
           const buf = Buffer.from(b64, 'base64');
           if (buf.length && buf.length <= 50 * 1024 * 1024) {
-            fs.writeFileSync(path.join(db.UPLOADS_DIR, meta.id + fileExt(meta.name)), buf);
+            fs.writeFileSync(target, buf);
           }
         }
       }
@@ -690,7 +721,7 @@ app.post('/api/admin/import-seed', requireAuth, requireAdmin, (req, res) => {
 });
 
 // Nhập dự án từ file Excel theo mẫu "TÌNH HÌNH THỰC HIỆN DỰ ÁN"
-app.post('/api/admin/import-project-excel', requireAuth, requireAdmin, (req, res) => {
+app.post('/api/admin/import-project-excel', requireAuth, requireAdmin, jsonLarge, (req, res) => {
   try {
     const { contentBase64, sheetName } = req.body || {};
     if (!contentBase64) return res.status(400).json({ error: 'Thiếu nội dung file Excel' });
@@ -768,7 +799,7 @@ app.get('/api/admin/import-asset-template', requireAuth, requireAdmin, (req, res
 });
 
 // Kiểm tra file Excel tài sản trước khi nhập
-app.post('/api/admin/preview-asset-excel', requireAuth, requireAdmin, (req, res) => {
+app.post('/api/admin/preview-asset-excel', requireAuth, requireAdmin, jsonLarge, (req, res) => {
   try {
     const { contentBase64, sheetName, overwrite, defaultYear, defaultAcceptanceDate } = req.body || {};
     if (!contentBase64) return res.status(400).json({ error: 'Thiếu nội dung file Excel' });
@@ -807,7 +838,7 @@ app.post('/api/admin/preview-asset-excel', requireAuth, requireAdmin, (req, res)
 
 // Nhập danh mục tài sản từ Excel "BÁO CÁO TĂNG TÀI SẢN ..." (sheet "TB CÁC DỰ ÁN")
 // Phân cấp: A/B/C... = dự án; I/II/... = gói thầu; dòng STT = tài sản
-app.post('/api/admin/import-asset-excel', requireAuth, requireAdmin, (req, res) => {
+app.post('/api/admin/import-asset-excel', requireAuth, requireAdmin, jsonLarge, (req, res) => {
   try {
     const { contentBase64, sheetName, overwrite, defaultYear, defaultAcceptanceDate } = req.body || {};
     if (!contentBase64) return res.status(400).json({ error: 'Thiếu nội dung file Excel' });
@@ -881,17 +912,25 @@ function buildBackup() {
 function restoreBackupData(backup) {
   db.saveStateToDb(backup.state);
   const pdfs = Array.isArray(backup.pdfMetadata) ? backup.pdfMetadata : [];
+  const uploadsRoot = path.resolve(db.UPLOADS_DIR) + path.sep;
+  const allowedExt = new Set(Object.keys(FILE_MIME_MAP));
   if (backup.pdfFiles && typeof backup.pdfFiles === 'object') {
     for (const meta of pdfs) {
+      if (!meta || typeof meta.id !== 'string' || !UUID_RE.test(meta.id)) continue;
+      const name = typeof meta.name === 'string' ? meta.name : '';
+      const ext = fileExt(name);
+      if (!allowedExt.has(ext)) continue;
+      const target = path.resolve(path.join(db.UPLOADS_DIR, meta.id + ext));
+      if (!target.startsWith(uploadsRoot)) continue;
       if (!db.getPdfRecord(meta.id)) {
         const size = Number(meta.size);
-        db.addPdfRecord(meta.id, typeof meta.name === 'string' ? meta.name : '', Number.isFinite(size) && size > 0 ? size : 0);
+        db.addPdfRecord(meta.id, name, Number.isFinite(size) && size > 0 ? size : 0);
       }
       const b64 = backup.pdfFiles[meta.id];
       if (typeof b64 === 'string' && b64.length > 0) {
         const buf = Buffer.from(b64, 'base64');
         if (buf.length && buf.length <= 50 * 1024 * 1024) {
-          fs.writeFileSync(path.join(db.UPLOADS_DIR, meta.id + fileExt(meta.name)), buf);
+          fs.writeFileSync(target, buf);
         }
       }
     }
@@ -943,6 +982,9 @@ app.get('/api/backups', requireAuth, requireAdmin, (req, res) => {
 
 app.post('/api/backups/:filename/restore', requireAuth, requireAdmin, (req, res) => {
   const filename = path.basename(req.params.filename);
+  if (!/^backup-[0-9A-Za-z._-]+\.json$/.test(filename)) {
+    return res.status(400).json({ error: 'Tên bản sao lưu không hợp lệ' });
+  }
   const filePath = path.join(BACKUP_DIR, filename);
   if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Không tìm thấy bản sao lưu' });
   try {
@@ -1120,25 +1162,33 @@ app.get('/api/legal/search', requireAuth, (req, res) => {
 
 // ---- Kho tri thức pháp luật tự học (wiki) ----
 app.get('/api/wiki/entries', requireAuth, (req, res) => {
-  const status = req.query.status || '';
+  const status = req.user.role === 'admin' ? (req.query.status || '') : 'approved';
   res.json(wiki.list(status));
 });
 
 app.get('/api/wiki/stats', requireAuth, (req, res) => {
-  res.json(wiki.countByStatus());
+  const stats = wiki.countByStatus();
+  if (req.user.role !== 'admin') stats.pending = 0;
+  res.json(stats);
 });
 
 app.get('/api/wiki/graph', requireAuth, (req, res) => {
-  res.json(wiki.graph());
+  const graph = wiki.graph();
+  if (req.user.role !== 'admin') {
+    const allowed = new Set(wiki.list('approved').map(e => e.id));
+    graph.nodes = graph.nodes.filter(n => allowed.has(n.id));
+    graph.edges = graph.edges.filter(e => allowed.has(e.from) && allowed.has(e.to));
+  }
+  res.json(graph);
 });
 
-app.post('/api/wiki/entries/:id/approve', requireAuth, (req, res) => {
+app.post('/api/wiki/entries/:id/approve', requireAuth, requireAdmin, (req, res) => {
   const e = wiki.approve(req.params.id);
   if (!e) return res.status(404).json({ error: 'Không tìm thấy mục' });
   res.json(e);
 });
 
-app.delete('/api/wiki/entries/:id', requireAuth, (req, res) => {
+app.delete('/api/wiki/entries/:id', requireAuth, requireAdmin, (req, res) => {
   wiki.reject(req.params.id);
   res.json({ ok: true });
 });
@@ -1161,10 +1211,36 @@ function parseJsonObject(text) {
 // ---- AI Assistant (đa nhà cung cấp: Gemini hoặc API tương thích OpenAI) ----
 const ai = require('./ai-client');
 
+// Giới hạn số lần gọi AI theo người dùng để tránh lạm dụng quota/chi phí.
+const AI_WINDOW_MS = 10 * 60 * 1000;
+const AI_MAX_REQUESTS = 30;
+const aiUsage = new Map();
+function aiRateLimit(req, res, next) {
+  const now = Date.now();
+  const key = req.user.id;
+  let rec = aiUsage.get(key);
+  if (!rec || now > rec.resetAt) {
+    rec = { count: 0, resetAt: now + AI_WINDOW_MS };
+    aiUsage.set(key, rec);
+  }
+  if (rec.count >= AI_MAX_REQUESTS) {
+    return res.status(429).json({ error: 'Bạn đã dùng trợ lý AI quá nhiều lần. Vui lòng thử lại sau ít phút.' });
+  }
+  rec.count++;
+  if (aiUsage.size > 5000) {
+    for (const [k, v] of aiUsage) if (now > v.resetAt) aiUsage.delete(k);
+    if (aiUsage.size > 5000) aiUsage.clear();
+  }
+  next();
+}
+
+let wikiIngestBusy = false;
+
 // Lưu một cặp hỏi-đáp vào kho tri thức (AI chắt lọc thành mục khái niệm -> chờ duyệt)
-app.post('/api/wiki/learn', requireAuth, async (req, res) => {
+app.post('/api/wiki/learn', requireAuth, aiRateLimit, async (req, res) => {
   if (!ai.isConfigured()) return res.status(503).json({ error: 'Chưa cấu hình API AI' });
-  const { question, answer } = req.body || {};
+  const question = String(req.body?.question || '').slice(0, 4000);
+  const answer = String(req.body?.answer || '').slice(0, 12000);
   if (!question || !answer) return res.status(400).json({ error: 'Thiếu câu hỏi hoặc câu trả lời' });
   try {
     const system = 'Bạn là bộ trích xuất tri thức pháp luật. Từ cặp hỏi-đáp, tạo một mục wiki ngắn gọn dạng JSON thuần, ĐÚNG một đối tượng: {"title": "...", "content": "...", "sources": [{"doc":"Mã văn bản","article":"Số điều"}]}. content tối đa 400 từ, chỉ ghi nội dung đã có trong câu trả lời, giữ nguyên số điều/khoản/hạn mức nếu có, không bịa. Nếu câu trả lời không chứa kiến thức pháp luật cần lưu, trả về {"skip": true}.';
@@ -1181,13 +1257,16 @@ app.post('/api/wiki/learn', requireAuth, async (req, res) => {
     });
     res.json({ entry });
   } catch (err) {
-    res.status(500).json({ error: 'Lỗi tạo mục kho tri thức: ' + err.message });
+    console.error('[QLDA] Lỗi wiki learn:', err.message);
+    res.status(502).json({ error: 'Không tạo được mục kho tri thức. Vui lòng thử lại sau.' });
   }
 });
 
 // Ingest: tóm tắt các văn bản pháp luật chưa có trong kho (chỉ chạy một lần cho mỗi văn bản)
-app.post('/api/wiki/ingest', requireAuth, async (req, res) => {
+app.post('/api/wiki/ingest', requireAuth, requireAdmin, aiRateLimit, async (req, res) => {
   if (!ai.isConfigured()) return res.status(503).json({ error: 'Chưa cấu hình API AI' });
+  if (wikiIngestBusy) return res.status(429).json({ error: 'Đang ingest văn bản, vui lòng thử lại sau.' });
+  wikiIngestBusy = true;
   try {
     const docs = legal.getDocuments();
     const ingested = wiki.getIngestedDocs();
@@ -1207,7 +1286,10 @@ app.post('/api/wiki/ingest', requireAuth, async (req, res) => {
     }
     res.json({ created });
   } catch (err) {
-    res.status(500).json({ error: 'Lỗi ingest: ' + err.message });
+    console.error('[QLDA] Lỗi wiki ingest:', err.message);
+    res.status(502).json({ error: 'Không ingest được văn bản. Vui lòng thử lại sau.' });
+  } finally {
+    wikiIngestBusy = false;
   }
 });
 
@@ -1219,7 +1301,7 @@ app.get('/api/ai/history', requireAuth, (req, res) => {
 app.post('/api/ai/history', requireAuth, (req, res) => {
   const { messages } = req.body || {};
   const channel = String((req.body && req.body.channel) || 'assistant');
-  const list = Array.isArray(messages) ? messages : (messages ? [messages] : []);
+  const list = (Array.isArray(messages) ? messages : (messages ? [messages] : [])).slice(0, 50);
   for (const m of list) {
     if (!m || typeof m.text !== 'string' || !m.text.trim()) continue;
     const role = (m.role === 'model' || m.role === 'assistant') ? 'model' : 'user';
@@ -1233,18 +1315,19 @@ app.delete('/api/ai/history', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
-app.post('/api/ai/chat', requireAuth, async (req, res) => {
+app.post('/api/ai/chat', requireAuth, aiRateLimit, async (req, res) => {
   if (!ai.isConfigured()) return res.status(503).json({ error: 'Chưa cấu hình API AI' });
   try {
     const { message, history } = req.body || {};
-    if (!message) return res.status(400).json({ error: 'Thiếu nội dung tin nhắn' });
+    const userMessage = String(message || '').slice(0, 4000);
+    if (!userMessage.trim()) return res.status(400).json({ error: 'Thiếu nội dung tin nhắn' });
     // Lịch sử hội thoại gần nhất (câu hỏi nối tiếp như "còn khoản 2?" cần ngữ cảnh)
     const prior = (Array.isArray(history) ? history : []).slice(-6)
       .filter(h => h && (h.role === 'user' || h.role === 'model') && typeof h.text === 'string')
       .map(h => ({ role: h.role === 'model' ? 'assistant' : 'user', text: h.text.slice(0, 2000) }));
     const lastUser = [...prior].reverse().find(h => h.role === 'user')?.text || '';
-    const legalCtx = legal.buildContext(`${message} ${lastUser.slice(0, 300)}`);
-    const wikiCtx = wiki.context(`${message} ${lastUser.slice(0, 300)}`);
+    const legalCtx = legal.buildContext(`${userMessage} ${lastUser.slice(0, 300)}`);
+    const wikiCtx = wiki.context(`${userMessage} ${lastUser.slice(0, 300)}`);
 
     // Build context from current project data
     const state = db.getState();
@@ -1331,20 +1414,25 @@ DỮ LIỆU DỰ ÁN HIỆN TẠI:\n${context}`;
 
     const reply = await ai.chat({
       system: systemPrompt,
-      messages: [...prior, { role: 'user', text: message }],
+      messages: [...prior, { role: 'user', text: userMessage }],
       maxTokens: 4000,
       temperature: 0.3
     });
     res.json({ reply, sources: legalCtx.sources });
   } catch (err) {
-    res.status(500).json({ error: 'Lỗi AI: ' + err.message });
+    console.error('[QLDA] Lỗi AI chat:', err.message);
+    res.status(502).json({ error: 'Không gọi được trợ lý AI. Vui lòng thử lại sau.' });
   }
 });
 
 // ---- Error handler ----
 app.use((err, req, res, next) => {
-  console.error(err);
-  res.status(err.status || 500).json({ error: err.message || 'Lỗi máy chủ' });
+  console.error(`[QLDA] ${req.method} ${req.path}`, err);
+  const status = err.status || 500;
+  const message = status >= 500 && process.env.NODE_ENV === 'production'
+    ? 'Lỗi máy chủ'
+    : (err.message || 'Lỗi máy chủ');
+  res.status(status).json({ error: message });
 });
 
 if (tlsOptions) {

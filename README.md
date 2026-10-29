@@ -83,11 +83,13 @@ cd quanlyduan
 ```bash
 cat > .env <<'EOF'
 QLDA_PORT=8091
+QLDA_BIND_IP=0.0.0.0
 GEMINI_API_KEY=your_real_gemini_key_here
 EOF
 ```
 
 > - Đổi `8091` nếu trùng cổng service khác đang chạy trên host (VD AdGuard mặc định dùng cổng `3000`).
+> - Nếu chỉ truy cập qua Cloudflare Tunnel, đặt `QLDA_BIND_IP=127.0.0.1` để không mở cổng app trực tiếp ra LAN/Internet.
 > - `GEMINI_API_KEY` tùy chọn, lấy tại aistudio.google.com/apikey.
 > - File `.env` nằm trong `.gitignore` — deploy lại (`git pull`) sau này **không bao giờ ghi đè** cổng bạn đã chọn.
 
@@ -151,18 +153,21 @@ docker compose restart qlda
 
 **6. Lấy / đặt lại mật khẩu admin**
 
-Mật khẩu admin đầu tiên là **ngẫu nhiên, chỉ hiện 1 lần** trong log:
+Mật khẩu admin đầu tiên là **ngẫu nhiên**, được ghi vào file trong volume dữ liệu (không ghi ra log):
 ```bash
-docker compose logs qlda | grep "mật khẩu tạm"
+docker exec -it qlda cat /app/server/data/initial-admin-password.txt
+docker exec -it qlda rm /app/server/data/initial-admin-password.txt   # xóa sau khi đã đổi mật khẩu
 ```
+> Có thể đặt mật khẩu admin ngay từ lần chạy đầu bằng biến `QLDA_ADMIN_PASSWORD` trong `.env`.
 
-Nếu bỏ lỡ, đặt lại trực tiếp (tránh gõ dấu `!` trực tiếp vào bash vì sẽ bị history expansion):
+Nếu bỏ lỡ, đặt lại trực tiếp bằng mật khẩu mạnh do bạn tự sinh (tránh gõ dấu `!` trực tiếp vào bash vì sẽ bị history expansion):
 ```bash
-docker exec -it qlda node -e "
+NEW_PW='thay-bang-mat-khau-manh-toi-thieu-12-ky-tu'
+docker exec -e NEW_PW="$NEW_PW" -it qlda node -e "
 const db = require('./server/db');
 const user = db.getUserByUsername('admin');
 if (user) {
-  db.updateUserPassword(user.id, 'MatKhauMoiCuaBan@2026');
+  db.updateUserPassword(user.id, process.env.NEW_PW);
   console.log('Da dat lai mat khau cho user:', user.username);
 } else {
   console.log('Khong tim thay user admin');

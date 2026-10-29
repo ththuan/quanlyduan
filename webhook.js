@@ -1,25 +1,76 @@
 // Webhook server - nhận push từ GitHub, tự động deploy
-// Chạy: node webhook.js
+// Chạy: WEBHOOK_SECRET=... node webhook.js
+// Mặc định chỉ nghe trên loopback; đặt WEBHOOK_HOST=0.0.0.0 nếu thật sự cần.
 const http = require('http');
 const crypto = require('crypto');
 const { execSync } = require('child_process');
 
-const SECRET = 'qlda-deploy-secret-2026'; // đổi thành secret của bạn
-const PORT = 3456;
+const SECRET = process.env.WEBHOOK_SECRET || '';
+const PORT = Number(process.env.WEBHOOK_PORT || 3456);
+const HOST = process.env.WEBHOOK_HOST || '127.0.0.1';
+const BRANCH = process.env.WEBHOOK_BRANCH || 'master';
+const MAX_BODY = 1024 * 1024;
+
+if (!SECRET) {
+  console.error('[webhook] Thiếu WEBHOOK_SECRET. Từ chối khởi động.');
+  process.exit(1);
+}
+
+function safeEqual(a, b) {
+  const ha = crypto.createHash('sha256').update(String(a)).digest();
+  const hb = crypto.createHash('sha256').update(String(b)).digest();
+  return crypto.timingSafeEqual(ha, hb);
+}
 
 const server = http.createServer((req, res) => {
   if (req.method !== 'POST' || req.url !== '/deploy') {
-    res.writeHead(404); res.end();
+    res.writeHead(404);
+    res.end();
     return;
   }
 
   let body = '';
-  req.on('data', d => body += d);
+  let tooLarge = false;
+  req.on('data', chunk => {
+    if (tooLarge) return;
+    body += chunk;
+    if (body.length > MAX_BODY) {
+      tooLarge = true;
+      res.writeHead(413);
+      res.end('Payload too large');
+      req.destroy();
+    }
+  });
+
   req.on('end', () => {
-    const sig = req.headers['x-hub-signature-256'] || '';
+    if (tooLarge) return;
+
+    const sig = String(req.headers['x-hub-signature-256'] || '');
     const expected = 'sha256=' + crypto.createHmac('sha256', SECRET).update(body).digest('hex');
-    if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) {
-      res.writeHead(403); res.end('Invalid signature');
+    if (!safeEqual(sig, expected)) {
+      res.writeHead(403);
+      res.end('Invalid signature');
+      return;
+    }
+
+    if (String(req.headers['x-github-event'] || '') !== 'push') {
+      res.writeHead(202);
+      res.end('Ignored event');
+      return;
+    }
+
+    let payload = {};
+    try {
+      payload = JSON.parse(body || '{}');
+    } catch (_) {
+      res.writeHead(400);
+      res.end('Invalid JSON');
+      return;
+    }
+
+    if (payload.ref !== `refs/heads/${BRANCH}`) {
+      res.writeHead(202);
+      res.end('Ignored branch');
       return;
     }
 
@@ -28,7 +79,7 @@ const server = http.createServer((req, res) => {
     res.end('OK');
 
     try {
-      execSync('git pull origin master', { cwd: __dirname, stdio: 'pipe' });
+      execSync(`git pull --ff-only origin ${BRANCH}`, { cwd: __dirname, stdio: 'pipe' });
       execSync('docker compose build qlda', { cwd: __dirname, stdio: 'pipe' });
       execSync('docker compose up -d qlda', { cwd: __dirname, stdio: 'pipe' });
       console.log('Deploy success');
@@ -38,4 +89,4 @@ const server = http.createServer((req, res) => {
   });
 });
 
-server.listen(PORT, () => console.log(`Webhook listening on :${PORT}`));
+server.listen(PORT, HOST, () => console.log(`Webhook listening on ${HOST}:${PORT}`));

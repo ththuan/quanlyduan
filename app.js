@@ -2808,13 +2808,13 @@ function openChuTruongForm(doc = null) {
         <label>Loại văn bản</label>
         <select id="ct-type">
           <option value="">— Chọn —</option>
-          ${LEGAL_DOC_TYPES.map(t => `<option value="${t}" ${doc?.type === t ? 'selected' : ''}>${t}</option>`).join('')}
+          ${LEGAL_DOC_TYPES.map(t => `<option value="${esc(t)}" ${doc?.type === t ? 'selected' : ''}>${esc(t)}</option>`).join('')}
         </select>
       </div>
       <div class="form-group">
         <label>Cơ quan ban hành *</label>
         <input type="text" id="ct-agency" list="ct-agency-list" value="${esc(doc?.agency || '')}" placeholder="Chọn hoặc gõ cơ quan mới">
-        <datalist id="ct-agency-list">${CHU_TRUONG_AGENCIES.map(a => `<option value="${a}"></option>`).join('')}</datalist>
+        <datalist id="ct-agency-list">${CHU_TRUONG_AGENCIES.map(a => `<option value="${esc(a)}"></option>`).join('')}</datalist>
       </div>
       <div class="form-group"><label>Số văn bản</label><input type="text" id="ct-number" value="${esc(doc?.number || '')}" placeholder="VD: 152/SXD-GXD"></div>
       <div class="form-group"><label>Ngày ban hành</label><input type="date" id="ct-date" value="${doc?.date || ''}"></div>
@@ -3222,7 +3222,7 @@ function openCloseoutStatus() {
   openModal('Cập nhật quyết toán toàn dự án', `
     <div class="form-grid">
       <div class="form-group full-width"><label>Trạng thái quyết toán dự án</label>
-        <select id="co-status">${SETTLEMENT_STATUSES.map(s => `<option value="${s}" ${(cls.status || SETTLEMENT_STATUSES[0]) === s ? 'selected' : ''}>${s}</option>`).join('')}</select>
+        <select id="co-status">${SETTLEMENT_STATUSES.map(s => `<option value="${esc(s)}" ${(cls.status || SETTLEMENT_STATUSES[0]) === s ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select>
       </div>
       <div class="form-group"><label>Giá trị quyết toán (VNĐ)</label><input type="number" id="co-value" value="${cls.totalValue || ''}"></div>
       <div class="form-group"><label>Ngày phê duyệt quyết toán</label><input type="date" id="co-date" value="${cls.approvedDate || ''}"></div>
@@ -3351,7 +3351,7 @@ function getPackageFormHTML(pkg = null, catId = '') {
   const legalDocs = getCurrentProject()?.initiations || [];
   const resultDocs = legalDocs.filter(d => d.type === 'Quyết định phê duyệt kết quả');
   const resultDocOptions = resultDocs.map(d => `<option value="${esc(d.id)}" ${pkg?.resultDocId === d.id ? 'selected' : ''}>${esc([d.number, d.title].filter(Boolean).join(' — ') || '—')}</option>`).join('');
-  const fundOptions = FUND_SOURCES.map(f => `<option value="${f}" ${(pkg?.fundSource || '') === f ? 'selected' : ''}>${f}</option>`).join('');
+  const fundOptions = FUND_SOURCES.map(f => `<option value="${esc(f)}" ${(pkg?.fundSource || '') === f ? 'selected' : ''}>${esc(f)}</option>`).join('');
   const legacyFund = pkg?.fundSource && !FUND_SOURCES.includes(pkg.fundSource) ? `<option value="${esc(pkg.fundSource)}" selected>${esc(pkg.fundSource)}</option>` : '';
   const pdfs = pkg ? (pkg.pdfs || []) : tempUploadedPDFs;
   const pdfListHTML = pdfs.length ? pdfs.map(pdf => `
@@ -3394,7 +3394,7 @@ function getPackageFormHTML(pkg = null, catId = '') {
         <label>Loại hình mua sắm</label>
         <select id="f-purchaseType">
           <option value="">— Chọn —</option>
-          ${PURCHASE_TYPES.map(t => `<option value="${t}" ${pkg?.purchaseType === t ? 'selected' : ''}>${t}</option>`).join('')}
+          ${PURCHASE_TYPES.map(t => `<option value="${esc(t)}" ${pkg?.purchaseType === t ? 'selected' : ''}>${esc(t)}</option>`).join('')}
         </select>
       </div>
       <div class="form-group">
@@ -3450,7 +3450,7 @@ function getPackageFormHTML(pkg = null, catId = '') {
         <label>Hình thức lựa chọn nhà thầu</label>
         <select id="f-selectionMethod">
           <option value="">— Chọn —</option>
-          ${methods.map(m => `<option value="${m}" ${pkg?.selectionMethod === m ? 'selected' : ''}>${m}</option>`).join('')}
+          ${methods.map(m => `<option value="${esc(m)}" ${pkg?.selectionMethod === m ? 'selected' : ''}>${esc(m)}</option>`).join('')}
         </select>
       </div>
       <div class="form-group">
@@ -3483,7 +3483,7 @@ function getPackageFormHTML(pkg = null, catId = '') {
       </div>
       <div class="form-group">
         <label>Nội dung phụ lục hợp đồng</label>
-        <textarea id="f-contractExtensionContent" placeholder="VD: Điều chỉnh khối lượng phát sinh; gia hạn thời gian thực hiện; điều chỉnh giá trị hợp đồng...">${pkg?.contractExtensionContent || ''}</textarea>
+        <textarea id="f-contractExtensionContent" placeholder="VD: Điều chỉnh khối lượng phát sinh; gia hạn thời gian thực hiện; điều chỉnh giá trị hợp đồng...">${esc(pkg?.contractExtensionContent || '')}</textarea>
       </div>
       <div class="form-group">
         <label>Dự kiến thời gian hoàn thành</label>
@@ -3522,7 +3522,7 @@ function getPackageFormHTML(pkg = null, catId = '') {
       <div class="form-group">
         <label>Trạng thái nghiệm thu</label>
         <select id="f-acceptanceStatus">
-          ${ACCEPTANCE_STATUSES.map(s => `<option value="${s}" ${(pkg?.acceptanceStatus || ACCEPTANCE_STATUSES[0]) === s ? 'selected' : ''}>${s}</option>`).join('')}
+          ${ACCEPTANCE_STATUSES.map(s => `<option value="${esc(s)}" ${(pkg?.acceptanceStatus || ACCEPTANCE_STATUSES[0]) === s ? 'selected' : ''}>${esc(s)}</option>`).join('')}
         </select>
       </div>
 
@@ -3554,7 +3554,7 @@ function getPackageFormHTML(pkg = null, catId = '') {
       <div class="form-section-title"><span class="material-symbols-rounded">sticky_note_2</span> Ghi chú & Hồ sơ đính kèm</div>
       <div class="form-group full-width">
         <label>Ghi chú</label>
-        <textarea id="f-notes">${pkg?.notes || ''}</textarea>
+        <textarea id="f-notes">${esc(pkg?.notes || '')}</textarea>
       </div>
       <div class="form-group full-width">
         <div class="pdf-list" id="pdf-list-form">${pdfListHTML}</div>
@@ -4759,7 +4759,7 @@ function getProjectFormHTML(proj = null) {
       <label>Cấp công trình</label>
       <select id="f-proj-grade">
         <option value="">— Chọn —</option>
-        ${BUILDING_GRADES.map(s => `<option value="${s}" ${proj?.buildingGrade === s ? 'selected' : ''}>${gradeLabel(s)}</option>`).join('')}
+        ${BUILDING_GRADES.map(s => `<option value="${esc(s)}" ${proj?.buildingGrade === s ? 'selected' : ''}>${esc(gradeLabel(s))}</option>`).join('')}
       </select>
     </div>
     <div class="form-group"><label>Năm bắt đầu thực hiện</label><input type="number" id="f-proj-startYear" min="1900" max="2200" value="${proj?.startYear ?? ''}" placeholder="Ví dụ: 2025"></div>
@@ -5591,7 +5591,7 @@ function renderAssetsView() {
       <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;background:var(--bg-secondary,#f3f4f6);margin-bottom:8px;flex-wrap:wrap">
         <span class="material-symbols-rounded" style="color:var(--accent-cyan)">inventory_2</span>
         <span>${g.catName ? `<span style="color:var(--text-muted)">${esc(g.catName)} › </span>` : ''}<strong>${esc(g.pkgName)}</strong></span>
-        <span style="font-size:0.8rem;color:var(--text-muted)">(${g.assets.length} tài sản · ${formatQtyByUnit(g.assets)} · ${formatCurrency(sum)})</span>
+        <span style="font-size:0.8rem;color:var(--text-muted)">(${g.assets.length} tài sản · ${esc(formatQtyByUnit(g.assets))} · ${formatCurrency(sum)})</span>
       </div>
       <div class="report-table-wrapper asset-table-wrapper">
         <table class="asset-table">
@@ -6480,7 +6480,7 @@ function renderUserManagementModal(users) {
         <input type="text" id="f-new-username">
       </div>
       <div class="form-group full-width">
-        <label>Mật khẩu * (tối thiểu 6 ký tự)</label>
+        <label>Mật khẩu * (tối thiểu 10 ký tự)</label>
         <input type="password" id="f-new-password">
       </div>
       <div class="form-group full-width">
@@ -6517,7 +6517,7 @@ function promptChangePassword(id, username) {
   openModal('Đổi mật khẩu - ' + username, `
     <div class="form-grid">
       <div class="form-group full-width">
-        <label>Mật khẩu mới * (tối thiểu 6 ký tự)</label>
+        <label>Mật khẩu mới * (tối thiểu 10 ký tự)</label>
         <input type="password" id="f-change-password">
       </div>
     </div>
@@ -6531,10 +6531,17 @@ function promptChangePassword(id, username) {
 
 async function submitChangePassword(id) {
   const password = document.getElementById('f-change-password').value;
+  const self = !!(currentUser && currentUser.id === id);
   try {
     await apiChangePassword(id, password);
-    showToast('Đã đổi mật khẩu');
     closeModal();
+    if (self) {
+      clearStoredAuth();
+      showToast('Đã đổi mật khẩu. Vui lòng đăng nhập lại.');
+      setTimeout(() => { window.location.href = '/login.html'; }, 700);
+      return;
+    }
+    showToast('Đã đổi mật khẩu');
   } catch (err) {
     showToast(err.message, 'error');
   }
@@ -6557,7 +6564,7 @@ function requireForcePasswordChange() {
     <p style="margin-bottom:14px">Vì lý do bảo mật, bạn cần đổi mật khẩu trước khi tiếp tục sử dụng hệ thống.</p>
     <div class="form-grid">
       <div class="form-group full-width">
-        <label>Mật khẩu mới * (tối thiểu 6 ký tự)</label>
+        <label>Mật khẩu mới * (tối thiểu 10 ký tự)</label>
         <input type="password" id="f-force-password">
       </div>
     </div>
@@ -6570,7 +6577,7 @@ function requireForcePasswordChange() {
 
 async function submitForcePasswordChange() {
   const pw = document.getElementById('f-force-password').value;
-  if (!pw || pw.length < 6) { showToast('Mật khẩu phải có ít nhất 6 ký tự', 'error'); return; }
+  if (!pw || pw.length < 10) { showToast('Mật khẩu phải có ít nhất 10 ký tự', 'error'); return; }
   const id = (currentUser && currentUser.id);
   try {
     await apiChangePassword(id, pw);

@@ -75,7 +75,8 @@ async function chatGemini(cfg, { system, messages, maxTokens, temperature }) {
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-goog-api-key': cfg.apiKey },
-    body: JSON.stringify(body)
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(60000)
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error?.message || `Lỗi API Gemini (${res.status})`);
@@ -92,7 +93,8 @@ async function chatOpenAI(cfg, { system, messages, maxTokens, temperature }) {
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${cfg.apiKey}` },
-    body: JSON.stringify({ model: cfg.model, messages: msgs, temperature, max_tokens: maxTokens })
+    body: JSON.stringify({ model: cfg.model, messages: msgs, temperature, max_tokens: maxTokens }),
+    signal: AbortSignal.timeout(60000)
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error?.message || `Lỗi API AI (${res.status})`);

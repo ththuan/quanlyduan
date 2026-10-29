@@ -9,7 +9,7 @@ services:
     container_name: qlda
     restart: unless-stopped
     ports:
-      - "${QLDA_PORT:-3000}:3000"
+      - "${QLDA_BIND_IP:-0.0.0.0}:${QLDA_PORT:-3000}:3000"
     environment:
       - NODE_ENV=production
       - PORT=3000
@@ -29,6 +29,10 @@ services:
     volumes:
       - qlda_data:/app/server/data
       - qlda_uploads:/app/server/uploads
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     networks:
       - qlda_net
 
