@@ -1534,6 +1534,10 @@ canvas {
 #modal-backdrop {
   position: fixed;
   inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4vh 2vw;
   background: rgba(15,23,42,0.42);
   z-index: 2000;
   -webkit-backdrop-filter: blur(3px);
@@ -1541,10 +1545,7 @@ canvas {
 }
 
 #modal {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  position: relative;
   width: min(96%, 900px);
   max-height: 92vh;
   background: #ffffff;
@@ -1554,7 +1555,6 @@ canvas {
   z-index: 2001;
   display: flex;
   flex-direction: column;
-  will-change: transform, opacity;
 }
 
 #modal.modal-lg {
@@ -4279,16 +4279,16 @@ body.motion-sheet-open { overflow: hidden; }
 
 /* Modal becomes a bottom sheet on phones */
 @media (max-width: 640px) {
+  #modal-backdrop {
+    align-items: flex-end;
+    padding: 0;
+  }
+
   #modal {
-    top: auto;
-    bottom: 0;
-    left: 0;
-    right: 0;
     width: 100%;
     max-width: 100%;
     max-height: 92vh;
     border-radius: 20px 20px 0 0;
-    transform: none;
   }
 
   #modal.modal-lg,

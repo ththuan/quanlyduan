@@ -165,16 +165,18 @@
     stopAnimations(backdrop);
     animate(backdrop, [{ opacity: 0 }, { opacity: 1 }], { duration: 220, easing: 'ease-out', fill: 'none' });
     if (sheetMode()) {
-      animate(modal, [
+      var sheetAnim = animate(modal, [
         { opacity: 1, transform: 'translateY(100%)' },
         { opacity: 1, transform: 'translateY(0)' }
       ], { duration: 320, easing: EASE_SPRING, fill: 'none' });
+      if (sheetAnim) sheetAnim.onfinish = function () { sheetAnim.cancel(); };
       return;
     }
-    animate(modal, [
-      { opacity: 0, transform: 'translate(-50%, -50%) scale(0.94)' },
-      { opacity: 1, transform: 'translate(-50%, -50%) scale(1)' }
-    ], { duration: 320, easing: EASE_SPRING, fill: 'none' });
+    var anim = animate(modal, [
+      { opacity: 0.65, transform: 'scale(0.97)' },
+      { opacity: 1, transform: 'scale(1)' }
+    ], { duration: 280, easing: EASE_SPRING, fill: 'none' });
+    if (anim) anim.onfinish = function () { anim.cancel(); };
   }
 
   function stopAnimations(el) {
@@ -201,8 +203,8 @@
       { opacity: 1, transform: 'translateY(0)' },
       { opacity: 1, transform: 'translateY(100%)' }
     ] : [
-      { opacity: 1, transform: 'translate(-50%, -50%) scale(1)' },
-      { opacity: 0, transform: 'translate(-50%, -50%) scale(0.96)' }
+      { opacity: 1, transform: 'scale(1)' },
+      { opacity: 0, transform: 'scale(0.97)' }
     ], { duration: 180, easing: EASE_IN });
     animate(backdrop, [{ opacity: 1 }, { opacity: 0 }], { duration: 180, easing: EASE_IN });
     if (anim) {
