@@ -3251,6 +3251,7 @@ function saveCloseoutStatus() {
 function openModal(title, bodyHTML, footerHTML = '', size = '') {
   const modal = document.getElementById('modal');
   const backdrop = document.getElementById('modal-backdrop');
+  const wasOpen = !modal.classList.contains('hidden');
   document.getElementById('modal-title').textContent = title;
   document.getElementById('modal-body').innerHTML = bodyHTML;
   document.getElementById('modal-footer').innerHTML = footerHTML;
@@ -3259,7 +3260,7 @@ function openModal(title, bodyHTML, footerHTML = '', size = '') {
   backdrop.classList.remove('hidden');
   modal.classList.remove('hidden');
   convertDateInputs();
-  if (window.QLMotion) QLMotion.modalOpen(modal, backdrop);
+  if (!wasOpen && window.QLMotion) QLMotion.modalOpen(modal, backdrop);
 }
 
 // Tự chèn dấu "/" khi gõ ngày (dd/mm/yyyy)
@@ -5222,6 +5223,12 @@ function toggleCategory(headerEl) {
     group?.classList.toggle('expanded');
     return;
   }
+  const contentHeight = body.scrollHeight;
+  if (contentHeight > 1400) {
+    group.classList.toggle('expanded');
+    body.style.maxHeight = '';
+    return;
+  }
   const expanding = !group.classList.contains('expanded');
   const onEnd = e => {
     if (e.propertyName !== 'max-height') return;
@@ -5230,12 +5237,11 @@ function toggleCategory(headerEl) {
   };
   body.addEventListener('transitionend', onEnd);
   if (expanding) {
-    const height = body.scrollHeight;
     group.classList.add('expanded');
     body.style.maxHeight = '0px';
-    requestAnimationFrame(() => { body.style.maxHeight = height + 'px'; });
+    requestAnimationFrame(() => { body.style.maxHeight = contentHeight + 'px'; });
   } else {
-    body.style.maxHeight = body.scrollHeight + 'px';
+    body.style.maxHeight = contentHeight + 'px';
     requestAnimationFrame(() => {
       group.classList.remove('expanded');
       body.style.maxHeight = '0px';
@@ -5298,11 +5304,18 @@ document.getElementById('project-selector').addEventListener('change', (e) => {
   renderAll();
 });
 
-// Search
+// Search (debounce để tránh render lại toàn bộ danh sách khi gõ nhanh)
+let pkgSearchTimer = null;
 document.getElementById('search-packages')?.addEventListener('input', (e) => {
-  renderPackages(e.target.value);
+  const value = e.target.value;
+  clearTimeout(pkgSearchTimer);
+  pkgSearchTimer = setTimeout(() => renderPackages(value), 120);
 });
-document.getElementById('search-assets')?.addEventListener('input', () => renderAssetsView());
+let assetSearchTimer = null;
+document.getElementById('search-assets')?.addEventListener('input', () => {
+  clearTimeout(assetSearchTimer);
+  assetSearchTimer = setTimeout(() => renderAssetsView(), 150);
+});
 ['filter-pkg-status', 'filter-pkg-type'].forEach(id => {
   document.getElementById(id)?.addEventListener('change', () => renderPackages());
 });
@@ -5629,7 +5642,6 @@ function renderAssetsView() {
       </div>
     </div>`;
   }).join('') + `<p style="font-size:0.8rem;color:var(--text-muted);margin-top:8px">${groups.length} gói · hiển thị ${shownCount}/${all.length} tài sản${term ? ` (lọc: "${esc(term)}")` : ''}.</p>`;
-  if (window.QLMotion) QLMotion.revealOnScroll(container, ':scope > div', { stagger: 30 });
 }
 
 function calcAssetAmount() {

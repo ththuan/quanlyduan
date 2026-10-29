@@ -1397,11 +1397,11 @@ canvas {
 .category-body {
   max-height: 0;
   overflow: hidden;
-  transition: max-height 0.4s ease;
+  transition: max-height 0.25s ease;
 }
 
 .category-group.expanded .category-body {
-  max-height: 5000px;
+  max-height: 20000px;
 }
 
 .category-body-inner {
@@ -1538,10 +1538,8 @@ canvas {
   align-items: center;
   justify-content: center;
   padding: 4vh 2vw;
-  background: rgba(15,23,42,0.42);
+  background: rgba(15,23,42,0.5);
   z-index: 2000;
-  -webkit-backdrop-filter: blur(3px);
-  backdrop-filter: blur(3px);
 }
 
 #modal {
@@ -4227,9 +4225,7 @@ canvas {
   position: fixed;
   inset: 0;
   z-index: 2400;
-  background: rgba(15, 23, 42, 0.45);
-  -webkit-backdrop-filter: blur(2px);
-  backdrop-filter: blur(2px);
+  background: rgba(15, 23, 42, 0.5);
 }
 
 .motion-select-popup.motion-select-sheet {

@@ -1,6 +1,6 @@
 /* ============================================================
-   Lớp chuyển động lấy cảm hứng từ Animate UI cho QLDA (vanilla).
-   Chỉ dùng CSS + Web Animations API, không thêm thư viện.
+   Lá»›p chuyá»ƒn Ä‘á»™ng láº¥y cáº£m há»©ng tá»« Animate UI cho QLDA (vanilla).
+   Chá»‰ dÃ¹ng CSS + Web Animations API, khÃ´ng thÃªm thÆ° viá»‡n.
    ============================================================ */
 (function () {
   'use strict';
@@ -9,7 +9,7 @@
   var EASE_IN = 'cubic-bezier(0.4, 0, 1, 1)';
   var EASE_SPRING = 'cubic-bezier(0.16, 1, 0.3, 1)';
   var reduceQuery = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
-  var RIPPLE_SELECTOR = '.btn, .btn-icon, .nav-tab, .scope-btn, .btn-ai-float, .legal-qa-quick button, .category-header, .status-chip';
+  var RIPPLE_SELECTOR = '.btn, .btn-icon, .nav-tab, .scope-btn, .btn-ai-float, .legal-qa-quick button, .motion-select-trigger';
 
   function prefersReduced() {
     return !!(reduceQuery && reduceQuery.matches);
@@ -30,7 +30,7 @@
 
   function formatterFor(kind) {
     if (kind === 'currency') {
-      return function (v) { return Math.round(v).toLocaleString('vi-VN') + ' ₫'; };
+      return function (v) { return Math.round(v).toLocaleString('vi-VN') + ' â‚«'; };
     }
     if (kind === 'percent') {
       return function (v) { return (Math.round(v * 10) / 10).toLocaleString('vi-VN') + '%'; };
@@ -163,19 +163,24 @@
     modal._motionOpenId = (modal._motionOpenId || 0) + 1;
     stopAnimations(modal);
     stopAnimations(backdrop);
-    animate(backdrop, [{ opacity: 0 }, { opacity: 1 }], { duration: 220, easing: 'ease-out', fill: 'none' });
+    animate(backdrop, [{ opacity: 0 }, { opacity: 1 }], { duration: 160, easing: 'ease-out', fill: 'none' });
     if (sheetMode()) {
       var sheetAnim = animate(modal, [
         { opacity: 1, transform: 'translateY(100%)' },
         { opacity: 1, transform: 'translateY(0)' }
-      ], { duration: 320, easing: EASE_SPRING, fill: 'none' });
+      ], { duration: 300, easing: EASE_SPRING, fill: 'none' });
       if (sheetAnim) sheetAnim.onfinish = function () { sheetAnim.cancel(); };
+      return;
+    }
+    if (modal.querySelectorAll('*').length > 200) {
+      var fade = animate(modal, [{ opacity: 0.8 }, { opacity: 1 }], { duration: 120, easing: 'ease-out', fill: 'none' });
+      if (fade) fade.onfinish = function () { fade.cancel(); };
       return;
     }
     var anim = animate(modal, [
       { opacity: 0.65, transform: 'scale(0.97)' },
       { opacity: 1, transform: 'scale(1)' }
-    ], { duration: 280, easing: EASE_SPRING, fill: 'none' });
+    ], { duration: 260, easing: EASE_SPRING, fill: 'none' });
     if (anim) anim.onfinish = function () { anim.cancel(); };
   }
 
@@ -196,6 +201,7 @@
       if (typeof done === 'function') done();
     }
     if (!modal || prefersReduced()) { finish(); return; }
+    if (modal.querySelectorAll('*').length > 200) { finish(); return; }
     stopAnimations(modal);
     stopAnimations(backdrop);
     var sheet = sheetMode();
@@ -217,6 +223,17 @@
 
   function enterView(view) {
     if (!view || prefersReduced()) return;
+    if (view.querySelectorAll('*').length > 260) {
+      var header = view.querySelector('.section-header');
+      if (header) {
+        var hAnim = animate(header, [
+          { opacity: 0, transform: 'translateY(6px)' },
+          { opacity: 1, transform: 'none' }
+        ], { duration: 200 });
+        if (hAnim) hAnim.onfinish = function () { hAnim.cancel(); };
+      }
+      return;
+    }
     var anim = animate(view, [
       { opacity: 0, transform: 'translateY(10px) scale(0.998)' },
       { opacity: 1, transform: 'none' }
