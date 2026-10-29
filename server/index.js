@@ -66,12 +66,15 @@ app.use((req, res, next) => {
   // CSP: chỉ cho phép tài nguyên cùng nguồn và inline style cần thiết cho SPA
   res.setHeader('Content-Security-Policy',
     "default-src 'self'; " +
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com; " +
+    "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com; " +
+    "script-src-elem 'self' https://static.cloudflareinsights.com; " +
+    "script-src-attr 'unsafe-inline'; " +
     "style-src 'self' 'unsafe-inline'; " +
     "font-src 'self'; " +
     "img-src 'self' data: blob:; " +
     "connect-src 'self' https://static.cloudflareinsights.com https://cloudflareinsights.com; " +
-    "object-src 'none'; base-uri 'self'; " +
+    "worker-src 'self' blob:; " +
+    "object-src 'none'; base-uri 'self'; form-action 'self'; " +
     "frame-ancestors 'none'; " +
     "frame-src 'self' blob: data:"
   );
@@ -79,16 +82,71 @@ app.use((req, res, next) => {
 });
 
 // ---- Auth middleware ----
+const COOKIE_ACCESS = 'qlda_at';
+const COOKIE_REFRESH = 'qlda_rt';
+const COOKIE_CSRF = 'qlda_csrf';
+
+function isSecureReq(req) {
+  return !!(req.secure || String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim() === 'https');
+}
+
+function readCookie(req, name) {
+  const raw = String(req.headers.cookie || '');
+  for (const part of raw.split(';')) {
+    const idx = part.indexOf('=');
+    if (idx < 0) continue;
+    if (part.slice(0, idx).trim() !== name) continue;
+    try { return decodeURIComponent(part.slice(idx + 1).trim()); } catch (_) { return ''; }
+  }
+  return '';
+}
+
+function buildCookie(req, name, value, { httpOnly, maxAge }) {
+  return `${name}=${encodeURIComponent(value)}; Path=/; SameSite=Lax; Max-Age=${Math.max(0, Math.floor(maxAge))}` +
+    (httpOnly ? '; HttpOnly' : '') + (isSecureReq(req) ? '; Secure' : '');
+}
+
+function setAuthCookies(req, res, session) {
+  const accessMax = Math.max(0, (session.accessExpiresAt - Date.now()) / 1000);
+  const refreshMax = Math.max(0, (session.expiresAt - Date.now()) / 1000);
+  res.append('Set-Cookie', buildCookie(req, COOKIE_ACCESS, session.accessToken, { httpOnly: true, maxAge: accessMax }));
+  res.append('Set-Cookie', buildCookie(req, COOKIE_REFRESH, session.refreshToken, { httpOnly: true, maxAge: refreshMax }));
+  res.append('Set-Cookie', buildCookie(req, COOKIE_CSRF, session.csrfToken, { httpOnly: false, maxAge: refreshMax }));
+}
+
+function clearAuthCookies(req, res) {
+  res.append('Set-Cookie', buildCookie(req, COOKIE_ACCESS, '', { httpOnly: true, maxAge: 0 }));
+  res.append('Set-Cookie', buildCookie(req, COOKIE_REFRESH, '', { httpOnly: true, maxAge: 0 }));
+  res.append('Set-Cookie', buildCookie(req, COOKIE_CSRF, '', { httpOnly: false, maxAge: 0 }));
+  res.append('Set-Cookie', buildCookie(req, 'qlda_sid', '', { httpOnly: true, maxAge: 0 }));
+}
+
+function tokenEqual(a, b) {
+  const ha = crypto.createHash('sha256').update(String(a)).digest();
+  const hb = crypto.createHash('sha256').update(String(b)).digest();
+  return crypto.timingSafeEqual(ha, hb);
+}
+
 function requireAuth(req, res, next) {
   const auth = req.headers.authorization || '';
-  const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+  let token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+  let viaCookie = false;
+  if (!token) {
+    token = readCookie(req, COOKIE_ACCESS);
+    viaCookie = !!token;
+  }
   const session = db.getSessionByAccessToken(token);
   if (!session) return res.status(401).json({ error: 'Chưa đăng nhập' });
+  if (viaCookie && !['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+    const csrf = String(req.headers['x-csrf-token'] || '');
+    if (!session.csrf_token || !tokenEqual(csrf, session.csrf_token)) {
+      return res.status(403).json({ error: 'CSRF token không hợp lệ' });
+    }
+  }
   const user = db.getUserById(session.user_id);
   if (!user) return res.status(401).json({ error: 'Chưa đăng nhập' });
   req.sessionId = session.id;
-  // Đồng bộ cookie phiên web (đọc bởi các luồng web cùng nguồn)
-  setSessionCookie(req, res, session.id);
+  req.authViaCookie = viaCookie;
   req.user = { id: user.id, username: user.username, role: user.role, mustChangePassword: !!user.must_change_password };
   // Ép đổi mật khẩu: chặn mọi API trừ logout, đổi mật khẩu, /api/me
   if (req.user.mustChangePassword) {
@@ -102,16 +160,6 @@ function requireAuth(req, res, next) {
 function requireAdmin(req, res, next) {
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'Chỉ quản trị viên mới có quyền này' });
   next();
-}
-
-function setSessionCookie(req, res, sessionId) {
-  const secure = req.secure || String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim() === 'https';
-  const flags = 'HttpOnly; Path=/; SameSite=Lax; Max-Age=' + (7 * 24 * 60 * 60) + (secure ? '; Secure' : '');
-  res.setHeader('Set-Cookie', `qlda_sid=${sessionId}; ${flags}`);
-}
-
-function clearSessionCookie(res) {
-  res.setHeader('Set-Cookie', 'qlda_sid=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0');
 }
 
 // Public healthcheck (no auth) for Docker HEALTHCHECK / monitoring
@@ -134,6 +182,7 @@ app.get('/workflow-ui.js', (req, res) => res.sendFile(path.join(ROOT_DIR, 'workf
 app.get('/legal-ui.js', (req, res) => res.sendFile(path.join(ROOT_DIR, 'legal-ui.js'), { headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' } }));
 app.get('/wiki-ui.js', (req, res) => res.sendFile(path.join(ROOT_DIR, 'wiki-ui.js'), { headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' } }));
 app.get('/login.js', (req, res) => res.sendFile(path.join(ROOT_DIR, 'login.js'), { headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' } }));
+app.get('/login-particles.js', (req, res) => res.sendFile(path.join(ROOT_DIR, 'login-particles.js'), { headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Content-Type': 'application/javascript; charset=utf-8' } }));
 app.get('/style.css', (req, res) => res.sendFile(path.join(ROOT_DIR, 'style.css'), { headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' } }));
 app.get('/logoCTEC.png', (req, res) => res.sendFile(path.join(ROOT_DIR, 'logoCTEC.png'), { headers: { 'Cache-Control': 'public, max-age=31536000' } }));
 app.get('/manifest.json', (req, res) => res.sendFile(path.join(ROOT_DIR, 'manifest.json'), { headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Content-Type': 'application/manifest+json' } }));
@@ -200,8 +249,10 @@ app.post('/api/login', (req, res) => {
     return res.status(401).json({ error: 'Sai tên đăng nhập hoặc mật khẩu' });
   }
   db.resetFailedLogin(user.id);
+  const oldRefresh = readCookie(req, COOKIE_REFRESH);
+  if (oldRefresh) db.deleteSessionByRefreshToken(oldRefresh);
   const session = db.createSession(user.id);
-  setSessionCookie(req, res, session.id);
+  setAuthCookies(req, res, session);
   res.json({
     accessToken: session.accessToken, refreshToken: session.refreshToken,
     accessExpiresAt: session.accessExpiresAt, expiresAt: session.expiresAt,
@@ -210,20 +261,40 @@ app.post('/api/login', (req, res) => {
 });
 
 app.post('/api/logout', (req, res) => {
-  const { refreshToken } = req.body || {};
-  db.deleteSessionByRefreshToken(refreshToken);
-  clearSessionCookie(res);
+  const bodyToken = req.body?.refreshToken;
+  const cookieToken = readCookie(req, COOKIE_REFRESH);
+  const token = bodyToken || cookieToken;
+  if (!bodyToken && cookieToken) {
+    const session = db.getSessionByRefreshToken(cookieToken);
+    const csrf = String(req.headers['x-csrf-token'] || '');
+    if (!session || !session.csrf_token || !tokenEqual(csrf, session.csrf_token)) {
+      return res.status(403).json({ error: 'CSRF token không hợp lệ' });
+    }
+  }
+  if (token) db.deleteSessionByRefreshToken(token);
+  clearAuthCookies(req, res);
   res.json({ ok: true });
 });
 
 app.post('/api/refresh', (req, res) => {
-  const renewed = db.refreshSession(req.body?.refreshToken);
+  const bodyToken = req.body?.refreshToken;
+  const cookieToken = readCookie(req, COOKIE_REFRESH);
+  const token = bodyToken || cookieToken;
+  if (!bodyToken && cookieToken) {
+    const session = db.getSessionByRefreshToken(cookieToken);
+    const csrf = String(req.headers['x-csrf-token'] || '');
+    if (!session || !session.csrf_token || !tokenEqual(csrf, session.csrf_token)) {
+      return res.status(403).json({ error: 'CSRF token không hợp lệ' });
+    }
+  }
+  const renewed = db.refreshSession(token);
   if (!renewed) return res.status(401).json({ error: 'Phiên đăng nhập đã hết hạn' });
   const user = db.getUserById(renewed.userId);
   if (!user) {
     db.deleteSession(renewed.sessionId);
     return res.status(401).json({ error: 'Tài khoản không còn tồn tại' });
   }
+  setAuthCookies(req, res, renewed);
   res.json({
     accessToken: renewed.accessToken, refreshToken: renewed.refreshToken,
     accessExpiresAt: renewed.accessExpiresAt, expiresAt: renewed.expiresAt,
@@ -649,27 +720,11 @@ app.delete('/api/pdfs/:id', requireAuth, requireAdmin, (req, res) => {
 // ---- Backup & Restore API (Admin only) ----
 app.get('/api/backup', requireAuth, requireAdmin, (req, res) => {
   try {
-    const state = db.getState();
-    const pdfsMeta = db.listAllPdfs();
-    const pdfFiles = {};
-    pdfsMeta.forEach(pdf => {
-      const filePath = path.join(db.UPLOADS_DIR, pdf.id + fileExt(pdf.name));
-      if (fs.existsSync(filePath)) {
-        pdfFiles[pdf.id] = fs.readFileSync(filePath).toString('base64');
-      }
-    });
-
-    const backup = {
-      version: 1,
-      timestamp: new Date().toISOString(),
-      state,
-      pdfMetadata: pdfsMeta,
-      pdfFiles
-    };
-
+    const backup = buildBackup();
     const filename = `QLDA_Backup_${new Date().toISOString().slice(0, 10)}.json`;
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Cache-Control', 'private, no-store');
     res.send(JSON.stringify(backup, null, 2));
   } catch (err) {
     res.status(500).json({ error: 'Lỗi tạo bản sao lưu: ' + err.message });
@@ -918,19 +973,60 @@ app.post('/api/admin/import-asset-excel', requireAuth, requireAdmin, jsonLarge, 
 });
 
 // ---- Tự động sao lưu định kỳ (bảo vệ chống mất dữ liệu) ----
-const BACKUP_DIR = path.join(__dirname, 'data', 'backups');
+const BACKUP_DIR = path.join(process.env.QLDA_DATA_DIR || path.join(__dirname, 'data'), 'backups');
 const MAX_AUTO_BACKUPS = 1; // chỉ giữ bản sao lưu gần nhất, tự xóa bản cũ
 const AUTO_BACKUP_INTERVAL_MS = Number(process.env.BACKUP_INTERVAL_HOURS || 6) * 3600 * 1000;
+const BACKUP_MAX_ATTACHMENT_BYTES = Number(process.env.BACKUP_MAX_ATTACHMENT_BYTES || 256 * 1024 * 1024);
+const BACKUP_KEY_RAW = process.env.BACKUP_ENCRYPTION_KEY || '';
+const BACKUP_KEY = (() => {
+  if (!BACKUP_KEY_RAW) return null;
+  const key = Buffer.from(BACKUP_KEY_RAW, 'base64');
+  return key.length === 32 ? key : null;
+})();
+if (BACKUP_KEY_RAW && !BACKUP_KEY) {
+  console.error('[QLDA] BACKUP_ENCRYPTION_KEY không hợp lệ: cần 32 byte dạng base64.');
+}
+
+function encryptBackup(json) {
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', BACKUP_KEY, iv);
+  const enc = Buffer.concat([cipher.update(json, 'utf8'), cipher.final()]);
+  return Buffer.concat([Buffer.from('QLDAENC1'), iv, cipher.getAuthTag(), enc]);
+}
+
+function decryptBackup(buf) {
+  if (!BACKUP_KEY) throw new Error('Chưa cấu hình BACKUP_ENCRYPTION_KEY');
+  if (buf.slice(0, 8).toString('latin1') !== 'QLDAENC1') throw new Error('Định dạng backup mã hóa không hợp lệ');
+  const iv = buf.slice(8, 20);
+  const tag = buf.slice(20, 36);
+  const enc = buf.slice(36);
+  const decipher = crypto.createDecipheriv('aes-256-gcm', BACKUP_KEY, iv);
+  decipher.setAuthTag(tag);
+  return Buffer.concat([decipher.update(enc), decipher.final()]).toString('utf8');
+}
 
 function buildBackup() {
   const state = db.getState();
   const pdfsMeta = db.listAllPdfs();
   const pdfFiles = {};
+  let totalBytes = 0;
+  let skippedPdfs = 0;
   pdfsMeta.forEach(pdf => {
     const filePath = path.join(db.UPLOADS_DIR, pdf.id + fileExt(pdf.name));
-    if (fs.existsSync(filePath)) pdfFiles[pdf.id] = fs.readFileSync(filePath).toString('base64');
+    if (!fs.existsSync(filePath)) return;
+    const size = fs.statSync(filePath).size;
+    if (totalBytes + size > BACKUP_MAX_ATTACHMENT_BYTES) { skippedPdfs++; return; }
+    totalBytes += size;
+    pdfFiles[pdf.id] = fs.readFileSync(filePath).toString('base64');
   });
-  return { version: 1, timestamp: new Date().toISOString(), state, pdfMetadata: pdfsMeta, pdfFiles };
+  return {
+    version: 1,
+    timestamp: new Date().toISOString(),
+    state,
+    pdfMetadata: pdfsMeta,
+    pdfFiles,
+    skippedPdfs
+  };
 }
 
 function restoreBackupData(backup) {
@@ -964,11 +1060,15 @@ function restoreBackupData(backup) {
 function createAutomaticBackup() {
   try {
     if (!(db.getState().projects || []).length) return; // không sao lưu khi chưa có dữ liệu
+    if (BACKUP_KEY_RAW && !BACKUP_KEY) throw new Error('BACKUP_ENCRYPTION_KEY không hợp lệ');
     fs.mkdirSync(BACKUP_DIR, { recursive: true });
     const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const filePath = path.join(BACKUP_DIR, `backup-${stamp}.json`);
-    fs.writeFileSync(filePath, JSON.stringify(buildBackup(), null, 2), { mode: 0o600 });
-    const files = fs.readdirSync(BACKUP_DIR).filter(f => f.endsWith('.json')).sort();
+    const useEncryption = !!BACKUP_KEY;
+    const filePath = path.join(BACKUP_DIR, `backup-${stamp}.json${useEncryption ? '.enc' : ''}`);
+    const payload = JSON.stringify(buildBackup(), null, 2);
+    const output = useEncryption ? encryptBackup(payload) : payload;
+    fs.writeFileSync(filePath, output, { mode: 0o600 });
+    const files = fs.readdirSync(BACKUP_DIR).filter(f => f.endsWith('.json') || f.endsWith('.json.enc')).sort();
     while (files.length > MAX_AUTO_BACKUPS) {
       fs.unlinkSync(path.join(BACKUP_DIR, files.shift()));
     }
@@ -985,7 +1085,7 @@ app.get('/api/backups', requireAuth, requireAdmin, (req, res) => {
   try {
     if (!fs.existsSync(BACKUP_DIR)) return res.json({ backups: [] });
     const backups = fs.readdirSync(BACKUP_DIR)
-      .filter(f => f.endsWith('.json'))
+      .filter(f => f.endsWith('.json') || f.endsWith('.json.enc'))
       .sort()
       .reverse()
       .map(f => {
@@ -993,10 +1093,12 @@ app.get('/api/backups', requireAuth, requireAdmin, (req, res) => {
         const stat = fs.statSync(filePath);
         let projectCount = 0;
         try {
-          const b = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+          const raw = fs.readFileSync(filePath);
+          const text = f.endsWith('.enc') ? decryptBackup(raw) : raw.toString('utf8');
+          const b = JSON.parse(text);
           projectCount = (b.state?.projects || []).length;
         } catch (_) { /* bỏ qua file lỗi */ }
-        return { filename: f, size: stat.size, mtime: stat.mtimeMs, projectCount };
+        return { filename: f, size: stat.size, mtime: stat.mtimeMs, projectCount, encrypted: f.endsWith('.enc') };
       });
     res.json({ backups });
   } catch (err) {
@@ -1006,13 +1108,15 @@ app.get('/api/backups', requireAuth, requireAdmin, (req, res) => {
 
 app.post('/api/backups/:filename/restore', requireAuth, requireAdmin, (req, res) => {
   const filename = path.basename(req.params.filename);
-  if (!/^backup-[0-9A-Za-z._-]+\.json$/.test(filename)) {
+  if (!/^backup-[0-9A-Za-z._-]+\.json(\.enc)?$/.test(filename)) {
     return res.status(400).json({ error: 'Tên bản sao lưu không hợp lệ' });
   }
   const filePath = path.join(BACKUP_DIR, filename);
   if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Không tìm thấy bản sao lưu' });
   try {
-    const backup = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    const raw = fs.readFileSync(filePath);
+    const text = filename.endsWith('.enc') ? decryptBackup(raw) : raw.toString('utf8');
+    const backup = JSON.parse(text);
     if (!backup.state || !Array.isArray(backup.state.projects)) {
       return res.status(400).json({ error: 'Bản sao lưu không hợp lệ' });
     }

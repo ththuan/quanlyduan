@@ -71,7 +71,8 @@ db.exec(`
   ['previous_refresh_hash', 'TEXT'],
   ['access_expires_at', 'INTEGER NOT NULL DEFAULT 0'],
   ['last_used_at', 'INTEGER NOT NULL DEFAULT 0'],
-  ['created_at', 'INTEGER NOT NULL DEFAULT 0']
+  ['created_at', 'INTEGER NOT NULL DEFAULT 0'],
+  ['csrf_token', 'TEXT']
 ].forEach(([col, type]) => {
   try { db.exec(`ALTER TABLE sessions ADD COLUMN ${col} ${type}`); }
   catch (_) { /* cột đã tồn tại */ }
@@ -303,14 +304,15 @@ function createSession(userId) {
   const id = crypto.randomBytes(32).toString('hex');
   const accessToken = newToken();
   const refreshToken = newToken();
+  const csrfToken = newToken();
   const now = Date.now();
   const accessExpiresAt = now + ACCESS_TOKEN_TTL_MS;
   const expiresAt = now + REFRESH_TOKEN_TTL_MS;
   db.prepare(`INSERT INTO sessions
-    (id, user_id, expires_at, access_token_hash, refresh_token_hash, access_expires_at, last_used_at, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
-    .run(id, userId, expiresAt, hashToken(accessToken), hashToken(refreshToken), accessExpiresAt, now, now);
-  return { id, accessToken, refreshToken, accessExpiresAt, expiresAt };
+    (id, user_id, expires_at, access_token_hash, refresh_token_hash, access_expires_at, last_used_at, created_at, csrf_token)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run(id, userId, expiresAt, hashToken(accessToken), hashToken(refreshToken), accessExpiresAt, now, now, csrfToken);
+  return { id, accessToken, refreshToken, csrfToken, accessExpiresAt, expiresAt };
 }
 
 function sessionTooOld(session, now) {
@@ -374,11 +376,16 @@ function refreshSession(refreshToken) {
   const newRefreshToken = newToken();
   const accessExpiresAt = now + ACCESS_TOKEN_TTL_MS;
   const expiresAt = now + REFRESH_TOKEN_TTL_MS;
+  let csrfToken = session.csrf_token;
+  if (!csrfToken) {
+    csrfToken = newToken();
+    db.prepare('UPDATE sessions SET csrf_token = ? WHERE id = ?').run(csrfToken, session.id);
+  }
   db.prepare(`UPDATE sessions SET previous_refresh_hash = refresh_token_hash,
     access_token_hash = ?, refresh_token_hash = ?,
     access_expires_at = ?, expires_at = ?, last_used_at = ? WHERE id = ?`)
     .run(hashToken(accessToken), hashToken(newRefreshToken), accessExpiresAt, expiresAt, now, session.id);
-  return { sessionId: session.id, userId: session.user_id, accessToken, refreshToken: newRefreshToken, accessExpiresAt, expiresAt };
+  return { sessionId: session.id, userId: session.user_id, accessToken, refreshToken: newRefreshToken, csrfToken, accessExpiresAt, expiresAt };
 }
 
 function deleteSession(id) {
@@ -387,6 +394,11 @@ function deleteSession(id) {
 
 function deleteSessionByRefreshToken(token) {
   if (token) db.prepare('DELETE FROM sessions WHERE refresh_token_hash = ?').run(hashToken(token));
+}
+
+function getSessionByRefreshToken(token) {
+  if (!token) return null;
+  return db.prepare('SELECT * FROM sessions WHERE refresh_token_hash = ?').get(hashToken(token));
 }
 
 function listAllPdfs() {
@@ -596,6 +608,7 @@ module.exports = {
   refreshSession,
   deleteSession,
   deleteSessionByRefreshToken,
+  getSessionByRefreshToken,
   getConfig,
   saveConfig,
   DEFAULT_CONFIG

@@ -85,6 +85,8 @@ cat > .env <<'EOF'
 QLDA_PORT=8091
 QLDA_BIND_IP=0.0.0.0
 GEMINI_API_KEY=your_real_gemini_key_here
+# Tùy chọn: mã hóa backup tự động tại chỗ (tạo bằng: openssl rand -base64 32)
+BACKUP_ENCRYPTION_KEY=
 EOF
 ```
 
@@ -182,17 +184,22 @@ if (user) {
 App tự nạp dự án D,E khi database còn rỗng (lần chạy đầu). Nếu muốn bổ sung/cập nhật dự án D,E (đầy đủ 35 gói thầu theo file `TONG HOP DU AN.xlsx`) vào dữ liệu hiện có **mà không xóa dự án khác**, gọi API (chỉ admin):
 
 ```bash
-# Lấy access token: đăng nhập app -> DevTools (F12) -> Application -> Local Storage
-#   key "qlda_auth_session" -> copy giá trị accessToken
-curl -X POST http://localhost:8091/api/admin/import-seed \
-  -H "Authorization: Bearer <ACCESS_TOKEN>"
+# Đăng nhập và lưu cookie phiên (cookie access/refresh là HttpOnly)
+curl -c qlda-cookies.txt -X POST http://localhost:8091/api/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"mat-khau-cua-ban"}'
+
+# Lấy CSRF token (cookie này không HttpOnly) rồi gọi API
+CSRF=$(awk '$6=="qlda_csrf"{print $7}' qlda-cookies.txt)
+curl -b qlda-cookies.txt -X POST http://localhost:8091/api/admin/import-seed \
+  -H "X-CSRF-Token: $CSRF"
 # -> {"ok":true,"created":0,"updated":1,"totalProjects":1}
 ```
 
 Hoặc chạy trong Console của trình duyệt khi đang đăng nhập (admin):
 ```js
-const t = JSON.parse(localStorage.getItem('qlda_auth_session')).accessToken;
-fetch('/api/admin/import-seed', { method:'POST', headers:{ Authorization:'Bearer '+t } }).then(r=>r.json()).then(console.log);
+const csrf = (document.cookie.match(/qlda_csrf=([^;]+)/) || [])[1] || '';
+fetch('/api/admin/import-seed', { method:'POST', headers:{ 'X-CSRF-Token': csrf } }).then(r=>r.json()).then(console.log);
 ```
 
 > Dự án cùng `id` (vd `proj-day-de`) sẽ được cập nhật đầy đủ theo dữ liệu mẫu; các dự án khác giữ nguyên.
@@ -265,6 +272,7 @@ quanlyduan/
 ├── manifest.json       # PWA manifest
 ├── sw.js               # Service Worker (offline)
 ├── login.js            # Logic trang đăng nhập
+├── login-particles.js  # Hiệu ứng nền trang đăng nhập
 ├── logoCTEC.png        # Logo trường
 ├── docker-compose.yml  # Docker + Cloudflare Tunnel
 ├── Dockerfile          # Build Node.js image

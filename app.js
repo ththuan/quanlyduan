@@ -13,19 +13,28 @@ const AUTH_STORAGE_KEY = 'qlda_auth_session';
 const nativeFetch = window.fetch.bind(window);
 let refreshPromise = null;
 
+function getCookie(name) {
+  const raw = document.cookie || '';
+  for (const part of raw.split(';')) {
+    const idx = part.indexOf('=');
+    if (idx < 0) continue;
+    if (part.slice(0, idx).trim() !== name) continue;
+    try { return decodeURIComponent(part.slice(idx + 1).trim()); } catch (_) { return ''; }
+  }
+  return '';
+}
+
+function getCsrfToken() {
+  return getCookie('qlda_csrf');
+}
+
 function getStoredAuth() {
   try { return JSON.parse(localStorage.getItem(AUTH_STORAGE_KEY) || 'null'); }
   catch (_) { return null; }
 }
 
 function storeAuth(data) {
-  const auth = {
-    accessToken: data.accessToken,
-    refreshToken: data.refreshToken,
-    accessExpiresAt: data.accessExpiresAt,
-    expiresAt: data.expiresAt,
-    user: data.user
-  };
+  const auth = { expiresAt: data.expiresAt, user: data.user };
   localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(auth));
   return auth;
 }
@@ -37,11 +46,9 @@ function clearStoredAuth() {
 
 async function renewAccessToken() {
   if (refreshPromise) return refreshPromise;
-  const auth = getStoredAuth();
-  if (!auth?.refreshToken) return null;
   refreshPromise = nativeFetch(`${API_BASE}/refresh`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refreshToken: auth.refreshToken })
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() }
   }).then(async res => {
     if (!res.ok) { clearStoredAuth(); return null; }
     return storeAuth(await res.json());
@@ -50,21 +57,26 @@ async function renewAccessToken() {
 }
 
 async function authFetch(input, init = {}, allowRetry = true) {
-  const auth = getStoredAuth();
   const headers = new Headers(init.headers || {});
-  if (auth?.accessToken) headers.set('Authorization', `Bearer ${auth.accessToken}`);
+  const method = String(init.method || 'GET').toUpperCase();
+  if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
+    const csrf = getCsrfToken();
+    if (csrf) headers.set('X-CSRF-Token', csrf);
+  }
   let res = await nativeFetch(input, { ...init, headers });
-  if (res.status === 401 && allowRetry && auth?.refreshToken) {
+  if (res.status === 401 && allowRetry) {
     const renewed = await renewAccessToken();
-    if (renewed?.accessToken) {
-      headers.set('Authorization', `Bearer ${renewed.accessToken}`);
-      res = await nativeFetch(input, { ...init, headers });
+    if (renewed) {
+      const retryHeaders = new Headers(headers);
+      const csrf = getCsrfToken();
+      if (csrf) retryHeaders.set('X-CSRF-Token', csrf);
+      res = await nativeFetch(input, { ...init, headers: retryHeaders });
     }
   }
   return res;
 }
 
-// Toàn bộ API nghiệp vụ tự mang access token và tự làm mới phiên khi cần.
+// Toàn bộ API nghiệp vụ dùng cookie HttpOnly + CSRF, tự làm mới phiên khi cần.
 window.fetch = function(input, init) {
   const url = typeof input === 'string' ? input : input.url;
   return url.startsWith('/api/') ? authFetch(input, init) : nativeFetch(input, init);
@@ -86,11 +98,10 @@ async function apiGetMe() {
 }
 
 async function apiLogout() {
-  const auth = getStoredAuth();
   try {
     await nativeFetch(`${API_BASE}/logout`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refreshToken: auth?.refreshToken || '' })
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() }
     });
   } finally {
     clearStoredAuth();
