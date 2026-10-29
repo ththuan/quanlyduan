@@ -86,11 +86,28 @@
     }
 
     .sub-welcome {
-      color: #1e293b;
-      font-size: 1.1rem;
-      font-weight: 600;
-      margin: 0 0 4px;
-      line-height: 1.5;
+      font-size: 1.28rem;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+      margin: 0 0 6px;
+      line-height: 1.4;
+      color: #2563eb;
+      background-image: linear-gradient(100deg, #1d4ed8 0%, #06b6d4 22%, #8b5cf6 48%, #ec4899 72%, #1d4ed8 100%);
+      background-size: 320% 100%;
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: gradientFlow 7s linear infinite;
+      filter: drop-shadow(0 3px 12px rgba(37, 99, 235, 0.22));
+    }
+
+    @keyframes gradientFlow {
+      0% { background-position: 0% 50%; }
+      100% { background-position: 320% 50%; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .sub-welcome { animation: none; background-position: 50% 50%; }
     }
 
     .school-name {
@@ -277,7 +294,7 @@
     @media (max-width: 480px) {
       .form-card { padding: 28px 20px 24px; border-radius: 16px; }
       .school-logo { height: 60px; width: 60px; }
-      .sub-welcome { font-size: 0.875rem; margin-bottom: 20px; }
+      .sub-welcome { font-size: 1.05rem; margin-bottom: 6px; }
       .btn-login { height: 44px; font-size: 0.95rem; }
       .login-footer { font-size: 0.75rem; }
     }

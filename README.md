@@ -314,22 +314,12 @@ Register-ScheduledTask -TaskName "QLDA Auto Deploy" -Action $action -Trigger $tr
 
 ### Cập nhật thủ công / tự động (Debian/Linux)
 
-Tạo script `deploy.sh`:
+Script `deploy.sh` đã có sẵn trong repo. Chạy thủ công:
 ```bash
-cat > deploy.sh <<'EOF'
-#!/bin/bash
-set -e
-cd ~/quanlyduan
-echo "==> Kéo code mới nhất..."
-git pull origin master
-echo "==> Build & deploy..."
-docker compose build qlda
-docker compose up -d qlda
-echo "==> Xong!"
-EOF
-chmod +x deploy.sh
+chmod +x deploy.sh   # chỉ cần lần đầu
+./deploy.sh
 ```
-Chạy thủ công: `./deploy.sh`
+> Script tự `cd` về thư mục repo, `git pull --ff-only origin master`, build và khởi động lại service `qlda`. Có thể đổi branch bằng biến `DEPLOY_BRANCH=ten-branch ./deploy.sh`.
 
 Tự động hoá bằng cron (kiểm tra mỗi 30 phút):
 ```bash
