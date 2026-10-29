@@ -110,6 +110,7 @@ app.get('/', (req, res) => res.sendFile(path.join(ROOT_DIR, 'index.html'), { hea
 app.get('/index.html', (req, res) => res.sendFile(path.join(ROOT_DIR, 'index.html'), { headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' } }));
 app.get('/login.html', (req, res) => res.sendFile(path.join(ROOT_DIR, 'login.html'), { headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' } }));
 app.get('/app.js', (req, res) => res.sendFile(path.join(ROOT_DIR, 'app.js'), { headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' } }));
+app.get('/motion.js', (req, res) => res.sendFile(path.join(ROOT_DIR, 'motion.js'), { headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Content-Type': 'application/javascript; charset=utf-8' } }));
 app.get('/workflow-catalog.js', (req, res) => res.sendFile(path.join(ROOT_DIR, 'workflow-catalog.js'), { headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Content-Type': 'application/javascript; charset=utf-8' } }));
 app.get('/workflow-ui.js', (req, res) => res.sendFile(path.join(ROOT_DIR, 'workflow-ui.js'), { headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Content-Type': 'application/javascript; charset=utf-8' } }));
 app.get('/legal-ui.js', (req, res) => res.sendFile(path.join(ROOT_DIR, 'legal-ui.js'), { headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' } }));

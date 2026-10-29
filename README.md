@@ -254,6 +254,7 @@ quanlyduan/
 ├── index.html          # Giao diện chính (SPA)
 ├── login.html          # Trang đăng nhập
 ├── app.js              # Logic frontend (~4300 dòng)
+├── motion.js           # Lớp animation (CSS + Web Animations API)
 ├── style.css           # CSS toàn bộ ứng dụng
 ├── manifest.json       # PWA manifest
 ├── sw.js               # Service Worker (offline)

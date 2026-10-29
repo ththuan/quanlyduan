@@ -832,15 +832,42 @@ function getCatCumulativeTotal(cat) {
 
 function showToast(message, type = 'success') {
   const container = document.getElementById('toast-container');
+  if (!container) return;
   const icons = { success: 'check_circle', error: 'error', info: 'info' };
+  const lifetime = 3200;
+  while (container.children.length >= 4) container.firstElementChild.remove();
   const toast = document.createElement('div');
   toast.className = `toast toast-${type}`;
-  toast.innerHTML = `<span class="material-symbols-rounded">${icons[type] || 'info'}</span><span>${esc(message)}</span>`;
+  toast.innerHTML = `<span class="material-symbols-rounded">${icons[type] || 'info'}</span><span class="toast-msg">${esc(message)}</span><span class="toast-progress" style="animation-duration:${lifetime}ms"></span>`;
   container.appendChild(toast);
-  setTimeout(() => {
-    toast.style.animation = 'toastSlideOut 0.3s ease forwards';
-    setTimeout(() => toast.remove(), 300);
-  }, 3000);
+
+  let remaining = lifetime;
+  let startedAt = Date.now();
+  let timer = null;
+  let closed = false;
+  const dismiss = () => {
+    if (closed) return;
+    closed = true;
+    clearTimeout(timer);
+    toast.classList.add('toast-out');
+    setTimeout(() => toast.remove(), 280);
+  };
+  const schedule = () => {
+    startedAt = Date.now();
+    timer = setTimeout(dismiss, remaining);
+  };
+  schedule();
+  toast.addEventListener('mouseenter', () => {
+    if (closed) return;
+    clearTimeout(timer);
+    remaining = Math.max(400, remaining - (Date.now() - startedAt));
+    toast.classList.add('toast-paused');
+  });
+  toast.addEventListener('mouseleave', () => {
+    if (closed) return;
+    toast.classList.remove('toast-paused');
+    schedule();
+  });
 }
 
 // ============================================================
@@ -1190,6 +1217,7 @@ function switchScope(scope) {
   if (scope !== 'project' && scope !== 'nonProject') return;
   state.projectScope = scope;
   document.querySelectorAll('.scope-btn').forEach(b => b.classList.toggle('active', b.dataset.scope === scope));
+  if (window.QLMotion) QLMotion.updateIndicators();
   const list = getScopeProjects();
   if (list.length) state.currentProjectId = list[0].id;
   else state.currentProjectId = null;
@@ -1244,6 +1272,20 @@ function renderAlertsPanel(project) {
   `;
 }
 
+function showDashboardSkeleton() {
+  const kpiEl = document.getElementById('kpi-cards');
+  if (!kpiEl || kpiEl.children.length) return;
+  kpiEl.innerHTML = Array.from({ length: 4 }).map(() => `
+    <div class="kpi-card glass-card">
+      <div class="kpi-header">
+        <span class="motion-skeleton" style="display:inline-block;width:120px;height:10px"></span>
+        <span class="motion-skeleton" style="width:36px;height:36px;border-radius:8px"></span>
+      </div>
+      <div class="motion-skeleton" style="width:70%;height:24px;margin-bottom:8px"></div>
+      <div class="motion-skeleton" style="width:45%;height:10px"></div>
+    </div>`).join('');
+}
+
 function renderDashboard() {
   const project = getCurrentProject();
   const kpiEl = document.getElementById('kpi-cards');
@@ -1274,6 +1316,7 @@ function renderDashboard() {
   const totalAcceptance = allPkgs.reduce((s, x) => s + (x.pkg.acceptanceValue || 0), 0);
 
   const acceptRate = totalContract > 0 ? (totalAcceptance / totalContract) * 100 : 0;
+  const countAttr = v => (v == null || isNaN(v)) ? '' : `data-countup="${v}" data-count-format="currency"`;
 
   // ---- KPI cards ----
   kpiEl.innerHTML = `
@@ -1282,7 +1325,7 @@ function renderDashboard() {
         <span class="kpi-label">Tổng mức đầu tư</span>
         <div class="kpi-icon"><span class="material-symbols-rounded">account_balance</span></div>
       </div>
-      <div class="kpi-value">${formatCurrency(totalInvest, true)}</div>
+      <div class="kpi-value" ${countAttr(totalInvest)}>${formatCurrency(totalInvest, true)}</div>
       <div class="kpi-sub">${project.annualPlan > 0 ? `KH vốn năm ${project.planYear || '—'}: ${formatCurrency(project.annualPlan, true)}` : `${allPkgs.length} gói thầu · ${project.categories.length} danh mục`}</div>
     </div>
     <div class="kpi-card glass-card" data-color="purple">
@@ -1290,7 +1333,7 @@ function renderDashboard() {
         <span class="kpi-label">Giá trị hợp đồng</span>
         <div class="kpi-icon"><span class="material-symbols-rounded">gavel</span></div>
       </div>
-      <div class="kpi-value">${formatCurrency(totalContract, true)}</div>
+      <div class="kpi-value" ${countAttr(totalContract)}>${formatCurrency(totalContract, true)}</div>
       <div class="kpi-sub">Trúng thầu ${formatCurrency(totalBid, true)} · Phát sinh ${formatCurrency(totalVariation, true)}</div>
     </div>
     <div class="kpi-card glass-card" data-color="green">
@@ -1298,7 +1341,7 @@ function renderDashboard() {
         <span class="kpi-label">Lũy kế giải ngân</span>
         <div class="kpi-icon"><span class="material-symbols-rounded">payments</span></div>
       </div>
-      <div class="kpi-value">${formatCurrency(totalDisbursed, true)}</div>
+      <div class="kpi-value" ${countAttr(totalDisbursed)}>${formatCurrency(totalDisbursed, true)}</div>
       <div class="kpi-sub">Còn lại: ${formatCurrency(totalInvest - totalDisbursed, true)}</div>
     </div>
     <div class="kpi-card glass-card" data-color="pink">
@@ -1306,11 +1349,12 @@ function renderDashboard() {
         <span class="kpi-label">Giá trị nghiệm thu</span>
         <div class="kpi-icon"><span class="material-symbols-rounded">verified</span></div>
       </div>
-      <div class="kpi-value">${formatCurrency(totalAcceptance, true)}</div>
+      <div class="kpi-value" ${countAttr(totalAcceptance)}>${formatCurrency(totalAcceptance, true)}</div>
       <div class="kpi-sub">${formatPercent(acceptRate)} / hợp đồng</div>
       <div class="kpi-progress"><span style="width:${Math.min(100, acceptRate).toFixed(1)}%"></span></div>
     </div>
   `;
+  if (window.QLMotion) QLMotion.countUpAll(kpiEl);
 
   // ---- Status overview ----
   const statusCounts = {};
@@ -3206,14 +3250,16 @@ function saveCloseoutStatus() {
 // ============================================================
 function openModal(title, bodyHTML, footerHTML = '', size = '') {
   const modal = document.getElementById('modal');
+  const backdrop = document.getElementById('modal-backdrop');
   document.getElementById('modal-title').textContent = title;
   document.getElementById('modal-body').innerHTML = bodyHTML;
   document.getElementById('modal-footer').innerHTML = footerHTML;
   modal.classList.toggle('modal-lg', size === 'lg');
   modal.classList.toggle('modal-xl', size === 'xl');
-  document.getElementById('modal-backdrop').classList.remove('hidden');
+  backdrop.classList.remove('hidden');
   modal.classList.remove('hidden');
   convertDateInputs();
+  if (window.QLMotion) QLMotion.modalOpen(modal, backdrop);
 }
 
 // Tự chèn dấu "/" khi gõ ngày (dd/mm/yyyy)
@@ -3243,9 +3289,17 @@ function convertDateInputs(root) {
 }
 
 function closeModal() {
-  if (previewObjectUrl) { URL.revokeObjectURL(previewObjectUrl); previewObjectUrl = null; }
-  document.getElementById('modal-backdrop').classList.add('hidden');
-  document.getElementById('modal').classList.add('hidden');
+  const modal = document.getElementById('modal');
+  const backdrop = document.getElementById('modal-backdrop');
+  const url = previewObjectUrl;
+  previewObjectUrl = null;
+  const hide = () => {
+    if (url) URL.revokeObjectURL(url);
+    backdrop.classList.add('hidden');
+    modal.classList.add('hidden');
+  };
+  if (window.QLMotion) QLMotion.modalClose(modal, backdrop, hide);
+  else hide();
 }
 
 let previewObjectUrl = null;
@@ -5163,7 +5217,30 @@ async function removePDF(catId, pkgId, pdfId) {
 // ============================================================
 function toggleCategory(headerEl) {
   const group = headerEl.closest('.category-group');
-  group.classList.toggle('expanded');
+  const body = group?.querySelector('.category-body');
+  if (!body || (window.QLMotion && QLMotion.prefersReduced())) {
+    group?.classList.toggle('expanded');
+    return;
+  }
+  const expanding = !group.classList.contains('expanded');
+  const onEnd = e => {
+    if (e.propertyName !== 'max-height') return;
+    body.style.maxHeight = '';
+    body.removeEventListener('transitionend', onEnd);
+  };
+  body.addEventListener('transitionend', onEnd);
+  if (expanding) {
+    const height = body.scrollHeight;
+    group.classList.add('expanded');
+    body.style.maxHeight = '0px';
+    requestAnimationFrame(() => { body.style.maxHeight = height + 'px'; });
+  } else {
+    body.style.maxHeight = body.scrollHeight + 'px';
+    requestAnimationFrame(() => {
+      group.classList.remove('expanded');
+      body.style.maxHeight = '0px';
+    });
+  }
 }
 
 function switchView(viewName) {
@@ -5177,6 +5254,7 @@ function switchView(viewName) {
   const view = document.getElementById('view-' + viewName);
   if (view) view.classList.add('active');
   document.querySelector(`.nav-tab[data-view="${viewName}"]`)?.classList.add('active');
+  if (window.QLMotion) QLMotion.updateIndicators();
 
   if (viewName === 'dashboard') renderDashboard();
   else if (viewName === 'packages') renderPackages();
@@ -5186,6 +5264,7 @@ function switchView(viewName) {
   else if (viewName === 'qtda') renderQtdaView();
   else if (viewName === 'reports') renderReports();
   else if (viewName === 'workflow') { if (typeof renderWorkflowView === 'function') renderWorkflowView(); }
+  if (window.QLMotion && view) QLMotion.enterView(view);
 }
 
 function renderAll() {
@@ -5198,6 +5277,8 @@ function renderAll() {
   else if (state.currentView === 'qtda') renderQtdaView();
   else if (state.currentView === 'reports') renderReports();
   else if (state.currentView === 'workflow') { if (typeof renderWorkflowView === 'function') renderWorkflowView(); }
+  const viewEl = document.getElementById('view-' + state.currentView);
+  if (viewEl && window.QLMotion) QLMotion.enterView(viewEl);
 }
 
 // Nav tabs
@@ -5472,15 +5553,16 @@ function renderAssetsView() {
     const units = formatQtyByUnit(all.map(r => r.asset));
     summaryEl.innerHTML = `
       <div class="kpi-grid" style="margin-bottom:8px">
-        <div class="glass-card kpi-card"><div class="kpi-label">Số tài sản</div><div class="kpi-value">${formatNumberVN(all.length)}</div></div>
-        <div class="glass-card kpi-card"><div class="kpi-label">Số gói thầu</div><div class="kpi-value">${formatNumberVN(groups.length)}</div></div>
-        <div class="glass-card kpi-card"><div class="kpi-label">Tổng nguyên giá</div><div class="kpi-value">${formatCurrency(total)}</div></div>
+        <div class="glass-card kpi-card"><div class="kpi-label">Số tài sản</div><div class="kpi-value" data-countup="${all.length}">${formatNumberVN(all.length)}</div></div>
+        <div class="glass-card kpi-card"><div class="kpi-label">Số gói thầu</div><div class="kpi-value" data-countup="${groups.length}">${formatNumberVN(groups.length)}</div></div>
+        <div class="glass-card kpi-card"><div class="kpi-label">Tổng nguyên giá</div><div class="kpi-value" data-countup="${total}" data-count-format="currency">${formatCurrency(total)}</div></div>
       </div>
       <div class="edit-only" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
         <button class="btn btn-secondary btn-sm" onclick="syncProjectAssetsToQltk()"><span class="material-symbols-rounded">cloud_upload</span> Đồng bộ QLTS</button>
         <span style="font-size:0.78rem;color:var(--text-muted)">Chỉ đồng bộ tài sản đã chọn <b>loại tài sản</b> và <b>phòng/khoa</b>; tài sản cá thể sẽ được tách theo số lượng.</span>
       </div>
       ${units ? `<p style="font-size:0.82rem;color:var(--text-secondary);margin:0 0 12px">Số lượng theo đơn vị tính: <b>${esc(units)}</b></p>` : ''}`;
+    if (window.QLMotion) QLMotion.countUpAll(summaryEl);
   }
 
   if (!all.length) {
@@ -5547,6 +5629,7 @@ function renderAssetsView() {
       </div>
     </div>`;
   }).join('') + `<p style="font-size:0.8rem;color:var(--text-muted);margin-top:8px">${groups.length} gói · hiển thị ${shownCount}/${all.length} tài sản${term ? ` (lọc: "${esc(term)}")` : ''}.</p>`;
+  if (window.QLMotion) QLMotion.revealOnScroll(container, ':scope > div', { stagger: 30 });
 }
 
 function calcAssetAmount() {
@@ -5978,6 +6061,7 @@ function renderAccountUI() {
   document.querySelector('.nav-tab[data-view="workflow"]')?.classList.toggle('hidden', currentUser.role !== 'admin');
   isReadOnly = currentUser.role !== 'admin';
   document.body.classList.toggle('read-only', isReadOnly);
+  if (window.QLMotion) QLMotion.updateIndicators();
   if (typeof loadAiHistory === 'function') loadAiHistory();
 }
 
@@ -6522,6 +6606,7 @@ async function init() {
   requireForcePasswordChange();
   // Đang bị buộc đổi mật khẩu: dừng tải dữ liệu, chờ đổi xong rồi reload
   if (currentUser.mustChangePassword) return;
+  showDashboardSkeleton();
   try {
     await loadState();
   } catch (err) {

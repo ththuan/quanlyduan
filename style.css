@@ -475,7 +475,7 @@ body.read-only .edit-only { display: none !important; }
   margin: 0;
 }
 
-.view { display: none; animation: fadeIn 0.4s ease; }
+.view { display: none; }
 .view.active { display: block; }
 
 @keyframes fadeIn {
@@ -1534,9 +1534,10 @@ canvas {
 #modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(15,23,42,0.45);
+  background: rgba(15,23,42,0.42);
   z-index: 2000;
-  animation: fadeIn 0.2s ease;
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
 }
 
 #modal {
@@ -1553,7 +1554,7 @@ canvas {
   z-index: 2001;
   display: flex;
   flex-direction: column;
-  animation: modalSlideIn 0.3s ease;
+  will-change: transform, opacity;
 }
 
 #modal.modal-lg {
@@ -3896,3 +3897,158 @@ canvas {
 .wf-legal-details ul { margin: 8px 0 0 22px; padding: 0; }
 .wf-legal-details li { font-size: 0.78rem; line-height: 1.55; color: var(--text-secondary); margin-bottom: 4px; }
 .wf-legal-details li b { color: var(--text-primary); }
+
+/* ============================================================
+   MOTION LAYER (Animate UI-inspired, vanilla CSS + WAAPI)
+   ============================================================ */
+
+.nav-tabs,
+.scope-switch { position: relative; }
+
+.motion-tab-indicator {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: var(--radius-sm);
+  background: #ffffff;
+  box-shadow: var(--shadow-sm);
+  transition:
+    transform 0.36s cubic-bezier(0.22, 1, 0.36, 1),
+    width 0.36s cubic-bezier(0.22, 1, 0.36, 1),
+    height 0.22s ease,
+    opacity 0.2s ease;
+  will-change: transform, width;
+}
+
+.scope-switch .motion-tab-indicator {
+  background: var(--gradient-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.has-motion-indicator .nav-tab,
+.has-motion-indicator .scope-btn {
+  position: relative;
+  z-index: 1;
+  background: transparent;
+}
+
+.has-motion-indicator .nav-tab:hover { background: rgba(255, 255, 255, 0.6); }
+.has-motion-indicator .nav-tab.active { background: transparent; box-shadow: none; }
+.has-motion-indicator .scope-btn.active { background: transparent; box-shadow: none; color: #fff; }
+
+.motion-no-transition .motion-tab-indicator { transition: none !important; }
+
+/* ---- Ripple ---- */
+.motion-ripple-host {
+  position: relative;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.motion-ripple {
+  position: absolute;
+  z-index: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  background: currentColor;
+  opacity: 0.26;
+  transform: scale(0);
+  animation: motionRipple 0.55s ease-out forwards;
+}
+
+@keyframes motionRipple {
+  to { transform: scale(1); opacity: 0; }
+}
+
+/* ---- Press feedback ---- */
+.btn:active,
+.btn-icon:active,
+.nav-tab:active,
+.scope-btn:active,
+.btn-ai-float:active { transform: scale(0.96); }
+
+/* ---- Scroll reveal ---- */
+.motion-reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.5s cubic-bezier(0.22, 1, 0.36, 1), transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, transform;
+}
+
+.motion-reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+/* ---- Skeleton ---- */
+.motion-skeleton {
+  color: transparent !important;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #eef2f7 25%, #f8fafc 37%, #eef2f7 63%);
+  background-size: 400% 100%;
+  animation: motionShimmer 1.4s ease infinite;
+}
+
+@keyframes motionShimmer {
+  from { background-position: 100% 50%; }
+  to { background-position: 0 50%; }
+}
+
+/* ---- Toast: progress + stacking ---- */
+.toast {
+  position: relative;
+  overflow: hidden;
+  padding-bottom: 14px;
+}
+
+.toast .toast-msg { flex: 1; }
+
+.toast-progress {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  width: 100%;
+  transform-origin: left center;
+  background: var(--accent-blue);
+  animation: toastProgress linear forwards;
+}
+
+.toast.toast-success .toast-progress { background: var(--accent-green); }
+.toast.toast-error .toast-progress { background: var(--accent-red); }
+.toast.toast-info .toast-progress { background: var(--accent-blue); }
+.toast.toast-paused .toast-progress { animation-play-state: paused; }
+
+.toast.toast-out {
+  animation: toastSlideOut 0.26s ease forwards;
+}
+
+@keyframes toastProgress {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+
+/* ---- Reduced motion ---- */
+@media (prefers-reduced-motion: reduce) {
+  .motion-tab-indicator,
+  .motion-ripple,
+  .motion-reveal,
+  .motion-skeleton,
+  .toast,
+  .toast-progress { animation: none !important; transition: none !important; }
+
+  .motion-reveal { opacity: 1; transform: none; }
+
+  .btn:active,
+  .btn-icon:active,
+  .nav-tab:active,
+  .scope-btn:active,
+  .btn-ai-float:active { transform: none; }
+}
+
+@media print {
+  .motion-reveal { opacity: 1 !important; transform: none !important; transition: none !important; }
+  .motion-tab-indicator { display: none !important; }
+}

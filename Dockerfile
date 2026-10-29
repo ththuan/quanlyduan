@@ -16,7 +16,7 @@ COPY server/vendor ./server/vendor
 RUN cd server && npm install --omit=dev --no-audit --no-fund
 
 # Copy the rest of the app (frontend files + backend source)
-COPY index.html style.css app.js legal-ui.js wiki-ui.js workflow-catalog.js workflow-ui.js login.html login.js logoCTEC.png manifest.json sw.js ./
+COPY index.html style.css app.js motion.js legal-ui.js wiki-ui.js workflow-catalog.js workflow-ui.js login.html login.js logoCTEC.png manifest.json sw.js ./
 COPY assets ./assets
 COPY templates ./templates
 COPY server/*.js ./server/
