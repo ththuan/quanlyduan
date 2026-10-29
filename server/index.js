@@ -58,8 +58,11 @@ app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'same-origin');
-  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('X-XSS-Protection', '0');
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  if (req.secure || String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim() === 'https') {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
   // CSP: chỉ cho phép tài nguyên cùng nguồn và inline style cần thiết cho SPA
   res.setHeader('Content-Security-Policy',
     "default-src 'self'; " +
@@ -188,8 +191,8 @@ app.post('/api/login', (req, res) => {
     return res.status(401).json({ error: 'Sai tên đăng nhập hoặc mật khẩu' });
   }
   if (db.isLocked(user)) {
-    const mins = Math.ceil(db.getLockRemainingMs(user) / 60000);
-    return res.status(429).json({ error: `Tài khoản bị khóa tạm thời. Thử lại sau ${mins} phút.` });
+    console.warn(`[QLDA] Đăng nhập vào tài khoản đang bị khóa: ${user.username}`);
+    return res.status(401).json({ error: 'Sai tên đăng nhập hoặc mật khẩu' });
   }
   const verified = db.verifyUser(username, password);
   if (!verified) {
@@ -564,6 +567,21 @@ const FILE_MIME_MAP = {
 const fileExt = (name) => path.extname(name || '').toLowerCase();
 const fileMime = (name) => FILE_MIME_MAP[fileExt(name)] || 'application/octet-stream';
 
+function isValidFileContent(ext, buf) {
+  if (!Buffer.isBuffer(buf) || !buf.length) return false;
+  if (ext === '.pdf') return buf.slice(0, 5).toString('latin1') === '%PDF-';
+  if (ext === '.png') return buf.slice(0, 8).equals(Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]));
+  if (ext === '.jpg' || ext === '.jpeg') return buf[0] === 0xFF && buf[1] === 0xD8 && buf[2] === 0xFF;
+  if (ext === '.docx' || ext === '.xlsx') {
+    return buf[0] === 0x50 && buf[1] === 0x4B && [0x03, 0x05, 0x07].includes(buf[2]) && [0x04, 0x06, 0x08].includes(buf[3]);
+  }
+  if (ext === '.doc' || ext === '.xls') {
+    return buf.slice(0, 8).equals(Buffer.from([0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]));
+  }
+  if (ext === '.txt') return !buf.includes(0);
+  return false;
+}
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 50 * 1024 * 1024 },
@@ -593,8 +611,10 @@ app.post('/api/pdfs', requireAuth, requireAdmin, (req, res, next) => {
   } catch (e) {}
   const id = crypto.randomUUID();
   const ext = fileExt(filename);
-  const safeExt = FILE_MIME_MAP[ext] ? ext : '.pdf';
-  fs.writeFileSync(path.join(db.UPLOADS_DIR, id + safeExt), req.file.buffer);
+  if (!FILE_MIME_MAP[ext] || !isValidFileContent(ext, req.file.buffer)) {
+    return res.status(400).json({ error: 'Nội dung file không khớp với định dạng cho phép' });
+  }
+  fs.writeFileSync(path.join(db.UPLOADS_DIR, id + ext), req.file.buffer, { mode: 0o600 });
   db.addPdfRecord(id, filename, req.file.size);
   res.json({ id, name: filename, size: req.file.size });
 });
@@ -607,7 +627,11 @@ app.get('/api/pdfs/:id', requireAuth, (req, res) => {
   const filePath = path.join(db.UPLOADS_DIR, id + fileExt(record.name));
   if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File không tồn tại trên đĩa' });
   res.setHeader('Content-Type', fileMime(record.name));
-  res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(record.name)}"`);
+  const safeName = String(record.name || 'file').replace(/[\r\n"]/g, '');
+  const inline = ['.pdf', '.png', '.jpg', '.jpeg'].includes(fileExt(record.name));
+  res.setHeader('Content-Disposition',
+    `${inline ? 'inline' : 'attachment'}; filename="${encodeURIComponent(safeName)}"; filename*=UTF-8''${encodeURIComponent(safeName)}`);
+  res.setHeader('Cache-Control', 'private, no-store');
   res.sendFile(filePath);
 });
 
@@ -686,7 +710,7 @@ app.post('/api/restore', requireAuth, requireAdmin, jsonLarge, (req, res) => {
         if (typeof b64 === 'string' && b64.length > 0) {
           const buf = Buffer.from(b64, 'base64');
           if (buf.length && buf.length <= 50 * 1024 * 1024) {
-            fs.writeFileSync(target, buf);
+            fs.writeFileSync(target, buf, { mode: 0o600 });
           }
         }
       }
@@ -930,7 +954,7 @@ function restoreBackupData(backup) {
       if (typeof b64 === 'string' && b64.length > 0) {
         const buf = Buffer.from(b64, 'base64');
         if (buf.length && buf.length <= 50 * 1024 * 1024) {
-          fs.writeFileSync(target, buf);
+          fs.writeFileSync(target, buf, { mode: 0o600 });
         }
       }
     }
@@ -943,7 +967,7 @@ function createAutomaticBackup() {
     fs.mkdirSync(BACKUP_DIR, { recursive: true });
     const stamp = new Date().toISOString().replace(/[:.]/g, '-');
     const filePath = path.join(BACKUP_DIR, `backup-${stamp}.json`);
-    fs.writeFileSync(filePath, JSON.stringify(buildBackup(), null, 2));
+    fs.writeFileSync(filePath, JSON.stringify(buildBackup(), null, 2), { mode: 0o600 });
     const files = fs.readdirSync(BACKUP_DIR).filter(f => f.endsWith('.json')).sort();
     while (files.length > MAX_AUTO_BACKUPS) {
       fs.unlinkSync(path.join(BACKUP_DIR, files.shift()));

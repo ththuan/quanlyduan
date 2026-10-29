@@ -874,6 +874,10 @@ function showToast(message, type = 'success') {
 // SECTION 5: CHART RENDERING
 // ============================================================
 const CAT_COLORS = ['#3b82f6', '#8b5cf6', '#06b6d4', '#f59e0b', '#ef4444', '#6b7280'];
+function safeColor(c) {
+  const value = String(c || '');
+  return /^#[0-9a-f]{6}$/i.test(value) ? value : '';
+}
 
 // Giảm dần cỡ chữ cho tới khi text vừa với maxWidth (số tiền đầy đủ thường dài hơn số rút gọn)
 function fitFontSize(ctx, text, maxWidth, weight, maxSize, minSize = 8) {
@@ -923,7 +927,7 @@ function renderDonutChart() {
   const data = cats.map((cat, i) => ({
     label: cat.code + '. ' + cat.name,
     value: valueFn(cat),
-    color: cat.color || CAT_COLORS[i % CAT_COLORS.length]
+    color: safeColor(cat.color) || CAT_COLORS[i % CAT_COLORS.length]
   }));
 
   const total = data.reduce((s, d) => s + d.value, 0);
@@ -1463,7 +1467,7 @@ function renderPackages(searchTerm = document.getElementById('search-packages')?
     return `
     <div class="category-group" data-cat-id="${cat.id}">
       <div class="category-header" onclick="toggleCategory(this)">
-        <div class="category-code" style="background:${cat.color || CAT_COLORS[ci]}">${esc(cat.code)}</div>
+        <div class="category-code" style="background:${safeColor(cat.color) || CAT_COLORS[ci]}">${esc(cat.code)}</div>
         <div class="category-name">${esc(cat.name)}</div>
         <div class="category-stats">
           <span>Tổng dự toán: <span class="stat-value">${formatCurrency(investTotal, true)}</span></span>
@@ -4628,7 +4632,7 @@ function editCategory(catId) {
   openModal('Sửa danh mục', `
     <div class="form-grid">
       <div class="form-group"><label>Mã danh mục</label><input type="text" id="f-cat-code" value="${esc(cat.code)}"></div>
-      <div class="form-group"><label>Màu sắc</label><input type="color" id="f-cat-color" value="${cat.color || '#3b82f6'}"></div>
+      <div class="form-group"><label>Màu sắc</label><input type="color" id="f-cat-color" value="${safeColor(cat.color) || '#3b82f6'}"></div>
       <div class="form-group"><label>Tổng dự toán (VNĐ)</label><input type="number" id="f-cat-investTotal" value="${cat.investTotal || ''}"></div>
       <div class="form-group full-width"><label>Tên danh mục</label><input type="text" id="f-cat-name" value="${esc(cat.name)}"></div>
       <div class="form-group full-width"><label>Nhóm theo Mẫu 04/QTDA</label>${qtdaGroupSelectHTML(getCatQtdaGroup(cat))}</div>

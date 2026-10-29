@@ -19,6 +19,7 @@ fs.mkdirSync(DATA_DIR, { recursive: true });
 fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
 const db = new DatabaseSync(path.join(DATA_DIR, 'qlda.sqlite'));
+try { fs.chmodSync(path.join(DATA_DIR, 'qlda.sqlite'), 0o600); } catch (_) { /* Windows/FS không hỗ trợ */ }
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS app_state (
@@ -67,8 +68,10 @@ db.exec(`
 [
   ['access_token_hash', 'TEXT'],
   ['refresh_token_hash', 'TEXT'],
+  ['previous_refresh_hash', 'TEXT'],
   ['access_expires_at', 'INTEGER NOT NULL DEFAULT 0'],
-  ['last_used_at', 'INTEGER NOT NULL DEFAULT 0']
+  ['last_used_at', 'INTEGER NOT NULL DEFAULT 0'],
+  ['created_at', 'INTEGER NOT NULL DEFAULT 0']
 ].forEach(([col, type]) => {
   try { db.exec(`ALTER TABLE sessions ADD COLUMN ${col} ${type}`); }
   catch (_) { /* cột đã tồn tại */ }
@@ -236,9 +239,8 @@ function deleteUser(id) {
 function verifyUser(username, password) {
   const user = getUserByUsername(username);
   if (!user) {
-    // Timing-equalize: chạy hash giả để không lộ user có tồn tại hay không
-    const dummy = hashPassword(password);
-    verifyPassword(password, dummy);
+    // Timing-equalize: một lần scrypt với salt cố định, không tạo hash mới.
+    crypto.scryptSync(String(password), 'qlda-dummy-salt-v1', 64);
     return null;
   }
   if (!verifyPassword(password, user.password_hash)) return null;
@@ -287,6 +289,7 @@ if (countUsers() === 0) {
 // ---- Sessions ----
 const ACCESS_TOKEN_TTL_MS = 30 * 60 * 1000; // 30 phút
 const REFRESH_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000; // tối đa 7 ngày, gia hạn khi dùng
+const SESSION_ABSOLUTE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // không phiên nào sống quá 30 ngày
 
 function hashToken(token) {
   return crypto.createHash('sha256').update(token).digest('hex');
@@ -304,10 +307,18 @@ function createSession(userId) {
   const accessExpiresAt = now + ACCESS_TOKEN_TTL_MS;
   const expiresAt = now + REFRESH_TOKEN_TTL_MS;
   db.prepare(`INSERT INTO sessions
-    (id, user_id, expires_at, access_token_hash, refresh_token_hash, access_expires_at, last_used_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?)`)
-    .run(id, userId, expiresAt, hashToken(accessToken), hashToken(refreshToken), accessExpiresAt, now);
+    (id, user_id, expires_at, access_token_hash, refresh_token_hash, access_expires_at, last_used_at, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run(id, userId, expiresAt, hashToken(accessToken), hashToken(refreshToken), accessExpiresAt, now, now);
   return { id, accessToken, refreshToken, accessExpiresAt, expiresAt };
+}
+
+function sessionTooOld(session, now) {
+  if (!session.created_at) {
+    db.prepare('UPDATE sessions SET created_at = ? WHERE id = ?').run(now, session.id);
+    session.created_at = now;
+  }
+  return now - session.created_at > SESSION_ABSOLUTE_TTL_MS;
 }
 
 function getSessionByAccessToken(token) {
@@ -315,6 +326,10 @@ function getSessionByAccessToken(token) {
   const session = db.prepare('SELECT * FROM sessions WHERE access_token_hash = ?').get(hashToken(token));
   const now = Date.now();
   if (!session || session.access_expires_at < now || session.expires_at < now) return null;
+  if (sessionTooOld(session, now)) {
+    db.prepare('DELETE FROM sessions WHERE id = ?').run(session.id);
+    return null;
+  }
   // Sliding session: mỗi lần sử dụng hợp lệ sẽ gia hạn phiên thêm 7 ngày.
   db.prepare('UPDATE sessions SET expires_at = ?, last_used_at = ? WHERE id = ?')
     .run(now + REFRESH_TOKEN_TTL_MS, now, session.id);
@@ -327,6 +342,10 @@ function getSessionById(id) {
   const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(id);
   const now = Date.now();
   if (!session || session.expires_at < now) return null;
+  if (sessionTooOld(session, now)) {
+    db.prepare('DELETE FROM sessions WHERE id = ?').run(session.id);
+    return null;
+  }
   db.prepare('UPDATE sessions SET expires_at = ?, last_used_at = ? WHERE id = ?')
     .run(now + REFRESH_TOKEN_TTL_MS, now, session.id);
   return session;
@@ -334,17 +353,29 @@ function getSessionById(id) {
 
 function refreshSession(refreshToken) {
   if (!refreshToken) return null;
-  const session = db.prepare('SELECT * FROM sessions WHERE refresh_token_hash = ?').get(hashToken(refreshToken));
+  const tokenHash = hashToken(refreshToken);
+  let session = db.prepare('SELECT * FROM sessions WHERE refresh_token_hash = ?').get(tokenHash);
+  if (!session) {
+    // Token cũ bị dùng lại sau khi xoay vòng => coi như bị lộ, hủy toàn bộ phiên.
+    const reused = db.prepare('SELECT * FROM sessions WHERE previous_refresh_hash = ?').get(tokenHash);
+    if (reused) db.prepare('DELETE FROM sessions WHERE id = ?').run(reused.id);
+    return null;
+  }
   const now = Date.now();
   if (!session || session.expires_at < now) {
     if (session) db.prepare('DELETE FROM sessions WHERE id = ?').run(session.id);
+    return null;
+  }
+  if (sessionTooOld(session, now)) {
+    db.prepare('DELETE FROM sessions WHERE id = ?').run(session.id);
     return null;
   }
   const accessToken = newToken();
   const newRefreshToken = newToken();
   const accessExpiresAt = now + ACCESS_TOKEN_TTL_MS;
   const expiresAt = now + REFRESH_TOKEN_TTL_MS;
-  db.prepare(`UPDATE sessions SET access_token_hash = ?, refresh_token_hash = ?,
+  db.prepare(`UPDATE sessions SET previous_refresh_hash = refresh_token_hash,
+    access_token_hash = ?, refresh_token_hash = ?,
     access_expires_at = ?, expires_at = ?, last_used_at = ? WHERE id = ?`)
     .run(hashToken(accessToken), hashToken(newRefreshToken), accessExpiresAt, expiresAt, now, session.id);
   return { sessionId: session.id, userId: session.user_id, accessToken, refreshToken: newRefreshToken, accessExpiresAt, expiresAt };
