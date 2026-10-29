@@ -100,9 +100,13 @@ function legalOutlineHTML(filter) {
     || '<p class="legal-empty">Không có mục phù hợp.</p>';
 }
 
+let legalOutlineTimer = null;
 function legalFilterOutline(v) {
-  const el = document.getElementById('legal-outline');
-  if (el) el.innerHTML = legalOutlineHTML(v);
+  clearTimeout(legalOutlineTimer);
+  legalOutlineTimer = setTimeout(() => {
+    const el = document.getElementById('legal-outline');
+    if (el) el.innerHTML = legalOutlineHTML(v);
+  }, 120);
 }
 
 async function legalOpenDoc(id) {

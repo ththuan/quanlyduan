@@ -800,10 +800,14 @@ function cleanupTemplatePreview() {
 })();
 
 // Bộ lọc và tìm kiếm
+let templateFilterTimer = null;
 ['search-templates', 'filter-template-stage', 'filter-template-format'].forEach(id => {
   const el = document.getElementById(id);
   if (!el) return;
-  el.addEventListener('input', renderTemplateCards);
+  el.addEventListener('input', () => {
+    clearTimeout(templateFilterTimer);
+    templateFilterTimer = setTimeout(renderTemplateCards, 120);
+  });
   el.addEventListener('change', renderTemplateCards);
 });
 

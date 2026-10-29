@@ -382,7 +382,8 @@
   var cv = document.getElementById('particle-canvas');
   var ctx = cv.getContext('2d');
   var w, h;
-  var COUNT = 100;
+  var reduceMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  var COUNT = window.innerWidth < 768 ? 40 : 75;
   var MAX_DIST = 140;
   var particles = [];
 
@@ -401,7 +402,7 @@
     });
   }
 
-  function draw() {
+  function renderFrame() {
     ctx.clearRect(0, 0, w, h);
     for (var i = 0; i < particles.length; i++) {
       var p = particles[i];
@@ -428,9 +429,16 @@
         }
       }
     }
-    requestAnimationFrame(draw);
   }
-  draw();
+
+  function loop() {
+    if (document.hidden) { requestAnimationFrame(loop); return; }
+    renderFrame();
+    requestAnimationFrame(loop);
+  }
+
+  if (reduceMotion) renderFrame();
+  else loop();
 })();
 
 </script>

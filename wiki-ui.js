@@ -182,9 +182,15 @@ function wikiDrawGraph(canvas, g) {
   }
 
   let t = 0;
-  function frame() {
-    wikiGraphAnim = requestAnimationFrame(frame);
-    t += 0.016;
+  let lastDraw = 0;
+  const liteMode = !!(window.QLMotion && window.QLMotion.isLite());
+  function frame(now) {
+    if (!canvas.isConnected) { wikiGraphAnim = null; return; }
+    if (!liteMode) wikiGraphAnim = requestAnimationFrame(frame);
+    if (document.hidden || canvas.offsetParent === null) return;
+    if (!liteMode && now - lastDraw < 33) return;
+    lastDraw = now;
+    if (!liteMode) t += 0.016;
     const ctx = canvas.getContext('2d');
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
@@ -238,7 +244,8 @@ function wikiDrawGraph(canvas, g) {
       ctx.fillText(label, nd.x, nd.y + Rr + 6);
     });
   }
-  wikiGraphAnim = requestAnimationFrame(frame);
+  if (liteMode) frame(performance.now());
+  else wikiGraphAnim = requestAnimationFrame(frame);
 
   canvas.onmousemove = (e) => {
     const rect = canvas.getBoundingClientRect();

@@ -1,6 +1,6 @@
 /* ============================================================
-   Lá»›p chuyá»ƒn Ä‘á»™ng láº¥y cáº£m há»©ng tá»« Animate UI cho QLDA (vanilla).
-   Chá»‰ dÃ¹ng CSS + Web Animations API, khÃ´ng thÃªm thÆ° viá»‡n.
+   Lớp chuyển động lấy cảm hứng từ Animate UI cho QLDA (vanilla).
+   Chỉ dùng CSS + Web Animations API, không thêm thư viện.
    ============================================================ */
 (function () {
   'use strict';
@@ -9,14 +9,50 @@
   var EASE_IN = 'cubic-bezier(0.4, 0, 1, 1)';
   var EASE_SPRING = 'cubic-bezier(0.16, 1, 0.3, 1)';
   var reduceQuery = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+  var lite = false;
   var RIPPLE_SELECTOR = '.btn, .btn-icon, .nav-tab, .scope-btn, .btn-ai-float, .legal-qa-quick button, .motion-select-trigger';
 
   function prefersReduced() {
     return !!(reduceQuery && reduceQuery.matches);
   }
 
+  function isLite() {
+    return lite || prefersReduced();
+  }
+
+  function enableLite() {
+    if (lite) return;
+    lite = true;
+    document.documentElement.classList.add('motion-lite');
+    if (document.body) document.body.classList.add('motion-lite');
+  }
+
+  function setupPerformanceGuard() {
+    if (prefersReduced()) {
+      enableLite();
+      return;
+    }
+    var cores = navigator.hardwareConcurrency || 8;
+    var memory = navigator.deviceMemory || 8;
+    if (cores <= 2 || (cores <= 4 && memory <= 2)) enableLite();
+
+    if (!('PerformanceObserver' in window)) return;
+    var longTasks = 0;
+    function observeLongTasks() {
+      try {
+        new PerformanceObserver(function (list) {
+          list.getEntries().forEach(function (entry) {
+            if (entry.duration > 180) longTasks++;
+          });
+          if (longTasks >= 3) enableLite();
+        }).observe({ entryTypes: ['longtask'] });
+      } catch (_) { /* trình duyệt không hỗ trợ longtask */ }
+    }
+    setTimeout(observeLongTasks, 2500);
+  }
+
   function animate(el, frames, options) {
-    if (!el || typeof el.animate !== 'function' || prefersReduced()) return null;
+    if (!el || typeof el.animate !== 'function' || isLite()) return null;
     var opts = Object.assign({ easing: EASE_OUT, fill: 'both' }, options || {});
     return el.animate(frames, opts);
   }
@@ -53,7 +89,7 @@
       clearTimeout(el._motionCountTimer);
       el._motionCountTimer = null;
     }
-    if (prefersReduced() || duration <= 0) {
+    if (isLite() || duration <= 0) {
       el.textContent = format(end);
       return;
     }
@@ -90,7 +126,7 @@
   }
 
   function animateProgressBars(root) {
-    if (!root || prefersReduced()) return;
+    if (!root || isLite()) return;
     root.querySelectorAll('.kpi-progress > span').forEach(function (bar) {
       var target = bar.style.width;
       if (!target) return;
@@ -117,7 +153,7 @@
   /* ---------- Reveal / stagger ---------- */
 
   function staggerChildren(container, opts) {
-    if (!container || prefersReduced()) return;
+    if (!container || isLite()) return;
     opts = opts || {};
     var kids = Array.prototype.filter.call(container.children, function (el) {
       return el.nodeType === 1 && !el.classList.contains('hidden') && el.offsetParent !== null;
@@ -134,7 +170,7 @@
   }
 
   function revealOnScroll(container, selector, opts) {
-    if (!container || prefersReduced() || !('IntersectionObserver' in window)) return;
+    if (!container || isLite() || !('IntersectionObserver' in window)) return;
     opts = opts || {};
     var nodes = Array.prototype.slice.call(container.querySelectorAll(selector || ':scope > *'));
     if (!nodes.length) return;
@@ -200,7 +236,7 @@
       finished = true;
       if (typeof done === 'function') done();
     }
-    if (!modal || prefersReduced()) { finish(); return; }
+    if (!modal || isLite()) { finish(); return; }
     if (modal.querySelectorAll('*').length > 200) { finish(); return; }
     stopAnimations(modal);
     stopAnimations(backdrop);
@@ -222,7 +258,7 @@
   /* ---------- View transition ---------- */
 
   function enterView(view) {
-    if (!view || prefersReduced()) return;
+    if (!view || isLite()) return;
     if (view.querySelectorAll('*').length > 260) {
       var header = view.querySelector('.section-header');
       if (header) {
@@ -301,7 +337,7 @@
   /* ---------- Ripple ---------- */
 
   function onPointerDown(e) {
-    if (prefersReduced()) return;
+    if (isLite()) return;
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     var target = e.target.closest ? e.target.closest(RIPPLE_SELECTOR) : null;
     if (!target || target.disabled) return;
@@ -326,6 +362,7 @@
   function init() {
     if (init.done) return;
     init.done = true;
+    setupPerformanceGuard();
     initIndicators();
     document.addEventListener('pointerdown', onPointerDown, { passive: true });
     document.addEventListener('keydown', function (e) {
@@ -339,6 +376,8 @@
 
   window.QLMotion = {
     prefersReduced: prefersReduced,
+    isLite: isLite,
+    enableLite: enableLite,
     animate: animate,
     countUp: countUp,
     countUpAll: countUpAll,

@@ -5219,8 +5219,9 @@ async function removePDF(catId, pkgId, pdfId) {
 function toggleCategory(headerEl) {
   const group = headerEl.closest('.category-group');
   const body = group?.querySelector('.category-body');
-  if (!body || (window.QLMotion && QLMotion.prefersReduced())) {
+  if (!body || (window.QLMotion && QLMotion.isLite())) {
     group?.classList.toggle('expanded');
+    if (body) body.style.maxHeight = '';
     return;
   }
   const contentHeight = body.scrollHeight;

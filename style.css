@@ -4314,3 +4314,43 @@ body.motion-sheet-open { overflow: hidden; }
   .motion-tooltip,
   .motion-sheet-backdrop { display: none !important; }
 }
+
+/* ============================================================
+   PERFORMANCE GUARD: tự giảm chuyển động khi máy yếu / bị jank
+   ============================================================ */
+html.motion-lite *,
+html.motion-lite *::before,
+html.motion-lite *::after,
+body.motion-lite *,
+body.motion-lite *::before,
+body.motion-lite *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+
+html.motion-lite .motion-tab-indicator,
+html.motion-lite .category-body,
+html.motion-lite .motion-reveal {
+  transition: none !important;
+}
+
+html.motion-lite .btn:active,
+html.motion-lite .btn-icon:active,
+html.motion-lite .nav-tab:active,
+html.motion-lite .scope-btn:active,
+html.motion-lite .btn-ai-float:active {
+  transform: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

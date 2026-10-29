@@ -14,7 +14,7 @@
     : null;
 
   function reduced() {
-    if (window.QLMotion) return window.QLMotion.prefersReduced();
+    if (window.QLMotion) return window.QLMotion.isLite();
     return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   }
 
