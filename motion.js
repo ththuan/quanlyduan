@@ -66,7 +66,7 @@
 
   function formatterFor(kind) {
     if (kind === 'currency') {
-      return function (v) { return Math.round(v).toLocaleString('vi-VN') + ' â‚«'; };
+      return function (v) { return Math.round(v).toLocaleString('vi-VN') + ' \u20ab'; };
     }
     if (kind === 'percent') {
       return function (v) { return (Math.round(v * 10) / 10).toLocaleString('vi-VN') + '%'; };
