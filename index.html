@@ -15,7 +15,7 @@
   <link rel="apple-touch-icon" href="logoCTEC.png">
   <!-- Bundled locally so icon ligatures do not degrade to their raw names when Google Fonts is blocked. -->
   <link href="/assets/material-symbols-rounded.css" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20261101a">
+  <link rel="stylesheet" href="style.css?v=20261101b">
 </head>
 <body>
   <!-- ========== TOP NAVIGATION ========== -->
@@ -345,6 +345,9 @@
     </div>
     <div class="ai-chat-input">
       <input type="text" id="ai-chat-input" placeholder="Nhập câu hỏi..." onkeydown="if(event.key==='Enter')aiSend()">
+      <button class="btn-icon hidden" id="btn-ai-mic" type="button" title="Nhập bằng giọng nói">
+        <span class="material-symbols-rounded">mic</span>
+      </button>
       <button class="btn btn-primary btn-sm" onclick="aiSend()">
         <span class="material-symbols-rounded">send</span>
       </button>
@@ -357,7 +360,7 @@
   <script src="assets/pdf.min.js"></script>
   <script src="motion.js?v=20261029n"></script>
   <script src="motion-ui.js?v=20261029h"></script>
-  <script src="app.js?v=20261029m"></script>
+  <script src="app.js?v=20261101b"></script>
   <script src="workflow-catalog.js?v=20261029c"></script>
   <script src="workflow-ui.js?v=20261029c"></script>
   <script src="legal-ui.js?v=20261029h"></script>

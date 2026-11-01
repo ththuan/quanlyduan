@@ -3196,6 +3196,18 @@ canvas {
 }
 .ai-chat-input input:focus { border-color: var(--accent-cyan); }
 
+#btn-ai-mic.listening {
+  color: #dc2626;
+  background: #fee2e2;
+  border-color: #fecaca;
+  animation: aiMicPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes aiMicPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(220,38,38,0.35); }
+  50% { box-shadow: 0 0 0 6px rgba(220,38,38,0); }
+}
+
 @media (max-width: 600px) {
   .ai-chat-panel {
     right: 8px; bottom: 80px;

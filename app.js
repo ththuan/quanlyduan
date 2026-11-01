@@ -6821,3 +6821,86 @@ async function aiSend(msg) {
   }
   messages.scrollTop = messages.scrollHeight;
 }
+
+// ============================================================
+// AI CHAT - NHẬP BẰNG GIỌNG NÓI (Web Speech API)
+// ============================================================
+const aiMicBtn = document.getElementById('btn-ai-mic');
+const AiSpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+let aiRecog = null;
+let aiMicListening = false;
+let aiMicBaseText = '';
+
+function setAiMicState(listening) {
+  aiMicListening = listening;
+  if (!aiMicBtn) return;
+  aiMicBtn.classList.toggle('listening', listening);
+  aiMicBtn.title = listening ? 'Dừng ghi âm' : 'Nhập bằng giọng nói';
+  const icon = aiMicBtn.querySelector('.material-symbols-rounded');
+  if (icon) icon.textContent = listening ? 'stop_circle' : 'mic';
+}
+
+function initAiVoiceInput() {
+  if (!aiMicBtn) return;
+  if (!AiSpeechRecognition) {
+    aiMicBtn.classList.add('hidden');
+    return;
+  }
+  const input = document.getElementById('ai-chat-input');
+  aiMicBtn.classList.remove('hidden');
+
+  aiRecog = new AiSpeechRecognition();
+  aiRecog.lang = 'vi-VN';
+  aiRecog.continuous = false;
+  aiRecog.interimResults = true;
+  aiRecog.maxAlternatives = 1;
+
+  aiRecog.onstart = function () {
+    aiMicBaseText = input ? input.value.trim() : '';
+    setAiMicState(true);
+  };
+
+  aiRecog.onresult = function (event) {
+    let finalText = '';
+    let interimText = '';
+    for (let i = 0; i < event.results.length; i++) {
+      const result = event.results[i];
+      const transcript = result[0] ? result[0].transcript : '';
+      if (result.isFinal) finalText += transcript;
+      else interimText += transcript;
+    }
+    if (input) {
+      input.value = (aiMicBaseText + ' ' + finalText + (interimText ? ' ' + interimText : '')).replace(/\s+/g, ' ').trim();
+    }
+  };
+
+  aiRecog.onerror = function (event) {
+    if (event.error === 'aborted') return;
+    const messages = {
+      'not-allowed': 'Bạn cần cho phép quyền micro để dùng giọng nói.',
+      'service-not-allowed': 'Trình duyệt đang chặn dịch vụ nhận giọng nói.',
+      'no-speech': 'Không nghe thấy giọng nói, vui lòng thử lại.',
+      'audio-capture': 'Không tìm thấy micro trên thiết bị.',
+      'network': 'Lỗi mạng khi nhận giọng nói.'
+    };
+    showToast(messages[event.error] || 'Không nhận được giọng nói.', 'error');
+  };
+
+  aiRecog.onend = function () {
+    setAiMicState(false);
+  };
+
+  aiMicBtn.addEventListener('click', function () {
+    if (aiMicListening) {
+      try { aiRecog.stop(); } catch (_) { /* bỏ qua */ }
+      return;
+    }
+    try {
+      aiRecog.start();
+    } catch (_) {
+      setAiMicState(false);
+    }
+  });
+}
+
+initAiVoiceInput();
