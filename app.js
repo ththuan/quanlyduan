@@ -6714,10 +6714,14 @@ function openAiChatPanel() {
 }
 document.getElementById('btn-ai-chat')?.addEventListener('click', function() {
   if (aiChatPanelEl.classList.contains('hidden')) openAiChatPanel();
-  else aiChatPanelEl.classList.add('hidden');
+  else {
+    aiChatPanelEl.classList.add('hidden');
+    stopAiVoice(true);
+  }
 });
 document.getElementById('btn-ai-close')?.addEventListener('click', function() {
   aiChatPanelEl.classList.add('hidden');
+  stopAiVoice(true);
 });
 aiFloatHintEl?.addEventListener('click', openAiChatPanel);
 
@@ -6756,6 +6760,7 @@ async function saveAiHistory(messages) {
 }
 
 async function aiSend(msg) {
+  stopAiVoice(true);
   var input = document.getElementById('ai-chat-input');
   var text = msg || input.value.trim();
   if (!text) return;
@@ -6830,6 +6835,7 @@ const AiSpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecog
 let aiRecog = null;
 let aiMicListening = false;
 let aiMicBaseText = '';
+let aiMicAutoStopTimer = null;
 
 function setAiMicState(listening) {
   aiMicListening = listening;
@@ -6838,6 +6844,25 @@ function setAiMicState(listening) {
   aiMicBtn.title = listening ? 'Dừng ghi âm' : 'Nhập bằng giọng nói';
   const icon = aiMicBtn.querySelector('.material-symbols-rounded');
   if (icon) icon.textContent = listening ? 'stop_circle' : 'mic';
+}
+
+function clearAiMicTimer() {
+  if (aiMicAutoStopTimer) {
+    clearTimeout(aiMicAutoStopTimer);
+    aiMicAutoStopTimer = null;
+  }
+}
+
+function stopAiVoice(abort) {
+  const recog = aiRecog;
+  clearAiMicTimer();
+  if (recog) {
+    try { abort ? recog.abort() : recog.stop(); } catch (_) { /* bỏ qua */ }
+  }
+  if (abort) {
+    aiRecog = null;
+    setAiMicState(false);
+  }
 }
 
 function initAiVoiceInput() {
@@ -6849,58 +6874,72 @@ function initAiVoiceInput() {
   const input = document.getElementById('ai-chat-input');
   aiMicBtn.classList.remove('hidden');
 
-  aiRecog = new AiSpeechRecognition();
-  aiRecog.lang = 'vi-VN';
-  aiRecog.continuous = false;
-  aiRecog.interimResults = true;
-  aiRecog.maxAlternatives = 1;
-
-  aiRecog.onstart = function () {
-    aiMicBaseText = input ? input.value.trim() : '';
-    setAiMicState(true);
-  };
-
-  aiRecog.onresult = function (event) {
-    let finalText = '';
-    let interimText = '';
-    for (let i = 0; i < event.results.length; i++) {
-      const result = event.results[i];
-      const transcript = result[0] ? result[0].transcript : '';
-      if (result.isFinal) finalText += transcript;
-      else interimText += transcript;
-    }
-    if (input) {
-      input.value = (aiMicBaseText + ' ' + finalText + (interimText ? ' ' + interimText : '')).replace(/\s+/g, ' ').trim();
-    }
-  };
-
-  aiRecog.onerror = function (event) {
-    if (event.error === 'aborted') return;
-    const messages = {
-      'not-allowed': 'Bạn cần cho phép quyền micro để dùng giọng nói.',
-      'service-not-allowed': 'Trình duyệt đang chặn dịch vụ nhận giọng nói.',
-      'no-speech': 'Không nghe thấy giọng nói, vui lòng thử lại.',
-      'audio-capture': 'Không tìm thấy micro trên thiết bị.',
-      'network': 'Lỗi mạng khi nhận giọng nói.'
-    };
-    showToast(messages[event.error] || 'Không nhận được giọng nói.', 'error');
-  };
-
-  aiRecog.onend = function () {
-    setAiMicState(false);
-  };
-
   aiMicBtn.addEventListener('click', function () {
-    if (aiMicListening) {
-      try { aiRecog.stop(); } catch (_) { /* bỏ qua */ }
+    if (aiRecog) {
+      stopAiVoice(false);
       return;
     }
+    const recog = new AiSpeechRecognition();
+    recog.lang = 'vi-VN';
+    recog.continuous = false;
+    recog.interimResults = true;
+    recog.maxAlternatives = 1;
+    aiRecog = recog;
+
+    recog.onstart = function () {
+      aiMicBaseText = input ? input.value.trim() : '';
+      setAiMicState(true);
+      clearAiMicTimer();
+      aiMicAutoStopTimer = setTimeout(function () {
+        if (aiRecog === recog) stopAiVoice(false);
+      }, 60000);
+    };
+
+    recog.onresult = function (event) {
+      let finalText = '';
+      let interimText = '';
+      for (let i = 0; i < event.results.length; i++) {
+        const result = event.results[i];
+        const transcript = result[0] ? result[0].transcript : '';
+        if (result.isFinal) finalText += transcript;
+        else interimText += transcript;
+      }
+      if (input) {
+        input.value = (aiMicBaseText + ' ' + finalText + (interimText ? ' ' + interimText : '')).replace(/\s+/g, ' ').trim();
+      }
+    };
+
+    recog.onerror = function (event) {
+      if (event.error === 'aborted') return;
+      const messages = {
+        'not-allowed': 'Bạn cần cho phép quyền micro để dùng giọng nói.',
+        'service-not-allowed': 'Trình duyệt đang chặn dịch vụ nhận giọng nói.',
+        'no-speech': 'Không nghe thấy giọng nói, vui lòng thử lại.',
+        'audio-capture': 'Không tìm thấy micro trên thiết bị.',
+        'network': 'Lỗi mạng khi nhận giọng nói.'
+      };
+      showToast(messages[event.error] || 'Không nhận được giọng nói.', 'error');
+    };
+
+    recog.onend = function () {
+      if (aiRecog === recog) aiRecog = null;
+      clearAiMicTimer();
+      setAiMicState(false);
+    };
+
     try {
-      aiRecog.start();
+      recog.start();
     } catch (_) {
+      if (aiRecog === recog) aiRecog = null;
+      clearAiMicTimer();
       setAiMicState(false);
     }
   });
+
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) stopAiVoice(true);
+  });
+  window.addEventListener('pagehide', function () { stopAiVoice(true); });
 }
 
 initAiVoiceInput();
