@@ -6708,6 +6708,8 @@ window.addEventListener('resize', () => {
 // ============================================================
 const aiChatPanelEl = document.getElementById('ai-chat-panel');
 const aiFloatHintEl = document.getElementById('ai-float-hint');
+const aiChatMessagesEl = document.getElementById('ai-chat-messages');
+const aiChatGreetingHtml = aiChatMessagesEl ? aiChatMessagesEl.innerHTML : '';
 function openAiChatPanel() {
   aiChatPanelEl?.classList.remove('hidden');
   aiFloatHintEl?.classList.add('hidden');
@@ -6716,14 +6718,29 @@ document.getElementById('btn-ai-chat')?.addEventListener('click', function() {
   if (aiChatPanelEl.classList.contains('hidden')) openAiChatPanel();
   else {
     aiChatPanelEl.classList.add('hidden');
-    stopAiVoice(true);
+    resetAiChat();
   }
 });
 document.getElementById('btn-ai-close')?.addEventListener('click', function() {
   aiChatPanelEl.classList.add('hidden');
-  stopAiVoice(true);
+  resetAiChat();
 });
 aiFloatHintEl?.addEventListener('click', openAiChatPanel);
+
+function resetAiChat() {
+  stopAiVoice(true);
+  if (aiChatMessagesEl) {
+    aiChatMessagesEl.innerHTML = aiChatGreetingHtml;
+    aiChatMessagesEl.scrollTop = 0;
+  }
+  const input = document.getElementById('ai-chat-input');
+  if (input) input.value = '';
+  aiHistory = [];
+  aiHistoryLoaded = true;
+  try {
+    fetch('/api/ai/history?channel=' + AI_CHANNEL, { method: 'DELETE' }).catch(function () {});
+  } catch (_) { /* bỏ qua */ }
+}
 
 var aiHistory = [];
 var aiHistoryLoaded = false;
